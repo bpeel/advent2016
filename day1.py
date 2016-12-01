@@ -31,7 +31,7 @@ for inst in dirs:
 
         pos = [pos_x, pos_y]
 
-        if visits.count(pos) > 0:
+        if pos in visits:
             found = True
             break
 
