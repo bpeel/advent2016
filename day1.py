@@ -6,6 +6,8 @@ direction = 0
 pos_x = 0
 pos_y = 0
 
+visits = []
+
 for inst in dirs:
     if inst[0] == 'R':
         direction = (direction + 1) % 4
@@ -15,12 +17,28 @@ for inst in dirs:
     steps = int(inst[1:])
 
     if (direction & 2) != 0:
-        steps = -steps
-
-    if (direction & 1) == 0:
-        pos_y += steps
+        delta = -1
     else:
-        pos_x += steps
+        delta = 1
+
+    found = False
+
+    for i in range(steps):
+        if (direction & 1) == 0:
+            pos_y += delta
+        else:
+            pos_x += delta
+
+        pos = [pos_x, pos_y]
+
+        if visits.count(pos) > 0:
+            found = True
+            break
+
+        visits.append(pos)
+
+    if found:
+        break
 
 print(pos_x)
 print(pos_y)
