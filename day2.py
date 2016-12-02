@@ -1,4 +1,3 @@
-import re
 import sys
 
 def triangle(n):
