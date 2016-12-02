@@ -29,4 +29,4 @@ for line in sys.stdin:
             pos_x += 1
     print(table[(pos_y + RANGE) * (RANGE * 2 + 1) + pos_x + RANGE], end='')
 
-    
+print()
