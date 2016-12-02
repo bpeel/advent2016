@@ -1,18 +1,15 @@
 import re
 import sys
 
+def triangle(n):
+    # Not really a triangle number because each new row adds 2 not 1
+    return n * n
+
 RANGE = 2
+N_KEYS = triangle(RANGE) * 2 + RANGE * 2 + 1
 
 pos_x = -2
 pos_y = 0
-
-table = (
-    "**1**"
-    "*234*"
-    "56789"
-    "*ABC*"
-    "**D**"
-)
 
 def valid(n, other):
     return abs(n) <= RANGE and abs(other) <= RANGE - abs(n)
@@ -27,6 +24,14 @@ for line in sys.stdin:
             pos_x -= 1
         elif ch == "R" and valid(pos_x + 1, pos_y):
             pos_x += 1
-    print(table[(pos_y + RANGE) * (RANGE * 2 + 1) + pos_x + RANGE], end='')
+
+    if pos_y <= 0:
+        num = triangle(RANGE + pos_y)
+    else:
+        num = N_KEYS - triangle(RANGE - pos_y + 1)
+
+    num += pos_x + RANGE + 1 - abs(pos_y)
+
+    print(hex(num)[2:], end='')
 
 print()
