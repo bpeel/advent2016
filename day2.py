@@ -1,6 +1,8 @@
 import re
 import sys
 
+RANGE = 2
+
 pos_x = -2
 pos_y = 0
 
@@ -13,7 +15,7 @@ table = (
 )
 
 def valid(n, other):
-    return abs(n) <= 2 and abs(other) <= 2 - abs(n)
+    return abs(n) <= RANGE and abs(other) <= RANGE - abs(n)
 
 for line in sys.stdin:
     for ch in line:
@@ -25,6 +27,6 @@ for line in sys.stdin:
             pos_x -= 1
         elif ch == "R" and valid(pos_x + 1, pos_y):
             pos_x += 1
-    print(table[(pos_y + 2) * 5 + pos_x + 2], end='')
+    print(table[(pos_y + RANGE) * (RANGE * 2 + 1) + pos_x + RANGE], end='')
 
     
