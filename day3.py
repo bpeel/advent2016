@@ -1,42 +1,21 @@
-import re
 import sys
 
-count = 0
+def valid_triangle(tri):
+    for i, side in enumerate(tri):
+        if tri[(i + 1) % 3] + tri[(i + 2) % 3] <= side:
+            return False
 
-triangles = []
-num = 0
-accum = []
+    return True
 
-for line in sys.stdin:
-    parts = list(map(int, line.split()))
+def count_triangles(tris):
+    return sum(valid_triangle(tri) for tri in tris)
 
-    if num == 0:
-        accum = [[], [], []]
+def rotate_triangle_list(tris):
+    for y in range(0, len(tris), 3):
+        for x in range(3):
+            yield [tris[y + i][x] for i in range(3)]
 
-    for i in range(len(parts)):
-        accum[i].append(parts[i])
+triangles_in_rows = [[int(x) for x in line.split()] for line in sys.stdin]
 
-    num += 1
-
-    if num == 3:
-        for p in accum:
-            triangles.append(p)
-        num = 0
-
-for parts in triangles:
-    good = True
-    
-    for i in range(len(parts)):
-        s = 0
-        for j in range(len(parts)):
-            if i != j:
-                s += parts[j]
-        if s <= parts[i]:
-            good = False
-            break
-
-    if good:
-        count += 1
-
-print(count)
-    
+print("Part 1:", count_triangles(triangles_in_rows))
+print("Part 2:", count_triangles(rotate_triangle_list(triangles_in_rows)))
