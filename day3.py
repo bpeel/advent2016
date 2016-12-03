@@ -1,11 +1,7 @@
 import sys
 
 def valid_triangle(tri):
-    for i, side in enumerate(tri):
-        if tri[(i + 1) % 3] + tri[(i + 2) % 3] <= side:
-            return False
-
-    return True
+    return sum(tri) > max(tri) * 2
 
 def count_triangles(tris):
     return sum(valid_triangle(tri) for tri in tris)
