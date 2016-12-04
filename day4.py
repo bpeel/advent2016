@@ -2,6 +2,7 @@ import sys
 import re
 
 total = 0
+northpole_object_storage = "?"
 
 def decrypt(letter, shift):
     if letter < "a" or letter > "z":
@@ -38,4 +39,9 @@ for line in sys.stdin:
 
     print(dn, sector, check, s)
 
-print(total)
+    if dn == "northpole-object-storage":
+        northpole_object_storage = sector
+
+print()
+print("Part 1", total)
+print("Part 2", northpole_object_storage)
