@@ -22,13 +22,13 @@ hexdigit(int digit)
 int
 main(int argc, char **argv)
 {
-        int num_len, room_name_len, part1_len = 0;
+        int num_len, part1_len = 0;
         uint8_t hash[MD5_DIGEST_LENGTH];
         char part1[PASSWORD_LENGTH + 1];
         char part2[PASSWORD_LENGTH + 1];
         const char *room_name;
         char numbuf[32];
-        MD5_CTX md5_ctx;
+        MD5_CTX md5_ctx, md5_ctx_base;
         int mask = 0;
         int num = 0;
         int pos;
@@ -39,7 +39,9 @@ main(int argc, char **argv)
         }
 
         room_name = argv[1];
-        room_name_len = strlen(room_name);
+
+        MD5_Init(&md5_ctx_base);
+        MD5_Update(&md5_ctx_base, room_name, strlen(room_name));
 
         init_password(part1);
         init_password(part2);
@@ -48,8 +50,7 @@ main(int argc, char **argv)
                 num_len = sprintf(numbuf, "%i", num);
                 num++;
 
-                MD5_Init(&md5_ctx);
-                MD5_Update(&md5_ctx, room_name, room_name_len);
+                md5_ctx = md5_ctx_base;
                 MD5_Update(&md5_ctx, numbuf, num_len);
                 MD5_Final(hash, &md5_ctx);
 
