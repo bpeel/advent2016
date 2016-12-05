@@ -1,10 +1,10 @@
 import sys
-import re
 import hashlib
 
 prefix = 'ugkcyxxp'
 
-password = [" "] * 8
+part1 = ""
+part2 = [" "] * 8
 
 index = 0
 mask = 0
@@ -22,10 +22,16 @@ while mask < 255:
 
     pos = d[2] & 0xf
 
-    if pos >= 8 or (mask & (1 << pos)) != 0:
-        continue
+    if len(part1) < 8:
+        part1 += hex(pos)[2]
 
-    mask |= (1 << pos)
+    if pos < 8 and (mask & (1 << pos)) == 0:
+        mask |= (1 << pos)
 
-    password[pos] = hex(d[3] >> 4)[2]
-    print("".join(password))
+        part2[pos] = hex(d[3] >> 4)[2]
+
+    print("\rPart 1: {:8s}  Part2: {} ".format(part1, "".join(part2)),
+          end='')
+    sys.stdout.flush()
+
+print()
