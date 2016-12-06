@@ -11,11 +11,11 @@ for line in sys.stdin:
     for i, ch in enumerate(line):
         frequencies[i][ch] = frequencies[i].get(ch, 0) + 1
 
-def get_most_frequent(letters):
-    return max(letters, key=lambda x: letters[x])
+def get_word(frequencies, pick_letter_func):
+    def get_letter(letters):
+        return pick_letter_func(letters, key=lambda x: letters[x])
 
-def get_least_frequent(letters):
-    return min(letters, key=lambda x: letters[x])
+    return "".join(map(get_letter, frequencies))
 
-print("Part 1: ", "".join(map(get_most_frequent, frequencies)))
-print("Part 2: ", "".join(map(get_least_frequent, frequencies)))
+print("Part 1: ", get_word(frequencies, max))
+print("Part 2: ", get_word(frequencies, min))
