@@ -1,7 +1,7 @@
 import sys
 import re
 
-def get_function(sources, exp):
+def get_function(sources, cache, exp):
     md = re.match(r'([0-9]+)$', exp)
     if md:
         value = int(md.group(1))
@@ -9,11 +9,17 @@ def get_function(sources, exp):
     md = re.match(r'([a-z]+)$', exp)
     if md:
         value = md.group(1)
-        return lambda: sources[value]()
+        def func():
+            if value in cache:
+                return cache[value]
+            r = sources[value]()
+            cache[value] = r
+            return r
+        return func
     md = re.match(r'([a-z0-9]+) ([A-Z]+) ([a-z0-9]+)$', exp)
     if md:
-        a = get_function(sources, md.group(1))
-        b = get_function(sources, md.group(3))
+        a = get_function(sources, cache, md.group(1))
+        b = get_function(sources, cache, md.group(3))
         op = md.group(2)
 
         if op == "AND":
@@ -26,14 +32,15 @@ def get_function(sources, exp):
             return lambda: a() >> b()
     md = re.match(r'NOT ([a-z0-9]+)$', exp)
     if md:
-        a = get_function(sources, md.group(1))
+        a = get_function(sources, cache, md.group(1))
         return lambda: ~a()
     raise ValueError("Unknown expression: " + exp)
 
 sources = {}
+cache = {}
 
 for line in sys.stdin:
     md = re.match(r'(.*?) -> ([a-z]+)$', line)
-    sources[md.group(2)] = get_function(sources, md.group(1))
+    sources[md.group(2)] = get_function(sources, cache, md.group(1))
         
 print("Part 1: ", sources["a"]())
