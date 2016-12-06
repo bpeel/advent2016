@@ -14,4 +14,8 @@ for line in sys.stdin:
 def get_most_frequent(letters):
     return max(letters, key=lambda x: letters[x])
 
-print("".join(map(get_most_frequent, frequencies)))
+def get_least_frequent(letters):
+    return min(letters, key=lambda x: letters[x])
+
+print("Part 1: ", "".join(map(get_most_frequent, frequencies)))
+print("Part 2: ", "".join(map(get_least_frequent, frequencies)))
