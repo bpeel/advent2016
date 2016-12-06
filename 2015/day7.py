@@ -42,5 +42,10 @@ cache = {}
 for line in sys.stdin:
     md = re.match(r'(.*?) -> ([a-z]+)$', line)
     sources[md.group(2)] = get_function(sources, cache, md.group(1))
-        
-print("Part 1: ", sources["a"]())
+
+part1 = sources["a"]()
+print("Part 1: ", part1)
+
+cache.clear()
+sources["b"] = lambda: part1
+print("Part 2: ", sources["a"]())
