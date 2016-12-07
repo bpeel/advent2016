@@ -20,12 +20,10 @@ def hypernet_has_bab(s, bab):
 
 def has_ssl(s):
     for outside in re.split(r'\[.*?\]', s):
-        for i in range(len(outside) - 2):
-            if outside[i] != outside[i + 2] or outside[i + 1] == outside[i]:
-                continue
+        for md in re.finditer(r'(?=((.)(?!\2).\2))', outside):
+            aba = md.group(1)
 
-            if hypernet_has_bab(s,
-                                outside[i + 1] + outside[i] + outside[i + 1]):
+            if hypernet_has_bab(s, aba[1] + aba[0] + aba[1]):
                 return True
 
     return False
