@@ -13,11 +13,18 @@ def has_pair(s):
     return False
 
 def valid(s):
-    for b in re.finditer(r'\[.*?\]', s):
-        if has_pair(b.group(0)):
-            print("Not " + s)
-            return False
+    outside = re.sub(r'\[.*?\]', '', s)
 
-    return has_pair(s)
+    for i in range(len(outside) - 2):
+        if outside[i] != outside[i + 2] or outside[i + 1] == outside[i]:
+            continue
+
+        for c in re.finditer(r'\[.*?\]', s):
+            c = c.group(0)
+
+            if re.search(outside[i + 1] + outside[i] + outside[i + 1], c):
+                return True
+
+    return False
 
 print(sum(map(valid, sys.stdin)))
