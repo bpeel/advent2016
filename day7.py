@@ -1,19 +1,19 @@
 import sys
 import re
 
-def has_pair(s):
+def has_abba(s):
     return re.search(r'(.)(?!\1)(.)\2\1', s) != None
 
 def has_tls(s):
-    for b in re.finditer(r'\[.*?\]', s):
-        if has_pair(b.group(0)):
+    for md in re.finditer(r'\[.*?\]', s):
+        if has_abba(md.group(0)):
             return False
 
-    return has_pair(s)
+    return has_abba(s)
 
-def has_bab(s, bab):
-    for c in re.finditer(r'\[.*?\]', s):
-        if c.group(0).find(bab) != -1:
+def hypernet_has_bab(s, bab):
+    for md in re.finditer(r'\[.*?\]', s):
+        if md.group(0).find(bab) != -1:
             return True
 
     return False
@@ -24,7 +24,8 @@ def has_ssl(s):
             if outside[i] != outside[i + 2] or outside[i + 1] == outside[i]:
                 continue
 
-            if has_bab(s, outside[i + 1] + outside[i] + outside[i + 1]):
+            if hypernet_has_bab(s,
+                                outside[i + 1] + outside[i] + outside[i + 1]):
                 return True
 
     return False
