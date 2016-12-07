@@ -11,17 +11,20 @@ def has_tls(s):
 
     return has_pair(s)
 
+def has_bab(s, bab):
+    for c in re.finditer(r'\[.*?\]', s):
+        if c.group(0).find(bab) != -1:
+            return True
+
+    return False
+
 def has_ssl(s):
-    outside = re.sub(r'\[.*?\]', '', s)
+    for outside in re.split(r'\[.*?\]', s):
+        for i in range(len(outside) - 2):
+            if outside[i] != outside[i + 2] or outside[i + 1] == outside[i]:
+                continue
 
-    for i in range(len(outside) - 2):
-        if outside[i] != outside[i + 2] or outside[i + 1] == outside[i]:
-            continue
-
-        for c in re.finditer(r'\[.*?\]', s):
-            c = c.group(0)
-
-            if c.find(outside[i + 1] + outside[i] + outside[i + 1]) != -1:
+            if has_bab(s, outside[i + 1] + outside[i] + outside[i + 1]):
                 return True
 
     return False
