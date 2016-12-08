@@ -235,5 +235,8 @@ main(int argc, char **argv)
                 }
         }
 
+        for (i = 0; i < 60; i++)
+                write_normal_frame(stdout, pixels);
+
         return 0;
 }
