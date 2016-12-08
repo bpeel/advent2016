@@ -39,8 +39,7 @@ write_rotated_row(FILE *out,
                   int row,
                   int amount)
 {
-        uint8_t first_pixel = pixels[row * WIDTH];
-        uint8_t last_pixel = pixels[HEIGHT - 1 + row * WIDTH];
+        uint8_t last_pixel = pixels[WIDTH - 1 + row * WIDTH];
         int y, x;
 
         for (y = 0; y < PIXEL_SIZE * ROW_SCALE; y++) {
@@ -48,7 +47,7 @@ write_rotated_row(FILE *out,
                         write_pixel(out, last_pixel);
                 write_row_line(out, pixels + row * WIDTH, WIDTH - 1);
                 for (x = 0; x < PIXEL_SIZE - amount; x++)
-                        write_pixel(out, first_pixel);
+                        write_pixel(out, last_pixel);
         }
 }
 
