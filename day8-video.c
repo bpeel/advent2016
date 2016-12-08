@@ -8,7 +8,9 @@
 #define HEIGHT 6
 #define PIXEL_SIZE 2
 #define FRAMES_PER_STEP 1
-#define ROW_SCALE 8
+
+#define X_SCALE 4
+#define Y_SCALE 8
 
 static void
 write_pixel(FILE *out,
@@ -18,7 +20,7 @@ write_pixel(FILE *out,
         static const uint8_t off[] = { 0, 0, 0 };
         int i;
 
-        for (i = 0; i < 4; i++)
+        for (i = 0; i < X_SCALE; i++)
                 fwrite(pixel ? on : off, 1, sizeof on, out);
 }
 
@@ -44,7 +46,7 @@ write_rotated_row(FILE *out,
         uint8_t last_pixel = pixels[WIDTH - 1 + row * WIDTH];
         int y, x;
 
-        for (y = 0; y < PIXEL_SIZE * ROW_SCALE; y++) {
+        for (y = 0; y < PIXEL_SIZE * Y_SCALE; y++) {
                 for (x = 0; x < amount; x++)
                         write_pixel(out, last_pixel);
                 write_row_line(out, pixels + row * WIDTH, WIDTH - 1);
@@ -60,7 +62,7 @@ write_row(FILE *out,
 {
         int y;
 
-        for (y = 0; y < PIXEL_SIZE * ROW_SCALE; y++)
+        for (y = 0; y < PIXEL_SIZE * Y_SCALE; y++)
                 write_row_line(out, pixels + row * WIDTH, WIDTH);
 }
 
@@ -139,7 +141,7 @@ write_rotated_column_frame(FILE *out,
                                 column_pixel = prev_pixel;
                         else
                                 column_pixel = this_pixel;
-                        for (r = 0; r < ROW_SCALE; r++) {
+                        for (r = 0; r < Y_SCALE; r++) {
                                 write_rotated_column_row(out,
                                                          pixels,
                                                          column,
