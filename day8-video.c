@@ -6,9 +6,9 @@
 
 #define WIDTH 50
 #define HEIGHT 6
-#define PIXEL_SIZE 8
+#define PIXEL_SIZE 2
 #define FRAMES_PER_STEP 1
-#define ROW_SCALE 2
+#define ROW_SCALE 8
 
 static void
 write_pixel(FILE *out,
@@ -16,8 +16,10 @@ write_pixel(FILE *out,
 {
         static const uint8_t on[] = { 255, 0, 0 };
         static const uint8_t off[] = { 0, 0, 0 };
+        int i;
 
-        fwrite(pixel ? on : off, 1, sizeof on, out);
+        for (i = 0; i < 4; i++)
+                fwrite(pixel ? on : off, 1, sizeof on, out);
 }
 
 static void
