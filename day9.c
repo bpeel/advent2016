@@ -6,8 +6,6 @@
 #include <stdbool.h>
 #include <ctype.h>
 
-#define BUF_SIZE 512
-
 static ssize_t
 strip_spaces(char *buf, ssize_t len)
 {
@@ -61,9 +59,9 @@ process_bracket(const char *buf, ssize_t len)
         p++;
 
         if (end - p < str_len)
-                return 0;
+                return -(p - buf + str_len);
 
-        for (i = 0; i < str_len; i++)
+        for (i = 0; i < repeat_count; i++)
                 fwrite(p, 1, str_len, stdout);
 
         return p - buf + str_len;
@@ -73,12 +71,13 @@ int
 main(int argc, char **argv)
 {
         int buf_len = 0;
-        char buf[BUF_SIZE];
+        size_t buf_size = 512;
+        char *buf = malloc(buf_size);
         const char *p, *bracket;
         ssize_t got;
 
         while (true) {
-                got = read(STDIN_FILENO, buf + buf_len, BUF_SIZE - buf_len);
+                got = read(STDIN_FILENO, buf + buf_len, buf_size - buf_len);
 
                 if (got <= 0)
                         break;
@@ -102,8 +101,15 @@ main(int argc, char **argv)
                         p = bracket;
 
                         got = process_bracket(p, buf + buf_len - p);
-                        if (got <= 0)
+                        if (got <= 0) {
+                                got = -got;
+
+                                if (got > buf_size) {
+                                        buf_size = got;
+                                        buf = realloc(buf, buf_size);
+                                }
                                 break;
+                        }
 
                         p += got;
                 }
@@ -111,6 +117,8 @@ main(int argc, char **argv)
                 memmove(buf, p, buf + buf_len - p);
                 buf_len = buf + buf_len - p;
         }
+
+        free(buf);
 
         return 0;
 }
