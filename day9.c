@@ -6,119 +6,151 @@
 #include <stdbool.h>
 #include <ctype.h>
 
-static ssize_t
-strip_spaces(char *buf, ssize_t len)
+struct stack_entry {
+        size_t length;
+        size_t remaining;
+        int multiplier;
+        struct stack_entry *next;
+};
+
+struct stack {
+        struct stack_entry *top;
+};
+
+static int
+get_character(void)
 {
-        char *out = buf, *in;
+        int ch;
 
-        for (in = buf; in < buf + len; in++) {
-                if (!isspace(*in))
-                        *(out++) = *in;
-        }
+        do
+                ch = fgetc(stdin);
+        while (ch != EOF && isspace(ch));
 
-        return out - buf;
+        return ch;
 }
 
-static ssize_t
-parse_number(const char *buf, ssize_t len, int *result)
+static int
+parse_number(int *result)
 {
-        const char *p = buf;
         int value = 0;
+        int count = 0;
+        int ch;
 
-        while (len > 0 && *p >= '0' && *p <= '9') {
-                value = value * 10 + *p - '0';
-                p++;
-                len--;
+        while (true) {
+                ch = get_character();
+                if (ch == EOF)
+                        break;
+                if (ch < '0' || ch > '9') {
+                        ungetc(ch, stdin);
+                        break;
+                }
+                value = value * 10 + ch - '0';
+                count++;
         }
 
         *result = value;
 
-        return p - buf;
+        return count;
 }
 
 static ssize_t
-process_bracket(const char *buf, ssize_t len)
+process_bracket(int *str_len,
+                int *repeat_count)
 {
-        const char *p = buf, *end = buf + len;
-        int repeat_count, str_len, i;
+        int count = 0;
+        int ch;
 
-        if (end <= p || *p != '(')
-                return 0;
-        p++;
+        ch = get_character();
+        if (ch != '(')
+                return count;
+        count++;
 
-        p += parse_number(p, end - p, &str_len);
+        count += parse_number(str_len);
 
-        if (end <= p || *p != 'x')
-                return 0;
-        p++;
+        ch = get_character();
+        if (ch != 'x')
+                return count;
+        count++;
 
-        p += parse_number(p, end - p, &repeat_count);
+        count += parse_number(repeat_count);
 
-        if (end <= p || *p != ')')
-                return 0;
-        p++;
+        ch = get_character();
+        if (ch != ')')
+                return count;
+        count++;
 
-        if (end - p < str_len)
-                return -(p - buf + str_len);
+        return count;
+}
 
-        for (i = 0; i < repeat_count; i++)
-                fwrite(p, 1, str_len, stdout);
+static void
+stack_push(struct stack *stack,
+           size_t bracket_length,
+           size_t length,
+           size_t multiplier)
+{
+        struct stack_entry *entry = malloc(sizeof (struct stack_entry));
 
-        return p - buf + str_len;
+        entry->length = bracket_length + length;
+        entry->remaining = length;
+        entry->multiplier = multiplier;
+
+        entry->next = stack->top;
+        stack->top = entry;
+}
+
+static void
+stack_pop(struct stack *stack)
+{
+        struct stack_entry *next = stack->top->next;
+
+        free(stack->top);
+        stack->top = next;
 }
 
 int
 main(int argc, char **argv)
 {
-        int buf_len = 0;
-        size_t buf_size = 512;
-        char *buf = malloc(buf_size);
-        const char *p, *bracket;
-        ssize_t got;
+        struct stack stack = { .top = NULL };
+        int multiplier = 1;
+        size_t count = 0;
+        int str_len, repeat_count;
+        int got;
+        int ch;
+
+        stack_push(&stack, 0, SIZE_MAX, 1);
 
         while (true) {
-                got = read(STDIN_FILENO, buf + buf_len, buf_size - buf_len);
+                ch = get_character();
 
-                if (got <= 0)
+                if (ch == EOF)
                         break;
 
-                got = strip_spaces(buf + buf_len, got);
+                if (ch == '(') {
+                        ungetc(ch, stdin);
+                        got = process_bracket(&str_len, &repeat_count);
+                        stack_push(&stack, got, str_len, repeat_count);
+                        multiplier *= repeat_count;
+                } else {
+                        count += multiplier;
 
-                buf_len += got;
+                        got = 1;
 
-                p = buf;
+                        while (true) {
+                                stack.top->remaining -= got;
 
-                while (true) {
-                        bracket = memchr(p, '(', buf + buf_len - p);
+                                if (stack.top->remaining > 0)
+                                        break;
 
-                        if (bracket == NULL) {
-                                fwrite(p, 1, buf + buf_len - p, stdout);
-                                p = buf + buf_len;
-                                break;
+                                got = stack.top->length;
+                                multiplier /= stack.top->multiplier;
+                                stack_pop(&stack);
                         }
-
-                        fwrite(p, 1, bracket - p, stdout);
-                        p = bracket;
-
-                        got = process_bracket(p, buf + buf_len - p);
-                        if (got <= 0) {
-                                got = -got;
-
-                                if (got > buf_size) {
-                                        buf_size = got;
-                                        buf = realloc(buf, buf_size);
-                                }
-                                break;
-                        }
-
-                        p += got;
                 }
-
-                memmove(buf, p, buf + buf_len - p);
-                buf_len = buf + buf_len - p;
         }
 
-        free(buf);
+        stack_pop(&stack);
+
+        printf("%li\n", count);
 
         return 0;
 }
