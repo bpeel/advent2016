@@ -75,6 +75,10 @@ initial_state =
         STATE_SET_OBJECT_FLOOR(0, 8, 2) |
         STATE_SET_OBJECT_FLOOR(0, 9, 2);
 
+static const state_t
+win_state =
+        (1 << ((N_OBJECTS + 1) * 2)) - 1;
+
 static bool
 floor_contains_generator(state_t state,
                          int floor)
@@ -94,15 +98,8 @@ analyse_state(state_t state)
 {
         int floor, object_num;
 
-        /* Check for a win condition (everything on the top floor) */
-        for (object_num = 0; object_num < N_OBJECTS; object_num++) {
-                if (STATE_OBJECT_FLOOR(state, object_num) != N_FLOORS)
-                        goto not_win;
-        }
-
-        return STATE_RESULT_WIN;
-
-not_win:
+        if (state == win_state)
+                return STATE_RESULT_WIN;
 
         /* Check if any of the floors are instable */
         for (floor = 0; floor < N_FLOORS; floor++) {
