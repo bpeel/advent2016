@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#define N_OBJECTS 4
+#define N_OBJECTS 10
 #define N_FLOORS 4
 
 enum state_result {
@@ -60,14 +60,20 @@ struct solver {
 };
 
 static const char
-object_names[] = "HL";
+object_names[] = "SPTRC";
 
 static const state_t
 initial_state =
-        (1 << (0 * 2)) |
-        (0 << (1 * 2)) |
-        (2 << (2 * 2)) |
-        (0 << (3 * 2));
+        STATE_SET_OBJECT_FLOOR(0, 0, 1) |
+        STATE_SET_OBJECT_FLOOR(0, 1, 1) |
+        STATE_SET_OBJECT_FLOOR(0, 2, 1) |
+        STATE_SET_OBJECT_FLOOR(0, 3, 1) |
+        STATE_SET_OBJECT_FLOOR(0, 4, 2) |
+        STATE_SET_OBJECT_FLOOR(0, 5, 3) |
+        STATE_SET_OBJECT_FLOOR(0, 6, 2) |
+        STATE_SET_OBJECT_FLOOR(0, 7, 2) |
+        STATE_SET_OBJECT_FLOOR(0, 8, 2) |
+        STATE_SET_OBJECT_FLOOR(0, 9, 2);
 
 static bool
 floor_contains_generator(state_t state,
