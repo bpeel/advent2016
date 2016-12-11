@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <stdint.h>
+#include <string.h>
 
 #define N_OBJECTS 4
 #define N_FLOORS 4
@@ -191,10 +192,11 @@ add_state_to_history(struct solver *solver,
                      state_t state)
 {
         struct history_entry *entry;
-        int i;
+        int min = 0, max = solver->history_length, mid;
 
-        for (i = 0; i < solver->history_length; i++) {
-                entry = solver->history_entries + i;
+        while (min < max) {
+                mid = (min + max) / 2;
+                entry = solver->history_entries + mid;
 
                 if (entry->state == state) {
                         if (entry->depth > solver->stack_length) {
@@ -203,6 +205,10 @@ add_state_to_history(struct solver *solver,
                         } else {
                                 return false;
                         }
+                } else if (entry->state < state) {
+                        min = mid + 1;
+                } else {
+                        max = mid;
                 }
         }
 
@@ -214,9 +220,14 @@ add_state_to_history(struct solver *solver,
                                 solver->history_size);
         }
 
-        entry = solver->history_entries + solver->history_length++;
+        memmove(solver->history_entries + min + 1,
+                solver->history_entries + min,
+                (solver->history_length - min) * sizeof (struct history_entry));
+
+        entry = solver->history_entries + min;
         entry->state = state;
         entry->depth = solver->stack_length;
+        solver->history_length++;
 
         return true;
 }
