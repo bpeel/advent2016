@@ -41,10 +41,19 @@ struct stack_entry {
         struct state state;
 };
 
-struct stack {
-        int size;
-        int length;
-        struct stack_entry *entries;
+struct history_entry {
+        int depth;
+        struct state state;
+};
+
+struct solver {
+        int stack_size;
+        int stack_length;
+        struct stack_entry *stack_entries;
+
+        int history_size;
+        int history_length;
+        struct history_entry *history_entries;
 };
 
 const struct state
@@ -221,21 +230,42 @@ apply_move(struct state *state,
 }
 
 static bool
-state_in_stack(const struct stack *stack,
-               const struct state *state)
+add_state_to_history(struct solver *solver,
+                     const struct state *state)
 {
+        struct history_entry *entry;
         int i;
 
-        for (i = 0; i < stack->length; i++) {
-                if (state_equal(&stack->entries[i].state, state))
-                        return true;
+        for (i = 0; i < solver->history_length; i++) {
+                entry = solver->history_entries + i;
+
+                if (state_equal(&entry->state, state)) {
+                        if (entry->depth > solver->stack_length) {
+                                entry->depth = solver->stack_length;
+                                return true;
+                        } else {
+                                return false;
+                        }
+                }
         }
 
-        return false;
+        if (solver->history_length >= solver->history_size) {
+                solver->history_size *= 2;
+                solver->history_entries =
+                        realloc(solver->history_entries,
+                                sizeof (struct history_entry) *
+                                solver->history_size);
+        }
+
+        entry = solver->history_entries + solver->history_length++;
+        entry->state = *state;
+        entry->depth = solver->stack_length;
+
+        return true;
 }
 
 static bool
-find_next_move(const struct stack *stack,
+find_next_move(struct solver *solver,
                const struct state *state,
                struct move *move)
 {
@@ -258,7 +288,7 @@ find_next_move(const struct stack *stack,
 
                 /* Skip states that we’ve already visited earlier in
                  * the stack */
-                if (state_in_stack(stack, &new_state))
+                if (!add_state_to_history(solver, &new_state))
                         continue;
 
                 return true;
@@ -266,18 +296,19 @@ find_next_move(const struct stack *stack,
 }
 
 static void
-stack_push(struct stack *stack,
+stack_push(struct solver *solver,
            const struct state *state)
 {
         struct stack_entry *entry;
 
-        if (stack->length >= stack->size) {
-                stack->size *= 2;
-                stack->entries = realloc(stack->entries,
-                                         sizeof *stack->entries * stack->size);
+        if (solver->stack_length >= solver->stack_size) {
+                solver->stack_size *= 2;
+                solver->stack_entries = realloc(solver->stack_entries,
+                                                sizeof *solver->stack_entries *
+                                                solver->stack_size);
         }
 
-        entry = stack->entries + stack->length++;
+        entry = solver->stack_entries + solver->stack_length++;
         entry->state = *state;
         entry->move.direction = 0;
         entry->move.obj_a = -1;
@@ -285,32 +316,39 @@ stack_push(struct stack *stack,
 }
 
 static void
-stack_pop(struct stack *stack)
+stack_pop(struct solver *solver)
 {
-        assert(stack->length >= 1);
-        stack->length--;
+        assert(solver->stack_length >= 1);
+        solver->stack_length--;
 }
 
 static struct stack_entry *
-stack_top(struct stack *stack)
+stack_top(struct solver *solver)
 {
-        assert(stack->length >= 1);
+        assert(solver->stack_length >= 1);
 
-        return stack->entries + stack->length - 1;
+        return solver->stack_entries + solver->stack_length - 1;
 }
 
 static void
-stack_init(struct stack *stack)
+solver_init(struct solver *solver)
 {
-        stack->length = 0;
-        stack->size = 8;
-        stack->entries = malloc(sizeof (struct stack_entry) * stack->size);
+        solver->stack_length = 0;
+        solver->stack_size = 8;
+        solver->stack_entries = malloc(sizeof (struct stack_entry) *
+                                       solver->stack_size);
+
+        solver->history_length = 0;
+        solver->history_size = 8;
+        solver->history_entries = malloc(sizeof (struct history_entry) *
+                                         solver->history_size);
 }
 
 static void
-stack_destroy(struct stack *stack)
+solver_destroy(struct solver *solver)
 {
-        free(stack->entries);
+        free(solver->stack_entries);
+        free(solver->history_entries);
 }
 
 static void
@@ -369,49 +407,49 @@ print_move(const struct move *move)
 }
 
 static void
-print_solution(const struct stack *stack)
+print_solution(const struct solver *solver)
 {
         int i;
 
-        for (i = 0; i < stack->length; i++) {
-                print_state(&stack->entries[i].state);
+        for (i = 0; i < solver->stack_length; i++) {
+                print_state(&solver->stack_entries[i].state);
 
-                if (i < stack->length - 1)
-                        print_move(&stack->entries[i].move);
+                if (i < solver->stack_length - 1)
+                        print_move(&solver->stack_entries[i].move);
         }
 
-        printf("Total moves: %i\n\n", stack->length - 1);
+        printf("Total moves: %i\n\n", solver->stack_length - 1);
 }
 
 static void
 solve(void)
 {
-        struct stack stack;
+        struct solver solver;
         struct stack_entry *top;
         int best_solution = INT_MAX;
         struct state next_state;
 
-        stack_init(&stack);
-        stack_push(&stack, &initial_state);
+        solver_init(&solver);
+        stack_push(&solver, &initial_state);
 
-        while (stack.length > 0) {
-                top = stack_top(&stack);
+        while (solver.stack_length > 0) {
+                top = stack_top(&solver);
 
                 if (analyse_state(&top->state) == STATE_RESULT_WIN &&
-                    stack.length - 1 < best_solution) {
-                        print_solution(&stack);
-                        best_solution = stack.length - 1;
-                        stack_pop(&stack);
-                } else if (find_next_move(&stack, &top->state, &top->move)) {
+                    solver.stack_length - 1 < best_solution) {
+                        print_solution(&solver);
+                        best_solution = solver.stack_length - 1;
+                        stack_pop(&solver);
+                } else if (find_next_move(&solver, &top->state, &top->move)) {
                         next_state = top->state;
                         apply_move(&next_state, &top->move);
-                        stack_push(&stack, &next_state);
+                        stack_push(&solver, &next_state);
                 } else {
-                        stack_pop(&stack);
+                        stack_pop(&solver);
                 }
         }
 
-        stack_destroy(&stack);
+        solver_destroy(&solver);
 }
 
 int
