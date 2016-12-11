@@ -4,14 +4,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
+#include <stdint.h>
 
-#define N_OBJECTS 10
+#define N_OBJECTS 4
 #define N_FLOORS 4
-
-enum object_type {
-        GENERATOR,
-        MICROCHIP
-};
 
 enum state_result {
         STATE_RESULT_INSTABLE,
@@ -19,16 +15,22 @@ enum state_result {
         STATE_RESULT_WIN,
 };
 
-struct object {
-        enum object_type type;
-        char material;
-        int floor;
-};
+/* The state is stored in a 32-bit int where two bits are used to
+ * store the floor number of each object as well as the lift. The
+ * even-numbered objects are the generators and the odd ones are the
+ * microchips
+ */
+typedef uint32_t state_t;
 
-struct state {
-        int lift_floor;
-        struct object objects[N_OBJECTS];
-};
+#define STATE_OBJECT_FLOOR(state, obj_num) \
+        ((((state) >> ((obj_num) * 2)) & 0x3) + 1)
+#define STATE_LIFT_FLOOR(state) STATE_OBJECT_FLOOR(state, N_OBJECTS)
+
+#define STATE_SET_OBJECT_FLOOR(state, obj_num, floor)   \
+        (((state) & ~(3 << ((obj_num) * 2))) | \
+         (((floor) - 1) << ((obj_num) * 2)))
+#define STATE_SET_LIFT_FLOOR(state, floor) \
+        STATE_SET_OBJECT_FLOOR(state, N_OBJECTS, floor)
 
 struct move {
         int direction;
@@ -38,12 +40,12 @@ struct move {
 
 struct stack_entry {
         struct move move;
-        struct state state;
+        state_t state;
 };
 
 struct history_entry {
         int depth;
-        struct state state;
+        state_t state;
 };
 
 struct solver {
@@ -56,51 +58,24 @@ struct solver {
         struct history_entry *history_entries;
 };
 
-const struct state
-initial_state = {
-        .lift_floor = 1,
-        .objects = {
-                { .type = GENERATOR, .material = 'S', .floor = 1 },
-                { .type = MICROCHIP, .material = 'S', .floor = 1 },
-                { .type = GENERATOR, .material = 'P', .floor = 1 },
-                { .type = MICROCHIP, .material = 'P', .floor = 1 },
+static const char
+object_names[] = "HL";
 
-                { .type = GENERATOR, .material = 'T', .floor = 2 },
-                { .type = GENERATOR, .material = 'R', .floor = 2 },
-                { .type = MICROCHIP, .material = 'R', .floor = 2 },
-                { .type = GENERATOR, .material = 'C', .floor = 2 },
-                { .type = MICROCHIP, .material = 'C', .floor = 2 },
-
-                { .type = MICROCHIP, .material = 'T', .floor = 3 },
-        }
-};
+static const state_t
+initial_state =
+        (1 << (0 * 2)) |
+        (0 << (1 * 2)) |
+        (2 << (2 * 2)) |
+        (0 << (3 * 2));
 
 static bool
-floor_contains_generator(const struct state *state,
+floor_contains_generator(state_t state,
                          int floor)
 {
         int i;
 
-        for (i = 0; i < N_OBJECTS; i++) {
-                if (state->objects[i].floor == floor &&
-                    state->objects[i].type == GENERATOR)
-                        return true;
-        }
-
-        return false;
-}
-
-static bool
-floor_has_generator_for_material(const struct state *state,
-                                 int floor,
-                                 int material)
-{
-        int i;
-
-        for (i = 0; i < N_OBJECTS; i++) {
-                if (state->objects[i].floor == floor &&
-                    state->objects[i].type == GENERATOR &&
-                    state->objects[i].material == material)
+        for (i = 0; i < N_OBJECTS; i += 2) {
+                if (STATE_OBJECT_FLOOR(state, i) == floor)
                         return true;
         }
 
@@ -108,14 +83,13 @@ floor_has_generator_for_material(const struct state *state,
 }
 
 static enum state_result
-analyse_state(const struct state *state)
+analyse_state(state_t state)
 {
         int floor, object_num;
-        const struct object *object;
 
         /* Check for a win condition (everything on the top floor) */
         for (object_num = 0; object_num < N_OBJECTS; object_num++) {
-                if (state->objects[object_num].floor != N_FLOORS)
+                if (STATE_OBJECT_FLOOR(state, object_num) != N_FLOORS)
                         goto not_win;
         }
 
@@ -132,16 +106,11 @@ not_win:
 
                 /* Check if all of the chips have their corresponding
                  * generator */
-                for (object_num = 0; object_num < N_OBJECTS; object_num++) {
-                        object = state->objects + object_num;
-
-                        if (object->floor != floor ||
-                            object->type != MICROCHIP)
+                for (object_num = 1; object_num < N_OBJECTS; object_num += 2) {
+                        if (STATE_OBJECT_FLOOR(state, object_num) != floor)
                                 continue;
 
-                        if (!floor_has_generator_for_material(state,
-                                                              floor,
-                                                              object->material))
+                        if (STATE_OBJECT_FLOOR(state, object_num - 1) != floor)
                                 return STATE_RESULT_INSTABLE;
                 }
         }
@@ -150,37 +119,15 @@ not_win:
 }
 
 static bool
-state_equal(const struct state *a, const struct state *b)
-{
-        const struct object *obj_a, *obj_b;
-        int i;
-
-        for (i = 0; i < N_OBJECTS; i++) {
-                obj_a = a->objects + i;
-                obj_b = b->objects + i;
-
-                if (obj_a->type != obj_b->type ||
-                    obj_a->material != obj_b->material ||
-                    obj_a->floor != obj_b->floor)
-                        return false;
-        }
-
-        if (a->lift_floor != b->lift_floor)
-                return false;
-
-        return true;
-}
-
-static bool
-move_valid(const struct state *state,
+move_valid(state_t state,
            const struct move *move)
 {
         /* Can’t move the lift outside the building */
         if (move->direction) {
-                if (state->lift_floor >= N_FLOORS)
+                if (STATE_LIFT_FLOOR(state) >= N_FLOORS)
                         return false;
         } else {
-                if (state->lift_floor <= 1)
+                if (STATE_LIFT_FLOOR(state) <= 1)
                         return false;
         }
 
@@ -190,9 +137,11 @@ move_valid(const struct state *state,
 
         /* Objects taken must be on the same floor as the lift */
         if ((move->obj_a >= 0 &&
-             state->objects[move->obj_a].floor != state->lift_floor) ||
+             STATE_OBJECT_FLOOR(state, move->obj_a) !=
+             STATE_LIFT_FLOOR(state)) ||
             (move->obj_b >= 0 &&
-             state->objects[move->obj_b].floor != state->lift_floor))
+             STATE_OBJECT_FLOOR(state, move->obj_b) !=
+             STATE_LIFT_FLOOR(state)))
                 return false;
 
         return true;
@@ -215,23 +164,31 @@ next_move(struct move *move)
         return false;
 }
 
-static void
-apply_move(struct state *state,
+static state_t
+apply_move(state_t state,
            const struct move *move)
 {
         int floor_offset = move->direction ? 1 : -1;
+        int floor;
 
-        if (move->obj_a > -1)
-                state->objects[move->obj_a].floor += floor_offset;
-        if (move->obj_b > -1)
-                state->objects[move->obj_b].floor += floor_offset;
+        if (move->obj_a > -1) {
+                floor = STATE_OBJECT_FLOOR(state, move->obj_a) + floor_offset;
+                state = STATE_SET_OBJECT_FLOOR(state, move->obj_a, floor);
+        }
+        if (move->obj_b > -1) {
+                floor = STATE_OBJECT_FLOOR(state, move->obj_b) + floor_offset;
+                state = STATE_SET_OBJECT_FLOOR(state, move->obj_b, floor);
+        }
 
-        state->lift_floor += floor_offset;
+        floor = STATE_LIFT_FLOOR(state) + floor_offset;
+        state = STATE_SET_LIFT_FLOOR(state, floor);
+
+        return state;
 }
 
 static bool
 add_state_to_history(struct solver *solver,
-                     const struct state *state)
+                     state_t state)
 {
         struct history_entry *entry;
         int i;
@@ -239,7 +196,7 @@ add_state_to_history(struct solver *solver,
         for (i = 0; i < solver->history_length; i++) {
                 entry = solver->history_entries + i;
 
-                if (state_equal(&entry->state, state)) {
+                if (entry->state == state) {
                         if (entry->depth > solver->stack_length) {
                                 entry->depth = solver->stack_length;
                                 return true;
@@ -258,7 +215,7 @@ add_state_to_history(struct solver *solver,
         }
 
         entry = solver->history_entries + solver->history_length++;
-        entry->state = *state;
+        entry->state = state;
         entry->depth = solver->stack_length;
 
         return true;
@@ -266,10 +223,10 @@ add_state_to_history(struct solver *solver,
 
 static bool
 find_next_move(struct solver *solver,
-               const struct state *state,
+               state_t state,
                struct move *move)
 {
-        struct state new_state;
+        state_t new_state;
 
         while (true) {
                 if (!next_move(move))
@@ -279,16 +236,15 @@ find_next_move(struct solver *solver,
                 if (!move_valid(state, move))
                         continue;
 
-                new_state = *state;
-                apply_move(&new_state, move);
+                new_state = apply_move(state, move);
 
                 /* Skip invalid states */
-                if (analyse_state(&new_state) == STATE_RESULT_INSTABLE)
+                if (analyse_state(new_state) == STATE_RESULT_INSTABLE)
                         continue;
 
                 /* Skip states that we’ve already visited earlier in
                  * the stack */
-                if (!add_state_to_history(solver, &new_state))
+                if (!add_state_to_history(solver, new_state))
                         continue;
 
                 return true;
@@ -297,7 +253,7 @@ find_next_move(struct solver *solver,
 
 static void
 stack_push(struct solver *solver,
-           const struct state *state)
+           state_t state)
 {
         struct stack_entry *entry;
 
@@ -309,7 +265,7 @@ stack_push(struct solver *solver,
         }
 
         entry = solver->stack_entries + solver->stack_length++;
-        entry->state = *state;
+        entry->state = state;
         entry->move.direction = 0;
         entry->move.obj_a = -1;
         entry->move.obj_b = -1;
@@ -352,34 +308,29 @@ solver_destroy(struct solver *solver)
 }
 
 static void
-print_object(const struct object *object)
+print_object(int obj_num)
 {
         printf("%c%c",
-               object->material,
-               object->type == GENERATOR ? 'G' :
-               object->type == MICROCHIP ? 'M' :
-               '?');
+               object_names[obj_num / 2],
+               (obj_num & 1) ? 'M' : 'G');
 }
 
 static void
-print_state(const struct state *state)
+print_state(state_t state)
 {
         int floor, object_num;
-        const struct object *object;
 
         for (floor = N_FLOORS; floor >= 1; floor--) {
                 printf("F%i %c",
                        floor,
-                       state->lift_floor == floor ? 'E' : '.');
+                       STATE_LIFT_FLOOR(state) == floor ? 'E' : '.');
 
                 for (object_num = 0; object_num < N_OBJECTS; object_num++) {
-                        object = state->objects + object_num;
-
-                        if (object->floor != floor)
+                        if (STATE_OBJECT_FLOOR(state, object_num) != floor)
                                 continue;
 
                         fputc(' ', stdout);
-                        print_object(object);
+                        print_object(object_num);
                 }
 
                 fputc('\n', stdout);
@@ -395,12 +346,12 @@ print_move(const struct move *move)
 
         if (move->obj_a != -1) {
                 fputc(' ', stdout);
-                print_object(initial_state.objects + move->obj_a);
+                print_object(move->obj_a);
         }
 
         if (move->obj_b != -1) {
                 fputc(' ', stdout);
-                print_object(initial_state.objects + move->obj_b);
+                print_object(move->obj_b);
         }
 
         fputc('\n', stdout);
@@ -412,7 +363,7 @@ print_solution(const struct solver *solver)
         int i;
 
         for (i = 0; i < solver->stack_length; i++) {
-                print_state(&solver->stack_entries[i].state);
+                print_state(solver->stack_entries[i].state);
 
                 if (i < solver->stack_length - 1)
                         print_move(&solver->stack_entries[i].move);
@@ -427,23 +378,22 @@ solve(void)
         struct solver solver;
         struct stack_entry *top;
         int best_solution = INT_MAX;
-        struct state next_state;
+        state_t next_state;
 
         solver_init(&solver);
-        stack_push(&solver, &initial_state);
+        stack_push(&solver, initial_state);
 
         while (solver.stack_length > 0) {
                 top = stack_top(&solver);
 
-                if (analyse_state(&top->state) == STATE_RESULT_WIN &&
+                if (analyse_state(top->state) == STATE_RESULT_WIN &&
                     solver.stack_length - 1 < best_solution) {
                         print_solution(&solver);
                         best_solution = solver.stack_length - 1;
                         stack_pop(&solver);
-                } else if (find_next_move(&solver, &top->state, &top->move)) {
-                        next_state = top->state;
-                        apply_move(&next_state, &top->move);
-                        stack_push(&solver, &next_state);
+                } else if (find_next_move(&solver, top->state, &top->move)) {
+                        next_state = apply_move(top->state, &top->move);
+                        stack_push(&solver, next_state);
                 } else {
                         stack_pop(&solver);
                 }
