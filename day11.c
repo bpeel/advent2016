@@ -128,10 +128,10 @@ move_valid(state_t state,
 {
         /* Can’t move the lift outside the building */
         if (move->direction) {
-                if (STATE_LIFT_FLOOR(state) >= N_FLOORS)
+                if (STATE_LIFT_FLOOR(state) <= 1)
                         return false;
         } else {
-                if (STATE_LIFT_FLOOR(state) <= 1)
+                if (STATE_LIFT_FLOOR(state) >= N_FLOORS)
                         return false;
         }
 
@@ -172,7 +172,7 @@ static state_t
 apply_move(state_t state,
            const struct move *move)
 {
-        int floor_offset = move->direction ? 1 : -1;
+        int floor_offset = move->direction ? -1 : 1;
         int floor;
 
         if (move->obj_a > -1) {
@@ -356,7 +356,7 @@ print_state(state_t state)
 static void
 print_move(const struct move *move)
 {
-        printf("%c", move->direction ? 'U' : 'D');
+        printf("%c", move->direction ? 'D' : 'U');
 
         if (move->obj_a != -1) {
                 fputc(' ', stdout);
