@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#define N_OBJECTS 10
+#define N_OBJECTS 14
 #define N_FLOORS 4
 
 enum state_result {
@@ -65,7 +65,7 @@ struct object_remap {
 };
 
 static const char
-object_names[] = "SPTRC";
+object_names[] = "SPTRCED";
 
 static const state_t
 initial_state =
@@ -78,7 +78,11 @@ initial_state =
         STATE_SET_OBJECT_FLOOR(0, 6, 2) |
         STATE_SET_OBJECT_FLOOR(0, 7, 2) |
         STATE_SET_OBJECT_FLOOR(0, 8, 2) |
-        STATE_SET_OBJECT_FLOOR(0, 9, 2);
+        STATE_SET_OBJECT_FLOOR(0, 9, 2) |
+        STATE_SET_OBJECT_FLOOR(0, 10, 1) |
+        STATE_SET_OBJECT_FLOOR(0, 11, 1) |
+        STATE_SET_OBJECT_FLOOR(0, 12, 1) |
+        STATE_SET_OBJECT_FLOOR(0, 13, 1);
 
 static const state_t
 win_state =
