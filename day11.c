@@ -401,9 +401,8 @@ solve(void)
                     stack.length - 1 < best_solution) {
                         print_solution(&stack);
                         best_solution = stack.length - 1;
-                }
-
-                if (find_next_move(&stack, &top->state, &top->move)) {
+                        stack_pop(&stack);
+                } else if (find_next_move(&stack, &top->state, &top->move)) {
                         next_state = top->state;
                         apply_move(&next_state, &top->move);
                         stack_push(&stack, &next_state);
