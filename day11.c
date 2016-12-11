@@ -403,10 +403,11 @@ solve(void)
         while (solver.stack_length > 0) {
                 top = stack_top(&solver);
 
-                if (analyse_state(top->state) == STATE_RESULT_WIN &&
-                    solver.stack_length - 1 < best_solution) {
+                if (solver.stack_length > best_solution) {
+                        stack_pop(&solver);
+                } else if (analyse_state(top->state) == STATE_RESULT_WIN) {
                         print_solution(&solver);
-                        best_solution = solver.stack_length - 1;
+                        best_solution = solver.stack_length;
                         stack_pop(&solver);
                 } else if (find_next_move(&solver, top->state, &top->move)) {
                         next_state = apply_move(top->state, &top->move);
