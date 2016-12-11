@@ -1,5 +1,5 @@
 CFLAGS = -Wall -g
-PROGS = day5 day8-video day9
+PROGS = day5 day8-video day9 day11
 
 all : $(PROGS)
 
@@ -11,6 +11,9 @@ day8 : day8-video.o
 
 day9 : day9.o
 	$(CC) -o day9 $^
+
+day11 : day11.o
+	$(CC) -o day11 $^
 
 .c.o :
 	$(CC) -o $@ -c $< $(CFLAGS)
