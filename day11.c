@@ -59,6 +59,11 @@ struct solver {
         struct history_entry *history_entries;
 };
 
+struct object_remap {
+        uint8_t pair_num;
+        uint8_t pair_value;
+};
+
 static const char
 object_names[] = "SPTRC";
 
@@ -190,12 +195,44 @@ apply_move(state_t state,
         return state;
 }
 
+static int
+normalise_state_sort_cb(const void *a, const void *b)
+{
+        const struct object_remap *aor = (const struct object_remap *) a;
+        const struct object_remap *bor = (const struct object_remap *) b;
+
+        return ((((int) aor->pair_num) | (((int) aor->pair_value) << 8)) -
+                (((int) bor->pair_num) | (((int) bor->pair_value) << 8)));
+}
+
+static uint32_t
+normalise_state(state_t state)
+{
+        struct object_remap remap[N_OBJECTS / 2];
+        state_t new_state = 0;
+        int i;
+
+        for (i = 0; i < N_OBJECTS / 2; i++) {
+                remap[i].pair_num = i;
+                remap[i].pair_value = (state >> (i * 4)) & 15;
+        }
+
+        qsort(remap, N_OBJECTS / 2, sizeof remap[0], normalise_state_sort_cb);
+
+        for (i = 0; i < N_OBJECTS / 2; i++)
+                new_state |= remap[i].pair_value << (i * 4);
+
+        return STATE_SET_LIFT_FLOOR(new_state, STATE_LIFT_FLOOR(state));
+}
+
 static bool
 add_state_to_history(struct solver *solver,
                      state_t state)
 {
         struct history_entry *entry;
         int min = 0, max = solver->history_length, mid;
+
+        state = normalise_state(state);
 
         while (min < max) {
                 mid = (min + max) / 2;
