@@ -11,7 +11,7 @@ int
 main(int argc, char **argv)
 {
         int part;
-        uint64_t a, b, c, d;
+        uint32_t a, b, c, d;
 
         for (part = 0; part < 2; part++) {
                 printf("Part %i\n", part + 1);
@@ -41,10 +41,10 @@ cat<<EOF >> day12.c
               [b] "+r" (b),
               [c] "+r" (c),
               [d] "+r" (d));
-        printf("a = %" PRIu64 "\n"
-               "b = %" PRIu64 "\n"
-               "c = %" PRIu64 "\n"
-               "d = %" PRIu64 "\n"
+        printf("a = %" PRIu32 "\n"
+               "b = %" PRIu32 "\n"
+               "c = %" PRIu32 "\n"
+               "d = %" PRIu32 "\n"
                "\n",
                a, b, c, d);
         }
