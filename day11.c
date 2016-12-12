@@ -297,8 +297,8 @@ find_next_move(struct solver *solver,
                 if (analyse_state(new_state) == STATE_RESULT_INSTABLE)
                         continue;
 
-                /* Skip states that we’ve already visited earlier in
-                 * the stack */
+                /* Skip states that we’ve already seen with a lower
+                 * search depth */
                 if (!add_state_to_history(solver, new_state))
                         continue;
 
