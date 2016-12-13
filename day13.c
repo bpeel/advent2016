@@ -20,8 +20,16 @@ struct pos {
         int x, y;
 };
 
+struct history_entry {
+        struct pos pos;
+};
+
 struct node_queue {
         struct node *first, *last;
+
+        int history_size;
+        int history_length;
+        struct history_entry *history_entries;
 };
 
 static const struct pos
@@ -65,6 +73,11 @@ static void
 node_queue_init(struct node_queue *queue)
 {
         queue->first = queue->last = NULL;
+
+        queue->history_length = 0;
+        queue->history_size = 8;
+        queue->history_entries = malloc(sizeof (struct history_entry) *
+                                        queue->history_size);
 }
 
 static void
@@ -76,6 +89,8 @@ node_queue_destroy(struct node_queue *queue)
                 next = node->next;
                 node_unref(node);
         }
+
+        free(queue->history_entries);
 }
 
 static void
@@ -107,6 +122,67 @@ node_queue_pop(struct node_queue *queue)
                 queue->last = NULL;
 
         return ret;
+}
+
+static int
+compare_pos(const struct pos *a,
+            const struct pos *b)
+{
+        if (a->x < b->x)
+                return -1;
+
+        if (a->x > b->x)
+                return 1;
+
+        if (a->y < b->y)
+                return -1;
+
+        if (a->y > b->y)
+                return 1;
+
+        return 0;
+}
+
+static bool
+node_queue_add_history(struct node_queue *queue,
+                       const struct pos *pos)
+{
+        struct history_entry *entry;
+        int min = 0, max = queue->history_length, mid;
+        int comp;
+
+        while (min < max) {
+                mid = (min + max) / 2;
+                entry = queue->history_entries + mid;
+
+                comp = compare_pos(&entry->pos, pos);
+
+                if (comp == 0) {
+                        return true;
+                } else if (comp < 0) {
+                        min = mid + 1;
+                } else {
+                        max = mid;
+                }
+        }
+
+        if (queue->history_length >= queue->history_size) {
+                queue->history_size *= 2;
+                queue->history_entries =
+                        realloc(queue->history_entries,
+                                sizeof (struct history_entry) *
+                                queue->history_size);
+        }
+
+        memmove(queue->history_entries + min + 1,
+                queue->history_entries + min,
+                (queue->history_length - min) * sizeof (struct history_entry));
+
+        entry = queue->history_entries + min;
+        entry->pos = *pos;
+        queue->history_length++;
+
+        return true;
 }
 
 static void
@@ -158,6 +234,9 @@ expand_position(struct node_queue *queue,
                 apply_move(direction, &move_pos);
 
                 if (!is_valid_position(favorite_num, &move_pos))
+                        continue;
+
+                if (!node_queue_add_history(queue, &move_pos))
                         continue;
 
                 node = node_allocate(direction, parent);
