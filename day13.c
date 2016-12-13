@@ -32,6 +32,12 @@ struct node_queue {
         struct history_entry *history_entries;
 };
 
+struct puzzle {
+        int favorite_num;
+        int target_x;
+        int target_y;
+};
+
 static const struct pos
 start_pos = { 1, 1 };
 
@@ -198,7 +204,7 @@ apply_move(int direction,
 }
 
 static bool
-is_valid_position(int favorite_num,
+is_valid_position(const struct puzzle *puzzle,
                   const struct pos *pos)
 {
         int pos_num, bits;
@@ -211,7 +217,7 @@ is_valid_position(int favorite_num,
                    2 * pos->x * pos->y +
                    pos->y +
                    pos->y * pos->y +
-                   favorite_num);
+                   puzzle->favorite_num);
 
         bits = __builtin_popcount(pos_num);
 
@@ -221,7 +227,7 @@ is_valid_position(int favorite_num,
 static void
 expand_position(struct node_queue *queue,
                 struct node *parent,
-                int favorite_num,
+                const struct puzzle *puzzle,
                 const struct pos *start_pos)
 {
         struct node *node;
@@ -233,7 +239,7 @@ expand_position(struct node_queue *queue,
 
                 apply_move(direction, &move_pos);
 
-                if (!is_valid_position(favorite_num, &move_pos))
+                if (!is_valid_position(puzzle, &move_pos))
                         continue;
 
                 if (!node_queue_add_history(queue, &move_pos))
@@ -265,9 +271,9 @@ get_node_position(const struct node *node,
 
 static void
 expand_initial_nodes(struct node_queue *queue,
-                     int favorite_num)
+                     const struct puzzle *puzzle)
 {
-        expand_position(queue, NULL /* parent */, favorite_num, &start_pos);
+        expand_position(queue, NULL /* parent */, puzzle, &start_pos);
 }
 
 static int
@@ -309,9 +315,7 @@ print_solution(const struct node *node)
 }
 
 static void
-solve(int favorite_num,
-      int target_x,
-      int target_y)
+solve(const struct puzzle *puzzle)
 {
         struct node_queue queue;
         struct node *node;
@@ -319,20 +323,20 @@ solve(int favorite_num,
 
         node_queue_init(&queue);
 
-        expand_initial_nodes(&queue, favorite_num);
+        expand_initial_nodes(&queue, puzzle);
 
         while (queue.first) {
                 node = node_queue_pop(&queue);
 
                 get_node_position(node, &pos);
 
-                if (pos.x == target_x && pos.y == target_y) {
+                if (pos.x == puzzle->target_x && pos.y == puzzle->target_y) {
                         print_solution(node);
                         node_unref(node);
                         break;
                 }
 
-                expand_position(&queue, node, favorite_num, &pos);
+                expand_position(&queue, node, puzzle, &pos);
 
                 node_unref(node);
         }
@@ -343,18 +347,20 @@ solve(int favorite_num,
 int
 main(int argc, char **argv)
 {
-        int favorite_num = 10;
-        int target_x = 7;
-        int target_y = 4;
+        struct puzzle puzzle = {
+                .favorite_num = 10,
+                .target_x = 7,
+                .target_y = 4
+        };
 
         if (argc >= 2)
-                favorite_num = strtol(argv[1], NULL, 10);
+                puzzle.favorite_num = strtol(argv[1], NULL, 10);
         if (argc >= 3)
-                target_x = strtol(argv[2], NULL, 10);
+                puzzle.target_x = strtol(argv[2], NULL, 10);
         if (argc >= 4)
-                target_y = strtol(argv[3], NULL, 10);
+                puzzle.target_y = strtol(argv[3], NULL, 10);
 
-        solve(favorite_num, target_x, target_y);
+        solve(&puzzle);
 
         return 0;
 }
