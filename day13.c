@@ -293,11 +293,14 @@ print_position(const struct pos *pos)
 }
 
 static void
-print_solution(const struct node *node)
+print_solution(const struct puzzle *puzzle,
+               const struct node *node)
 {
+        char *board;
         int n_moves = node->depth, i;
         int moves[n_moves];
         struct pos pos = start_pos;
+        int width = 0, height = 0;
 
         while (node) {
                 moves[node->depth - 1] = node->direction;
@@ -308,11 +311,38 @@ print_solution(const struct node *node)
 
         for (i = 0; i < n_moves; i++) {
                 apply_move(moves[i], &pos);
+                if (pos.x > width)
+                        width = pos.x;
+                if (pos.y > height)
+                        height = pos.y;
                 printf(" %c", get_direction_name(moves[i]));
                 print_position(&pos);
         }
 
+        width += 2;
+        height += 2;
+
         printf(" (%i)\n", n_moves);
+
+        board = malloc(width * height);
+
+        for (pos.y = 0; pos.y < height; pos.y++) {
+                for (pos.x = 0; pos.x < width; pos.x++) {
+                        board[pos.x + pos.y * width] =
+                                is_valid_position(puzzle, &pos) ? '.' : '#';
+                }
+        }
+
+        pos = start_pos;
+        board[pos.x + pos.y * width] = 'O';
+
+        for (i = 0; i < n_moves; i++) {
+                apply_move(moves[i], &pos);
+                board[pos.x + pos.y * width] = 'O';
+        }
+
+        for (i = 0; i < height; i++)
+                printf("%.*s\n", width, board + i * width);
 }
 
 static int
@@ -342,7 +372,7 @@ solve(const struct puzzle *puzzle)
                     pos.x == puzzle->target_x &&
                     pos.y == puzzle->target_y) {
                         best_score = node->depth;
-                        print_solution(node);
+                        print_solution(puzzle, node);
                 } else if (puzzle->part == 0 ||
                            node->depth < puzzle->max_moves) {
                         expand_position(&queue, node, puzzle, &pos);
