@@ -306,9 +306,9 @@ print_solution(const struct node *node)
         print_position(&pos);
 
         for (i = 0; i < n_moves; i++) {
+                apply_move(moves[i], &pos);
                 printf(" %c", get_direction_name(moves[i]));
                 print_position(&pos);
-                apply_move(moves[i], &pos);
         }
 
         printf(" (%i)\n", n_moves);
