@@ -371,8 +371,11 @@ main(int argc, char **argv)
                 .max_moves = 50
         };
 
-        if (argc >= 2)
+        if (argc >= 2) {
                 puzzle.favorite_num = strtol(argv[1], NULL, 10);
+                puzzle.target_x = 31;
+                puzzle.target_y = 39;
+        }
         if (argc >= 3)
                 puzzle.target_x = strtol(argv[2], NULL, 10);
         if (argc >= 4)
