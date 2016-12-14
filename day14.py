@@ -10,7 +10,14 @@ def get_hash(index):
     m = hashlib.md5()
     m.update(salt.encode("utf-8"))
     m.update(str(index).encode("utf-8"))
-    return m.hexdigest()
+    h = m.hexdigest()
+
+    for i in range(2016):
+        m = hashlib.md5()
+        m.update(h.encode("utf-8"))
+        h = m.hexdigest()
+
+    return h
 
 hashes = [get_hash(x) for x in range(1001)]
 
