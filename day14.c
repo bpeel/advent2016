@@ -16,16 +16,15 @@ static void
 hex_digest(MD5_CTX *md5_ctx,
            char *result)
 {
+        static const char digits[] = "0123456789abcdef";
         uint8_t hash[MD5_DIGEST_LENGTH];
-        char byte[3];
         int i;
 
         MD5_Final(hash, md5_ctx);
 
         for (i = 0; i < MD5_DIGEST_LENGTH; i++) {
-                sprintf(byte, "%02x", hash[i]);
-                memcpy(result, byte, 2);
-                result += 2;
+                *(result++) = digits[hash[i] >> 4];
+                *(result++) = digits[hash[i] & 0x0f];
         }
 }
 
@@ -126,7 +125,7 @@ static int
 solve(const char *salt,
       get_hash_func_t get_hash)
 {
-        char *hash_queue = malloc(QUEUE_SIZE * MD5_DIGEST_LENGTH * 2 + 1);
+        char *hash_queue = malloc(QUEUE_SIZE * MD5_DIGEST_LENGTH * 2);
         char *this_hash;
         int index = 0, found = 0;
         int triplet_character;
