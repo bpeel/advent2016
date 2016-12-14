@@ -1,48 +1,54 @@
 import hashlib
 import sys
 import re
-from itertools import permutations
 
-salt = "zpqevtbw"
-#salt = "abc"
-
-def get_hash(index):
+def get_hash_part1(salt, index):
     m = hashlib.md5()
     m.update(salt.encode("utf-8"))
     m.update(str(index).encode("utf-8"))
-    h = m.hexdigest()
+    return m.hexdigest()
+
+def get_hash_part2(salt, index):
+    h = get_hash_part1(salt, index)
 
     for i in range(2016):
-        m = hashlib.md5()
-        m.update(h.encode("utf-8"))
-        h = m.hexdigest()
+        h = hashlib.md5(h.encode("utf-8")).hexdigest()
 
     return h
 
-hashes = [get_hash(x) for x in range(1001)]
+def find_five_repeats(hashes, ch):
+    quintuple = ch * 5
 
-index = 0
-found = 0
+    for h in hashes:
+        if h.find(quintuple) != -1:
+            return True
 
-triple = re.compile(r'(.)\1\1')
-fivel = re.compile(r'(.)\1\1\1\1')
+    return False    
 
-while True:
-    md = triple.search(hashes.pop(0))
-    if md:
-        fivel = re.compile(md.group(1) * 5)
-        got5 = False
-        for h in hashes:
-            if fivel.search(h):
-                got5 = True
-                break
-        if got5:
+def solve(salt, get_hash):
+    triple = re.compile(r'(.)\1\1')
+
+    hashes = [get_hash(salt, x) for x in range(1001)]
+
+    index = 0
+    found = 0
+
+    while True:
+        md = triple.search(hashes.pop(0))
+        if md and find_five_repeats(hashes, md.group(1)):
             found += 1
-            print(index, found)
             if found >= 64:
                 break
 
-    index += 1
-    hashes.append(get_hash(index + len(hashes)))
+        index += 1
+        hashes.append(get_hash(salt, index + len(hashes)))
 
-print(index)
+    return index
+
+if len(sys.argv) > 1:
+    salt = sys.argv[1]
+else:
+    salt = "abc"
+
+print("Part 1:", solve(salt, get_hash_part1))
+print("Part 2:", solve(salt, get_hash_part2))
