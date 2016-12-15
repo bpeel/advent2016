@@ -24,13 +24,19 @@ def check_time(discs, start_time):
 
     return True
 
+def solve(discs):
+    start_time = 0
+
+    while True:
+        if check_time(discs, start_time):
+            return start_time
+
+        start_time += 1
+
 discs = list(read_discs())
-start_time = 0
 
-while True:
-    print(start_time)
+print("Part 1:", solve(discs))
 
-    if check_time(discs, start_time):
-        break
+discs.append(DiscCondition(11, len(discs) + 1))
 
-    start_time += 1
+print("Part 2:", solve(discs))
