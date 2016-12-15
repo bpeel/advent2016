@@ -3,11 +3,11 @@ import re
 
 class DiscCondition:
     def __init__(self, mod, offset):
-        self._mod = mod
-        self._offset = offset
+        self.mod = mod
+        self.offset = offset
 
     def is_good(self, time):
-        return (self._offset + time) % self._mod == 0
+        return (self.offset + time) % self.mod == 0
 
 def read_discs():
     disc_re = re.compile(r'Disc #([0-9]+) has ([0-9]+) positions; '
@@ -25,13 +25,17 @@ def check_time(discs, start_time):
     return True
 
 def solve(discs):
-    start_time = 0
+    # Pick the disc with the largest mod and increment by that at each
+    # stage. There’s no point in trying anything in-between because it
+    # will definitely fail
+    max_mod = max(discs, key=lambda x: x.mod)
+    start_time = (max_mod.mod - max_mod.offset) % max_mod.mod
 
     while True:
         if check_time(discs, start_time):
             return start_time
 
-        start_time += 1
+        start_time += max_mod.mod
 
 discs = list(read_discs())
 
