@@ -111,13 +111,19 @@ main(int argc, char **argv)
         if (argc > 1)
                 puzzle_input = argv[1];
 
-        result = solve(puzzle_input, 272);
-        printf("Part 1: %s\n", result);
-        free(result);
+        if (argc > 2) {
+                result = solve(puzzle_input, strtol(argv[2], NULL, 10));
+                printf("%s\n", result);
+                free(result);
+        } else {
+                result = solve(puzzle_input, 272);
+                printf("Part 1: %s\n", result);
+                free(result);
 
-        result = solve(puzzle_input, 35651584);
-        printf("Part 2: %s\n", result);
-        free(result);
+                result = solve(puzzle_input, 35651584);
+                printf("Part 2: %s\n", result);
+                free(result);
+        }
 
         return 0;
 }
