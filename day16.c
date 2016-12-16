@@ -5,39 +5,85 @@
 #include <stdint.h>
 #include <string.h>
 
-static char *
-curve(const char *a, int a_length, int *result_length_out)
+static void
+curve_step(char *buf,
+           int a_length)
 {
-        int result_length = a_length * 2 + 1;
-        char *result = malloc(result_length + 1);
         int i;
 
-        memcpy(result, a, a_length);
-        result[a_length] = '0';
+        buf[a_length] = '0';
 
         for (i = 0; i < a_length; i++) {
-                result[a_length + 1 + i] =
-                        (~a[a_length - i - 1] & 1) + '0';
+                buf[a_length + 1 + i] =
+                        (~buf[a_length - i - 1] & 1) + '0';
         }
+}
+
+static char *
+curve(const char *a,
+      int a_length,
+      int target_length)
+{
+        int result_length;
+        char *result;
+
+        result_length = a_length;
+
+        do {
+                result_length = result_length * 2 + 1;
+        } while (result_length < target_length);
+
+        result = malloc(result_length + 1);
+        memcpy(result, a, a_length);
+
+        do {
+                curve_step(result, a_length);
+                a_length = a_length * 2 + 1;
+        } while (a_length < target_length);
 
         result[result_length] = '\0';
-        *result_length_out = result_length;
+
+        return result;
+}
+
+static int
+checksum_part(const char *part, int part_length)
+{
+        int i, result = 1;
+
+        for (i = 0; i < part_length; i += 2)
+                result ^= ~(part[i] ^ part[i + 1]) & 1;
 
         return result;
 }
 
 static char *
-checksum(const char *a, int a_length, int *result_length_out)
+checksum(const char *a, int a_length)
 {
-        int result_length = a_length / 2;
-        char *result = malloc(result_length + 1);
+        int result_length;
+        char *result;
+        int part_length;
         int i;
 
-        for (i = 0; i < result_length; i++)
-                result[i] = (~(a[i * 2] ^ a[i * 2 + 1]) & 1) + '0';
+        if (a_length & 1)
+                return strndup(a, a_length);
+
+        result_length = a_length;
+        part_length = 1;
+
+        do {
+                result_length /= 2;
+                part_length *= 2;
+        } while ((result_length & 1) == 0);
+
+        result = malloc(result_length + 1);
+
+        for (i = 0; i < result_length; i++) {
+                result[i] = (checksum_part(a + i * part_length, part_length) +
+                             '0');
+        }
 
         result[result_length] = '\0';
-        *result_length_out = result_length;
 
         return result;
 }
@@ -46,26 +92,14 @@ static char *
 solve(const char *start,
       int target_length)
 {
-        int a_length = strlen(start), b_length;
-        char *a = strdup(start), *b;
+        char *curved, *checksummed;
 
-        while (a_length < target_length) {
-                b = curve(a, a_length, &b_length);
-                free(a);
-                a = b;
-                a_length = b_length;
-        }
+        curved = curve(start, strlen(start), target_length);
+        checksummed = checksum(curved, target_length);
 
-        a_length = target_length;
+        free(curved);
 
-        while ((a_length & 1) == 0) {
-                b = checksum(a, a_length, &b_length);
-                free(a);
-                a = b;
-                a_length = b_length;
-        }
-
-        return a;
+        return checksummed;
 }
 
 int
