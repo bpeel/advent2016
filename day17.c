@@ -29,6 +29,7 @@ struct node_queue {
 
 struct puzzle {
         MD5_CTX md5_base;
+        int part;
 };
 
 static const struct pos
@@ -245,7 +246,7 @@ solve(const struct puzzle *puzzle)
         struct node_queue queue;
         struct node *node;
         struct pos pos;
-        int best_score = INT_MAX;
+        int best_score = puzzle->part == 0 ? INT_MAX : -1;
         struct node *best_node = NULL;
 
         node_queue_init(&queue);
@@ -255,7 +256,7 @@ solve(const struct puzzle *puzzle)
         while (queue.first) {
                 node = node_queue_pop(&queue);
 
-                if (node->depth > best_score) {
+                if (puzzle->part == 0 && node->depth > best_score) {
                         node_unref(node);
                         continue;
                 }
@@ -264,13 +265,15 @@ solve(const struct puzzle *puzzle)
 
                 if (pos.x == WIDTH - 1 &&
                     pos.y == HEIGHT - 1) {
-                        best_score = node->depth;
-                        print_solution(node);
+                        if (puzzle->part != 1 || node->depth > best_score) {
+                                best_score = node->depth;
+                                print_solution(node);
 
-                        if (best_node != NULL)
-                                node_unref(best_node);
-                        best_node = node;
-                        best_node->refcount++;
+                                if (best_node != NULL)
+                                        node_unref(best_node);
+                                best_node = node;
+                                best_node->refcount++;
+                        }
                 } else {
                         expand_position(&queue, node, puzzle, &pos);
                 }
@@ -296,6 +299,8 @@ main(int argc, char **argv)
         MD5_Init(&puzzle.md5_base);
         MD5_Update(&puzzle.md5_base, puzzle_input, strlen(puzzle_input));
 
+        puzzle.part = 0;
+
         best_node = solve(&puzzle);
         printf("Part 1: ");
         if (best_node) {
@@ -303,6 +308,14 @@ main(int argc, char **argv)
                 node_unref(best_node);
         }
         printf("\n");
+
+
+        puzzle.part = 1;
+
+        best_node = solve(&puzzle);
+        printf("Part 2: %i\n", best_node ? best_node->depth : -1);
+        if (best_node)
+                node_unref(best_node);
 
         return 0;
 }
