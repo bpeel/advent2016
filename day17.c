@@ -216,12 +216,10 @@ expand_initial_nodes(struct node_queue *queue,
 }
 
 static void
-print_solution(const struct puzzle *puzzle,
-               const struct node *node)
+print_path(const struct node *node)
 {
         int n_moves = node->depth;
         int moves[n_moves];
-        struct pos pos = start_pos;
         int i;
 
         while (node) {
@@ -229,21 +227,26 @@ print_solution(const struct puzzle *puzzle,
                 node = node->parent;
         }
 
-        for (i = 0; i < n_moves; i++) {
+        for (i = 0; i < n_moves; i++)
                 fputc(get_direction_name(moves[i]), stdout);
-                apply_move(moves[i], &pos);
-        }
-
-        printf(" %i\n", n_moves);
 }
 
-static int
+static void
+print_solution(const struct node *node)
+{
+        print_path(node);
+
+        printf(" %i\n", node->depth);
+}
+
+static struct node *
 solve(const struct puzzle *puzzle)
 {
         struct node_queue queue;
         struct node *node;
         struct pos pos;
         int best_score = INT_MAX;
+        struct node *best_node = NULL;
 
         node_queue_init(&queue);
 
@@ -262,7 +265,12 @@ solve(const struct puzzle *puzzle)
                 if (pos.x == WIDTH - 1 &&
                     pos.y == HEIGHT - 1) {
                         best_score = node->depth;
-                        print_solution(puzzle, node);
+                        print_solution(node);
+
+                        if (best_node != NULL)
+                                node_unref(best_node);
+                        best_node = node;
+                        best_node->refcount++;
                 } else {
                         expand_position(&queue, node, puzzle, &pos);
                 }
@@ -272,7 +280,7 @@ solve(const struct puzzle *puzzle)
 
         node_queue_destroy(&queue);
 
-        return best_score;
+        return best_node;
 }
 
 int
@@ -280,6 +288,7 @@ main(int argc, char **argv)
 {
         struct puzzle puzzle;
         const char *puzzle_input = "ioramepc";
+        struct node *best_node;
 
         if (argc >= 2)
                 puzzle_input = argv[1];
@@ -287,7 +296,13 @@ main(int argc, char **argv)
         MD5_Init(&puzzle.md5_base);
         MD5_Update(&puzzle.md5_base, puzzle_input, strlen(puzzle_input));
 
-        solve(&puzzle);
+        best_node = solve(&puzzle);
+        printf("Part 1: ");
+        if (best_node) {
+                print_path(best_node);
+                node_unref(best_node);
+        }
+        printf("\n");
 
         return 0;
 }
