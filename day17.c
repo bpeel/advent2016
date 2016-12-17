@@ -232,14 +232,6 @@ print_path(const struct node *node)
                 fputc(get_direction_name(moves[i]), stdout);
 }
 
-static void
-print_solution(const struct node *node)
-{
-        print_path(node);
-
-        printf(" %i\n", node->depth);
-}
-
 static struct node *
 solve(const struct puzzle *puzzle)
 {
@@ -267,7 +259,6 @@ solve(const struct puzzle *puzzle)
                     pos.y == HEIGHT - 1) {
                         if (puzzle->part != 1 || node->depth > best_score) {
                                 best_score = node->depth;
-                                print_solution(node);
 
                                 if (best_node != NULL)
                                         node_unref(best_node);
