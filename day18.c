@@ -21,46 +21,35 @@ get_next_row(const uint64_t *prev_row,
         int n_parts = get_n_parts(row_length);
         int i;
 
-        if (n_parts == 1) {
-                *next_row = (((*prev_row << 1) ^ (*prev_row >> 1)) &
-                             (UINT64_MAX >> (BITS_IN_PART - row_length)));
-                return;
-        }
-
-        next_row[0] = ((prev_row[0] << 1) ^
-                       ((prev_row[0] >> 1) |
-                        (prev_row[1] << (BITS_IN_PART - 1))));
-
-        for (i = 1; i < n_parts - 1; i++) {
+        for (i = 1; i <= n_parts; i++) {
                 next_row[i] = (((prev_row[i] << 1) |
                                 (prev_row[i - 1] >> (BITS_IN_PART - 1))) ^
                                ((prev_row[i] >> 1) |
                                 (prev_row[i + 1] << (BITS_IN_PART - 1))));
         }
 
-        next_row[i] = ((((prev_row[i] << 1) |
-                         (prev_row[i - 1] >> (BITS_IN_PART - 1))) ^
-                        (prev_row[i] >> 1)) &
-                       (UINT64_MAX >> (BITS_IN_PART -
-                                       (row_length % BITS_IN_PART))));
+        next_row[n_parts] &= (UINT64_MAX >>
+                              (BITS_IN_PART - (row_length % BITS_IN_PART)));
 }
 
 static uint64_t
 solve(const uint64_t *start_row, int row_length, int n_rows)
 {
         int n_parts = get_n_parts(row_length);
-        uint64_t row_a[n_parts], row_b[n_parts];
+        uint64_t row_a[n_parts + 2], row_b[n_parts + 2];
         uint64_t *prev_row = row_a, *next_row = row_b, *tmp;
         uint64_t n_safe_spots = 0;
         int n_traps;
         int i, j;
 
-        memcpy(prev_row, start_row, sizeof *prev_row * n_parts);
+        memcpy(prev_row + 1, start_row, sizeof *prev_row * n_parts);
+        row_a[0] = row_a[n_parts + 1] = 0;
+        row_b[0] = row_b[n_parts + 1] = 0;
 
         for (i = 0; i < n_rows; i++) {
                 n_traps = 0;
                 for (j = 0; j < n_parts; j++)
-                        n_traps += __builtin_popcountl(prev_row[j]);
+                        n_traps += __builtin_popcountl(prev_row[j + 1]);
                 n_safe_spots += row_length - n_traps;
 
                 get_next_row(prev_row, next_row, row_length);
