@@ -3,22 +3,71 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <string.h>
 
-static uint64_t
-get_next_row(uint64_t prev_row, int row_length)
+#define BITS_IN_PART (sizeof (uint64_t) * 8)
+
+static int
+get_n_parts(int row_length)
 {
-        return ((prev_row << 1) ^ (prev_row >> 1)) & ((1 << row_length) - 1);
+        return ((row_length + BITS_IN_PART - 1) / BITS_IN_PART);
+}
+
+static void
+get_next_row(const uint64_t *prev_row,
+             uint64_t *next_row,
+             int row_length)
+{
+        int n_parts = get_n_parts(row_length);
+        int i;
+
+        if (n_parts == 1) {
+                *next_row = (((*prev_row << 1) ^ (*prev_row >> 1)) &
+                             (UINT64_MAX >> (BITS_IN_PART - row_length)));
+                return;
+        }
+
+        next_row[0] = ((prev_row[0] << 1) ^
+                       ((prev_row[0] >> 1) |
+                        (prev_row[1] << (BITS_IN_PART - 1))));
+
+        for (i = 1; i < n_parts - 1; i++) {
+                next_row[i] = (((prev_row[i] << 1) |
+                                (prev_row[i - 1] >> (BITS_IN_PART - 1))) ^
+                               ((prev_row[i] >> 1) |
+                                (prev_row[i + 1] << (BITS_IN_PART - 1))));
+        }
+
+        next_row[i] = ((((prev_row[i] << 1) |
+                         (prev_row[i - 1] >> (BITS_IN_PART - 1))) ^
+                        (prev_row[i] >> 1)) &
+                       (UINT64_MAX >> (BITS_IN_PART -
+                                       (row_length % BITS_IN_PART))));
 }
 
 static uint64_t
-solve(uint64_t row, int row_length, int n_rows)
+solve(const uint64_t *start_row, int row_length, int n_rows)
 {
+        int n_parts = get_n_parts(row_length);
+        uint64_t row_a[n_parts], row_b[n_parts];
+        uint64_t *prev_row = row_a, *next_row = row_b, *tmp;
         uint64_t n_safe_spots = 0;
-        int i;
+        int n_traps;
+        int i, j;
+
+        memcpy(prev_row, start_row, sizeof *prev_row * n_parts);
 
         for (i = 0; i < n_rows; i++) {
-                n_safe_spots += row_length - __builtin_popcountl(row);
-                row = get_next_row(row, row_length);
+                n_traps = 0;
+                for (j = 0; j < n_parts; j++)
+                        n_traps += __builtin_popcountl(prev_row[j]);
+                n_safe_spots += row_length - n_traps;
+
+                get_next_row(prev_row, next_row, row_length);
+
+                tmp = prev_row;
+                prev_row = next_row;
+                next_row = tmp;
         }
 
         return n_safe_spots;
@@ -27,32 +76,37 @@ solve(uint64_t row, int row_length, int n_rows)
 int
 main(int argc, char **argv)
 {
-        uint64_t row = 0;
-        int row_length = 0;
-        int n_rows;
-        int ch;
+        int row_length;
+        uint64_t *row;
+        const char *puzzle_input;
+        int n_rows, n_parts;
+        int i;
 
-        while (true) {
-                ch = fgetc(stdin);
-
-                if (ch == EOF)
-                        break;
-
-                if (ch == '.' || ch == '^') {
-                        if (row_length >= sizeof row * 8) {
-                                fprintf(stderr, "Row too long\n");
-                                return EXIT_FAILURE;
-                        }
-                        row = (row << 1) | (ch == '^');
-                        row_length++;
-                }
+        if (argc < 2 || argc > 4) {
+                fprintf(stderr, "usage: <puzzle input> [n_rows]\n");
+                return EXIT_FAILURE;
         }
 
-        if (argc >= 2) {
-                n_rows = strtol(argv[1], NULL, 10);
+        puzzle_input = argv[1];
+        row_length = strlen(puzzle_input);
+        n_parts = get_n_parts(row_length);
+
+        row = alloca(sizeof *row * n_parts);
+        memset(row, 0, sizeof *row * n_parts);
+
+        for (i = 0; puzzle_input[i]; i++) {
+                row[i / (sizeof *row * 8)] |=
+                        ((uint64_t) (puzzle_input[i] == '^')) <<
+                        (i % (sizeof *row * 8));
+        }
+
+        if (argc >= 3) {
+                n_rows = strtol(argv[2], NULL, 10);
                 printf("%" PRIu64 "\n", solve(row, row_length, n_rows));
         } else {
                 printf("Part 1: %" PRIu64 "\n", solve(row, row_length, 40));
                 printf("Part 2: %" PRIu64 "\n", solve(row, row_length, 400000));
         }
+
+        return EXIT_SUCCESS;
 }
