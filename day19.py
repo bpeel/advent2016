@@ -17,15 +17,19 @@ def next_row(previous_row):
 def is_safe(ch):
     return ch == "."
 
+def solve(row, n_rows):
+    n_traps = 0
+
+    for i in range(n_rows):
+        n_traps += sum(is_safe(ch) for ch in row)
+        row = next_row(row)
+
+    return n_traps
+
 if len(sys.argv) > 1:
     row = sys.argv[1]
 else:
     row = sys.stdin.readline().rstrip()
 
-n_traps = 0
-
-for i in range(40):
-    n_traps += sum(is_safe(ch) for ch in row)
-    row = next_row(row)
-
-print("Part 1:", n_traps)
+print("Part 1:", solve(row, 40))
+print("Part 2:", solve(row, 400000))
