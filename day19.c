@@ -47,12 +47,14 @@ solve(int num_elves, int part)
 
                 /* Start searching from a neighbour of the previous victim */
                 victim = neighbour;
-                pos_diff = abs(victim_pos) - abs(neighbour_pos);
+                pos_diff = victim_pos - neighbour_pos;
+                if (abs(pos_diff) > num_elves / 2)
+                        pos_diff = -((pos_diff < 0 ? -num_elves : num_elves) -
+                                     pos_diff);
 
-                if (abs(victim_pos) - abs(neighbour_pos) > num_elves / 2) {
-                        pos_diff = num_elves - pos_diff;
+                if (pos_diff < 0) {
                         /* Search backwards */
-                        for (i = 0; i < pos_diff; i++)
+                        for (i = 0; i > pos_diff; i--)
                                 victim = elves + victim->prev;
                 } else {
                         /* Search forwards */
