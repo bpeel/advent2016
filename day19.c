@@ -40,12 +40,13 @@ create_elves(int num_elves)
         return first_elf;
 }
 
-static void
-solve(int num_elves)
+static int
+solve(int num_elves, int part)
 {
         struct elf *thief, *victim, *neighbour;
         int victim_pos, i;
         int neighbour_pos, pos_diff;
+        int ret;
 
         thief = create_elves(num_elves);
         neighbour = thief;
@@ -55,7 +56,10 @@ solve(int num_elves)
 
         while (num_elves > 1) {
                 /* Victim pos relative to the thief */
-                victim_pos = num_elves / 2;
+                if (part == 0)
+                        victim_pos = 1;
+                else
+                        victim_pos = num_elves / 2;
 
                 /* Start searching from a neighbour of the previous victim */
                 victim = neighbour;
@@ -90,20 +94,27 @@ solve(int num_elves)
                 thief = thief->next;
         }
 
-        printf("%i wins\n", thief->num);
+        ret = thief->num;
 
         free(thief);
+
+        return ret;
 }
 
 int
 main(int argc, char **argv)
 {
+        int n_guests, i;
+
         if (argc != 2) {
                 fprintf(stderr, "usage: day19 <n_guests>\n");
                 return EXIT_FAILURE;
         }
 
-        solve(strtol(argv[1], NULL, 10));
+        n_guests = strtol(argv[1], NULL, 10);
+
+        for (i = 0; i < 2; i++)
+                printf("Part %i: %i\n", i + 1, solve(n_guests, i));
 
         return EXIT_SUCCESS;
 }
