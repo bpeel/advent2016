@@ -3,7 +3,6 @@
 
 struct elf {
         int num;
-        int presents;
         struct elf *next, *prev;
 };
 
@@ -14,7 +13,6 @@ alloc_elf(int num)
 
         elf = malloc(sizeof (struct elf));
         elf->num = num;
-        elf->presents = 1;
 
         return elf;
 }
@@ -75,8 +73,6 @@ solve(int num_elves, int part)
                         for (i = 0; i < pos_diff; i++)
                                 victim = victim->next;
                 }
-
-                thief->presents += victim->presents;
 
                 num_elves--;
 
