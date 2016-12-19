@@ -2,52 +2,38 @@
 #include <stdlib.h>
 
 struct elf {
-        int num;
-        struct elf *next, *prev;
+        /* Index of neighouring elves in the circle */
+        unsigned int next, prev;
 };
-
-static struct elf *
-alloc_elf(int num)
-{
-        struct elf *elf;
-
-        elf = malloc(sizeof (struct elf));
-        elf->num = num;
-
-        return elf;
-}
 
 static struct elf *
 create_elves(int num_elves)
 {
-        struct elf *elf, *last_elf, *first_elf;
+        struct elf *elves;
         int i;
 
-        first_elf = last_elf = alloc_elf(1);
+        elves = malloc(num_elves * sizeof(struct elf));
 
-        for (i = 1; i < num_elves; i++) {
-                elf = alloc_elf(i + 1);
-                elf->prev = last_elf;
-                last_elf->next = elf;
-                last_elf = elf;
+        for (i = 0; i < num_elves; i++) {
+                elves[i].next = i + 1;
+                elves[i].prev = i - 1;
         }
 
-        last_elf->next = first_elf;
-        first_elf->prev = last_elf;
+        elves[0].prev = num_elves - 1;
+        elves[num_elves - 1].next = 0;
 
-        return first_elf;
+        return elves;
 }
 
 static int
 solve(int num_elves, int part)
 {
-        struct elf *thief, *victim, *neighbour;
+        struct elf *elves, *thief, *victim, *neighbour;
         int victim_pos, i;
         int neighbour_pos, pos_diff;
-        int ret;
 
-        thief = create_elves(num_elves);
-        neighbour = thief;
+        elves = create_elves(num_elves);
+        neighbour = thief = elves;
         /* neighbor_pos is the offset from the thief to the neighbour,
          * going along next pointers */
         neighbour_pos = 0;
@@ -67,34 +53,31 @@ solve(int num_elves, int part)
                         pos_diff = num_elves - pos_diff;
                         /* Search backwards */
                         for (i = 0; i < pos_diff; i++)
-                                victim = victim->prev;
+                                victim = elves + victim->prev;
                 } else {
                         /* Search forwards */
                         for (i = 0; i < pos_diff; i++)
-                                victim = victim->next;
+                                victim = elves + victim->next;
                 }
 
                 num_elves--;
 
-                neighbour = victim->next;
+                neighbour = elves + victim->next;
                 /* The neighbour pos decreases because the thief is
                  * about to move forward one */
                 neighbour_pos = victim_pos - 1;
                 if (neighbour_pos < 0)
                         neighbour_pos = num_elves - 1;
 
-                victim->next->prev = victim->prev;
-                victim->prev->next = victim->next;
-                free(victim);
+                elves[victim->next].prev = victim->prev;
+                elves[victim->prev].next = victim->next;
 
-                thief = thief->next;
+                thief = elves + thief->next;
         }
 
-        ret = thief->num;
+        free(elves);
 
-        free(thief);
-
-        return ret;
+        return thief - elves + 1;
 }
 
 int
