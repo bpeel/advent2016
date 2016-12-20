@@ -40,9 +40,9 @@ firewall_block_range(struct firewall *firewall,
         for (range = firewall->ranges; range; range = next) {
                 next = range->next;
 
-                /* Look for ranges that overlap */
-                if (range->min > block_max ||
-                    range->max < block_min)
+                /* Look for ranges that overlap or are next to each other */
+                if (range->min > block_max + UINT64_C(1) ||
+                    range->max + UINT64_C(1) < block_min)
                         continue;
 
                 /* Expand the blocked range to include the union with
