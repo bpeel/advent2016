@@ -76,6 +76,26 @@ firewall_block_range(struct firewall *firewall,
 }
 
 static uint32_t
+firewall_find_first_free_address(struct firewall *firewall)
+{
+        struct range *range, *smallest = firewall->ranges;
+
+        /* None of the ranges are overlapping or touching so there is
+         * always an IP address free after each range. Therefore it’s
+         * just a case of finding the smallest one. */
+
+        for (range = firewall->ranges; range; range = range->next) {
+                if (range->max < smallest->max)
+                        smallest = range;
+        }
+
+        if (smallest == NULL || smallest->min > 0)
+                return 0;
+        else
+                return smallest->max + 1;
+}
+
+static uint32_t
 firewall_count_free_addresses(struct firewall *firewall)
 {
         uint32_t blocked_addresses = 0;
@@ -103,6 +123,8 @@ main(int argc, char **argv)
                 firewall_block_range(&firewall, block_min, block_max);
         }
 
+        printf("Part 1: %" PRIu32 "\n",
+               firewall_find_first_free_address(&firewall));
         printf("Part 2: %" PRIu32 "\n",
                firewall_count_free_addresses(&firewall));
 
