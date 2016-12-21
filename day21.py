@@ -1,13 +1,13 @@
 import sys
 import re
 
-def swap_position(md, password):
+def swap_position(md, password, reverse):
     a = int(md.group(1))
     b = int(md.group(2))
 
     (password[a], password[b]) = (password[b], password[a])
 
-def swap_letter(md, password):
+def swap_letter(md, password, reverse):
     a = password.index(md.group(1))
     b = password.index(md.group(2))
 
@@ -19,21 +19,31 @@ def rotate_left(steps, password):
 def rotate_right(steps, password):
     rotate_left(len(password) - steps, password)
 
-def rotate(md, password):
+def rotate(md, password, reverse):
     steps = int(md.group(2)) % len(password)
-    if md.group(1) == "right":
+    if md.group(1) == ("left" if reverse else "right"):
         rotate_right(steps, password)
     else:
         rotate_left(steps, password)
 
-def rotate_from_letter(md, password):
+def rotate_from_letter(md, password, reverse):
     pos = password.index(md.group(1))
-    steps = pos + 1
-    if pos >= 4:
-        steps += 1
-    rotate_right(steps, password)
 
-def reverse_range(md, password):
+    if reverse:
+        if (pos & 1) == 1:
+            steps = pos // 2 + 1
+        else:
+            if pos == 0:
+                pos = len(password)
+            steps = ((pos + len(password)) // 2 + 1) % len(password)
+        rotate_left(steps, password)
+    else:
+        steps = pos + 1
+        if pos >= 4:
+            steps += 1
+        rotate_right(steps, password)
+
+def reverse_range(md, password, reverse):
     a = int(md.group(1))
     b = int(md.group(2))
     start = min(a, b)
@@ -43,9 +53,11 @@ def reverse_range(md, password):
         (password[start + i], password[end - i]) = \
             (password[end - i], password[start + i])
 
-def move_position(md, password):
+def move_position(md, password, reverse):
     a = int(md.group(1))
     b = int(md.group(2))
+    if reverse:
+        (a, b) = (b, a)
     password.insert(b, password.pop(a))
 
 operations = [
@@ -68,14 +80,24 @@ if len(sys.argv) > 1:
 else:
     password = list("abcdefgh")
 
+steps = []
+
 for line in sys.stdin:
     for regexp, func in operations:
         md = regexp.match(line)
         if md:
-            func(md, password)
+            steps.append((md, func))
             break
     else:
         print("Invalid line: " + line.rstrip(), file=sys.stderr)
         sys.exit(1)
 
-print("".join(password))
+for md, func in steps:
+    func(md, password, False)
+print("Part 1: " + "".join(password))
+
+password = list("fbgdceah")
+
+for md, func in reversed(steps):
+    func(md, password, True)
+print("Part 2: " + "".join(password))
