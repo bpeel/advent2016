@@ -21,15 +21,16 @@ class Machine:
             self.registers[inst.args[1]] = self.get_arg(inst.args[0])
         self.pc += 1
 
-    def inc(self, inst):
+    def add(self, inst, amount):
         if isinstance(inst.args[0], str):
-            self.registers[inst.args[0]] += 1
+            self.registers[inst.args[0]] += amount
         self.pc += 1
 
+    def inc(self, inst):
+        self.add(inst, 1)
+
     def dec(self, inst):
-        if isinstance(inst.args[0], str):
-            self.registers[inst.args[0]] -= 1
-        self.pc += 1
+        self.add(inst, -1)
 
     def jnz(self, inst):
         if self.get_arg(inst.args[0]) != 0:
