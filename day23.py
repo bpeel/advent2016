@@ -6,10 +6,13 @@ class Instruction:
         self.opcode = opcode
         self.args = args
 
+    def dup(self):
+        return Instruction(self.opcode, self.args)
+
 class Machine:
     def __init__(self, instructions):
         self.registers = {}
-        self.instructions = instructions
+        self.instructions = [x.dup() for x in instructions]
 
     def get_arg(self, arg):
         if isinstance(arg, int):
@@ -87,15 +90,17 @@ class Machine:
         "tgl" : tgl
     }
 
-    def execute(self):
+    def execute(self, reg_a):
         self.pc = 0
         for reg in "bcd":
             self.registers[reg] = 0
-        self.registers['a'] = 7
+        self.registers['a'] = reg_a
 
         while self.pc < len(self.instructions):
             inst = self.instructions[self.pc]
             Machine.opcodes[inst.opcode](self, inst)
+
+        return self.registers['a']
 
 def get_arg(arg):
     if arg[0].isalpha():
@@ -113,7 +118,7 @@ def get_instruction(line):
 
     return Instruction(md.group(1), args)
 
-machine = Machine([get_instruction(line) for line in sys.stdin])
-machine.execute()
+base_instructions = [get_instruction(line) for line in sys.stdin]
 
-print("Part 1:", machine.registers['a'])
+print("Part 1:", Machine(base_instructions).execute(7))
+print("Part 2:", Machine(base_instructions).execute(12))
