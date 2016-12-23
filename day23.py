@@ -23,6 +23,18 @@ class Machine:
 
     def add(self, inst, amount):
         if isinstance(inst.args[0], str):
+            if self.pc + 3 <= len(self.instructions):
+                n = self.instructions[self.pc + 1]
+                nn = self.instructions[self.pc + 2]
+                if (n.opcode == "dec" and
+                    nn.opcode == "jnz" and
+                    n.args[0] == nn.args[0] and
+                    isinstance(n.args[0], str) and
+                    nn.args[1] == -2):
+
+                    amount *= self.get_arg(n.args[0])
+                    self.pc += 2
+
             self.registers[inst.args[0]] += amount
         self.pc += 1
 
