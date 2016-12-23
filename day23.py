@@ -35,6 +35,19 @@ class Machine:
                     amount *= self.get_arg(n.args[0])
                     self.pc += 2
 
+                    if self.pc + 5 <= len(self.instructions):
+                        nb = self.instructions[self.pc + 1]
+                        nnb = self.instructions[self.pc + 2]
+                        if (nb.opcode == "dec" and
+                            nnb.opcode == "jnz" and
+                            nb.args[0] == nnb.args[0] and
+                            isinstance(nb.args[0], str) and
+                            nb.args[0] != n.args[0] and
+                            nnb.args[1] == -5):
+
+                            amount *= self.get_arg(nb.args[0])
+                            self.pc += 2
+
             self.registers[inst.args[0]] += amount
         self.pc += 1
 
