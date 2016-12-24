@@ -453,27 +453,20 @@ get_point_distances(struct puzzle *puzzle)
         }
 }
 
-static void
-print_route(const struct puzzle *puzzle,
-            const int *route)
-{
-        int i;
-
-        for (i = 0; i < puzzle->n_points; i++)
-                fputc(route[i] + '0', stdout);
-
-        fputc('\n', stdout);
-}
-
 static int
 score_route(const struct puzzle *puzzle,
-            const int *route)
+            const int *route,
+            int part)
 {
         int score = 0;
         int a, b;
+        int max = puzzle->n_points - 1;
         int i;
 
-        for (i = 0; i < puzzle->n_points; i++) {
+        if (part == 1)
+                max++;
+
+        for (i = 0; i < max; i++) {
                 a = route[i];
                 b = route[(i + 1) % puzzle->n_points];
                 score += puzzle->point_distances[a * puzzle->n_points + b];
@@ -490,8 +483,9 @@ swap(int *a, int *b)
         *b = tmp;
 }
 
-static void
-find_shortest_route(const struct puzzle *puzzle)
+static int
+find_shortest_route(const struct puzzle *puzzle,
+                    int part)
 {
         int *route = malloc(sizeof (int) * puzzle->n_points);
         int *permutation = route + 1;
@@ -507,10 +501,8 @@ find_shortest_route(const struct puzzle *puzzle)
 
         while (true) {
                 if (depth >= permutation_length) {
-                        score = score_route(puzzle, route);
+                        score = score_route(puzzle, route, part);
                         if (score < best_score) {
-                                printf("%i ", score);
-                                print_route(puzzle, route);
                                 best_score = score;
                         }
                 }
@@ -529,16 +521,24 @@ find_shortest_route(const struct puzzle *puzzle)
 
         free(route);
         free(stack);
+
+        return best_score;
 }
 
 int
 main(int argc, char **argv)
 {
         struct puzzle puzzle;
+        int part;
 
         read_puzzle(&puzzle);
         get_point_distances(&puzzle);
-        find_shortest_route(&puzzle);
+
+        for (part = 0; part < 2; part++) {
+                printf("Part %i: %i\n",
+                       part + 1,
+                       find_shortest_route(&puzzle, part));
+        }
 
         free(puzzle.board);
         free(puzzle.points);
