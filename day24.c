@@ -321,6 +321,8 @@ print_solution(const struct puzzle *puzzle,
 
         for (i = 0; i < puzzle->height; i++)
                 printf("%.*s\n", puzzle->width, board + i * puzzle->width);
+
+        free(board);
 }
 
 static int
