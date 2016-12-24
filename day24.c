@@ -473,9 +473,9 @@ score_route(const struct puzzle *puzzle,
         int a, b;
         int i;
 
-        for (i = 0; i < puzzle->n_points - 1; i++) {
+        for (i = 0; i < puzzle->n_points; i++) {
                 a = route[i];
-                b = route[i + 1];
+                b = route[(i + 1) % puzzle->n_points];
                 score += puzzle->point_distances[a * puzzle->n_points + b];
         }
 
