@@ -454,28 +454,28 @@ get_point_distances(struct puzzle *puzzle)
 }
 
 static void
-print_permutation(const struct puzzle *puzzle,
-                  const int *permutation)
+print_route(const struct puzzle *puzzle,
+            const int *route)
 {
         int i;
 
         for (i = 0; i < puzzle->n_points; i++)
-                fputc(permutation[i] + '0', stdout);
+                fputc(route[i] + '0', stdout);
 
         fputc('\n', stdout);
 }
 
 static int
-score_permutation(const struct puzzle *puzzle,
-                  const int *permutation)
+score_route(const struct puzzle *puzzle,
+            const int *route)
 {
         int score = 0;
         int a, b;
         int i;
 
         for (i = 0; i < puzzle->n_points - 1; i++) {
-                a = permutation[i];
-                b = permutation[i + 1];
+                a = route[i];
+                b = route[i + 1];
                 score += puzzle->point_distances[a * puzzle->n_points + b];
         }
 
@@ -493,27 +493,29 @@ swap(int *a, int *b)
 static void
 find_shortest_route(const struct puzzle *puzzle)
 {
-        int *permutation = malloc(sizeof (int) * puzzle->n_points);
+        int *route = malloc(sizeof (int) * puzzle->n_points);
+        int *permutation = route + 1;
+        int permutation_length = puzzle->n_points - 1;
         int *stack = malloc(sizeof (int) * (puzzle->n_points + 1));
         int depth = 0;
         int score, best_score = INT_MAX;
         int i;
 
         for (i = 0; i < puzzle->n_points; i++)
-                permutation[i] = i;
+                route[i] = i;
         stack[0] = -1;
 
         while (true) {
-                if (depth >= puzzle->n_points) {
-                        score = score_permutation(puzzle, permutation);
+                if (depth >= permutation_length) {
+                        score = score_route(puzzle, route);
                         if (score < best_score) {
                                 printf("%i ", score);
-                                print_permutation(puzzle, permutation);
+                                print_route(puzzle, route);
                                 best_score = score;
                         }
                 }
 
-                if (++stack[depth] >= puzzle->n_points) {
+                if (++stack[depth] >= permutation_length) {
                         depth--;
                         if (depth < 0)
                                 break;
@@ -525,7 +527,7 @@ find_shortest_route(const struct puzzle *puzzle)
                 }
         }
 
-        free(permutation);
+        free(route);
         free(stack);
 }
 
