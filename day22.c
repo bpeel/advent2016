@@ -26,8 +26,9 @@ struct state {
 };
 
 struct history_entry {
-        int depth;
         struct state state;
+        int depth;
+        bool used;
 };
 
 struct node_queue {
@@ -79,14 +80,25 @@ node_unref(struct node *node)
 }
 
 static void
+node_queue_allocate_history(struct node_queue *queue)
+{
+        int i;
+
+        queue->history_entries = malloc(sizeof (struct history_entry) *
+                                        queue->history_size);
+
+        for (i = 0; i < queue->history_size; i++)
+                queue->history_entries[i].used = false;
+}
+
+static void
 node_queue_init(struct node_queue *queue)
 {
         queue->first = NULL;
 
         queue->history_length = 0;
-        queue->history_size = 8;
-        queue->history_entries = malloc(sizeof (struct history_entry) *
-                                        queue->history_size);
+        queue->history_size = 7;
+        node_queue_allocate_history(queue);
 }
 
 static void
@@ -122,37 +134,92 @@ node_queue_pop(struct node_queue *queue)
         return ret;
 }
 
-static int
-compare_pos(const struct pos *a,
-            const struct pos *b)
+static uint64_t
+hash_history_entry(const struct history_entry *entry)
 {
-        if (a->x < b->x)
-                return -1;
-
-        if (a->x > b->x)
-                return 1;
-
-        if (a->y < b->y)
-                return -1;
-
-        if (a->y > b->y)
-                return 1;
-
-        return 0;
+        return (entry->state.zero_pos.x |
+                (entry->state.zero_pos.y << 8) |
+                (entry->state.goal_pos.x << 16) |
+                (entry->state.goal_pos.y << 24));
 }
 
 static int
-compare_state(const struct state *a,
-              const struct state *b)
+pos_equal(const struct pos *a,
+          const struct pos *b)
 {
-        int diff;
+        return a->x == b->x && a->y == b->y;
+}
 
-        diff = compare_pos(&a->zero_pos, &b->zero_pos);
+static bool
+history_state_equal(const struct history_entry *a,
+                    const struct history_entry *b)
+{
+        return (pos_equal(&a->state.zero_pos, &b->state.zero_pos) &&
+                pos_equal(&a->state.goal_pos, &b->state.goal_pos));
+}
 
-        if (diff)
-                return diff;
+static bool
+node_queue_add_history_state(struct node_queue *queue,
+                             const struct history_entry *state);
 
-        return compare_pos(&a->goal_pos, &b->goal_pos);
+static void
+node_queue_rehash_history(struct node_queue *queue)
+{
+        struct history_entry *old_entries = queue->history_entries;
+        int old_size = queue->history_size;
+        int i;
+
+        queue->history_size *= 2;
+        queue->history_length = 0;
+        node_queue_allocate_history(queue);
+
+        for (i = 0; i < old_size; i++) {
+                if (!old_entries[i].used)
+                        continue;
+
+                node_queue_add_history_state(queue, old_entries + i);
+        }
+
+        free(old_entries);
+}
+
+static bool
+node_queue_add_history_state(struct node_queue *queue,
+                             const struct history_entry *state)
+{
+        struct history_entry *entry;
+        uint64_t hash, pos;
+
+        hash = hash_history_entry(state);
+        pos = hash % queue->history_size;
+
+        while (queue->history_entries[pos].used) {
+                entry = queue->history_entries + pos;
+
+                if (history_state_equal(entry, state)) {
+                        if (entry->depth > state->depth) {
+                                entry->depth = state->depth;
+                                return true;
+                        } else {
+                                return false;
+                        }
+                }
+
+                if (++pos >= queue->history_size)
+                        pos = 0;
+        }
+
+        if (queue->history_length >= queue->history_size * 3 / 4) {
+                node_queue_rehash_history(queue);
+                return node_queue_add_history_state(queue, state);
+        }
+
+        entry = queue->history_entries + pos;
+        *entry = *state;
+        entry->used = true;
+        queue->history_length++;
+
+        return true;
 }
 
 static bool
@@ -160,48 +227,12 @@ node_queue_add_history(struct node_queue *queue,
                        int depth,
                        const struct state *state)
 {
-        struct history_entry *entry;
-        int min = 0, max = queue->history_length, mid;
-        int comp;
+        struct history_entry entry;
 
-        while (min < max) {
-                mid = (min + max) / 2;
-                entry = queue->history_entries + mid;
+        entry.state = *state;
+        entry.depth = depth;
 
-                comp = compare_state(&entry->state, state);
-
-                if (comp == 0) {
-                        if (entry->depth > depth) {
-                                entry->depth = depth;
-                                return true;
-                        } else {
-                                return false;
-                        }
-                } else if (comp < 0) {
-                        min = mid + 1;
-                } else {
-                        max = mid;
-                }
-        }
-
-        if (queue->history_length >= queue->history_size) {
-                queue->history_size *= 2;
-                queue->history_entries =
-                        realloc(queue->history_entries,
-                                sizeof (struct history_entry) *
-                                queue->history_size);
-        }
-
-        memmove(queue->history_entries + min + 1,
-                queue->history_entries + min,
-                (queue->history_length - min) * sizeof (struct history_entry));
-
-        entry = queue->history_entries + min;
-        entry->state = *state;
-        entry->depth = depth;
-        queue->history_length++;
-
-        return true;
+        return node_queue_add_history_state(queue, &entry);
 }
 
 static void
