@@ -12,8 +12,8 @@ struct node {
         int direction;
         int refcount;
         int depth;
+        int score;
         struct node *parent;
-        struct node *next;
 };
 
 struct pos {
@@ -32,7 +32,9 @@ struct history_entry {
 };
 
 struct node_queue {
-        struct node *first;
+        int heap_size;
+        int heap_length;
+        struct node **heap;
 
         int history_size;
         int history_length;
@@ -47,12 +49,14 @@ struct puzzle {
 
 static struct node *
 node_allocate(int direction,
+              int score,
               struct node *parent)
 {
         struct node *node = malloc(sizeof (struct node));
 
         node->refcount = 1;
         node->direction = direction;
+        node->score = score;
         node->parent = parent;
 
         if (parent) {
@@ -94,7 +98,9 @@ node_queue_allocate_history(struct node_queue *queue)
 static void
 node_queue_init(struct node_queue *queue)
 {
-        queue->first = NULL;
+        queue->heap_length = 0;
+        queue->heap_size = 8;
+        queue->heap = malloc(sizeof (struct node *) * queue->heap_size);
 
         queue->history_length = 0;
         queue->history_size = 7;
@@ -104,32 +110,112 @@ node_queue_init(struct node_queue *queue)
 static void
 node_queue_destroy(struct node_queue *queue)
 {
-        struct node *node, *next;
+        int i;
 
-        for (node = queue->first; node; node = next) {
-                next = node->next;
-                node_unref(node);
-        }
+        for (i = 0; i < queue->heap_length; i++)
+                node_unref(queue->heap[i]);
+
+        free(queue->heap);
 
         free(queue->history_entries);
+}
+
+static bool
+node_less(const struct node *a,
+          const struct node *b)
+{
+#define comp(name)             \
+        if (a->name < b->name) \
+                return true;   \
+                               \
+        if (a->name > b->name) \
+                return false;
+
+        comp(score);
+        comp(depth);
+        comp(direction);
+#undef comp
+
+        return false;
 }
 
 static void
 node_queue_add(struct node_queue *queue,
                struct node *node)
 {
-        node->next = queue->first;
-        queue->first = node;
+        struct node *tmp;
+        int pos, parent;
+
+        if (queue->heap_size <= queue->heap_length) {
+                queue->heap_size *= 2;
+                queue->heap = realloc(queue->heap,
+                                      sizeof (struct node *) *
+                                      queue->heap_size);
+        }
+
+        pos = queue->heap_length++;
+        queue->heap[pos] = node;
+
+        while (pos > 0) {
+                parent = (pos - 1) / 2;
+
+                if (!node_less(queue->heap[pos], queue->heap[parent]))
+                        break;
+
+                tmp = queue->heap[pos];
+                queue->heap[pos] = queue->heap[parent];
+                queue->heap[parent] = tmp;
+
+                pos = parent;
+        }
+
         node->refcount++;
 }
 
 static struct node *
 node_queue_pop(struct node_queue *queue)
 {
-        struct node *ret;
+        struct node *ret, *tmp;
+        int pos, child, smallest;
 
-        ret = queue->first;
-        queue->first = ret->next;
+        ret = queue->heap[0];
+        queue->heap_length--;
+
+        if (queue->heap_length <= 0)
+                return ret;
+
+        queue->heap[0] = queue->heap[queue->heap_length];
+
+        pos = 0;
+
+        while (true) {
+                child = 2 * pos + 1;
+
+                /* If there are no children then stop */
+                if (child >= queue->heap_length)
+                        break;
+
+                /* Find the smallest of the three nodes */
+                smallest = pos;
+
+                if (node_less(queue->heap[child], queue->heap[smallest]))
+                        smallest = child;
+
+                if (child + 1 < queue->heap_length &&
+                    node_less(queue->heap[child + 1], queue->heap[smallest]))
+                        smallest = child + 1;
+
+                /* If the root is already the smallest then they are
+                 * in the correct order already */
+                if (smallest == pos)
+                        break;
+
+                tmp = queue->heap[pos];
+                queue->heap[pos] = queue->heap[smallest];
+                queue->heap[smallest] = tmp;
+
+                pos = smallest;
+        }
 
         return ret;
 }
@@ -235,6 +321,19 @@ node_queue_add_history(struct node_queue *queue,
         return node_queue_add_history_state(queue, &entry);
 }
 
+static int
+score_state(const struct puzzle *puzzle,
+            const struct state *state)
+{
+        int goal_x = state->goal_pos.x;
+        int goal_y = state->goal_pos.y;
+        int zero_x = state->zero_pos.x;
+        int zero_y = state->zero_pos.y;
+
+        return ((goal_x + goal_y) * (puzzle->width + puzzle->height) +
+                abs(goal_x - zero_x) + abs(goal_y - zero_y));
+}
+
 static void
 apply_move(int direction,
            struct state *state)
@@ -271,7 +370,7 @@ expand_position(struct node_queue *queue,
 {
         struct node *node;
         struct state move_state;
-        int direction, depth;
+        int direction, depth, score;
 
         for (direction = 0; direction < N_DIRECTIONS; direction++) {
                 move_state = *start_state;
@@ -286,7 +385,8 @@ expand_position(struct node_queue *queue,
                 if (!node_queue_add_history(queue, depth, &move_state))
                         continue;
 
-                node = node_allocate(direction, parent);
+                score = score_state(puzzle, &move_state);
+                node = node_allocate(direction, score, parent);
                 node_queue_add(queue, node);
                 node_unref(node);
         }
@@ -387,7 +487,7 @@ solve(const struct puzzle *puzzle)
 
         expand_initial_nodes(&queue, puzzle);
 
-        while (queue.first) {
+        while (queue.heap_length > 0) {
                 node = node_queue_pop(&queue);
 
                 if (node->depth > best_score) {
