@@ -1,0 +1,9 @@
+[package]
+name = "rust"
+version = "0.1.0"
+authors = ["Neil Roberts <bpeeluk@yahoo.co.uk>"]
+
+[[bin]]
+name = "day1"
+
+[dependencies]
