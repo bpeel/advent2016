@@ -5,6 +5,7 @@
 #include <vector>
 #include <set>
 #include <utility>
+#include <limits>
 
 const int GOAL_X = 31;
 const int GOAL_Y = 39;
@@ -45,12 +46,14 @@ struct SearchNode {
         std::shared_ptr<SearchNode> parent;
         int x, y;
         int lastDirection;
+        int depth;
 };
 
 SearchNode::SearchNode(int x, int y)
         : parent(0),
           x(x), y(y),
-          lastDirection(0)
+          lastDirection(0),
+          depth(0)
 {
 }
 
@@ -59,7 +62,8 @@ SearchNode::SearchNode(const std::shared_ptr<SearchNode> &parent,
                        int lastDirection)
         : parent(parent),
           x(x), y(y),
-          lastDirection(lastDirection)
+          lastDirection(lastDirection),
+          depth(parent->depth + 1)
 {
 }
 
@@ -89,29 +93,36 @@ move(int direction,
         }
 }
 
-std::shared_ptr<SearchNode>
-solve(const Maze &maze)
+std::pair<std::shared_ptr<SearchNode>, int>
+solve(const Maze &maze,
+      int goalX,
+      int goalY,
+      int limit = std::numeric_limits<int>::max())
 {
         std::deque<std::shared_ptr<SearchNode>> queue;
         std::set<std::pair<int, int>> history;
 
         queue.push_back(std::make_shared<SearchNode>(1, 1));
+        history.insert(std::make_pair(1, 1));
 
         while (!queue.empty()) {
                 std::shared_ptr<SearchNode> node(queue.front());
 
                 queue.pop_front();
 
-                if (node->x == GOAL_X && node->y == GOAL_Y)
-                        return node;
+                if (node->x == goalX && node->y == goalY)
+                        return std::make_pair(node, history.size());
 
-                if (maze.isWall(node->x, node->y))
+                if (node->depth >= limit)
                         continue;
 
                 for (int direction = 0; direction < 4; direction++) {
                         int x, y;
 
                         move(direction, node->x, node->y, x, y);
+
+                        if (maze.isWall(x, y))
+                                continue;
 
                         if (!history.insert(std::make_pair(x, y)).second)
                                 continue;
@@ -123,7 +134,7 @@ solve(const Maze &maze)
                 }
         }
 
-        return 0;
+        return std::make_pair(std::shared_ptr<SearchNode>(0), history.size());
 }
 
 void
@@ -164,12 +175,18 @@ main (int argc, char **argv)
                 std::cout << std::endl;
         }
 
-        std::shared_ptr<SearchNode> node(solve(maze));
+        std::shared_ptr<SearchNode> part1(solve(maze, GOAL_X, GOAL_Y).first);
 
-        if (node)
-                printSolution(node.get());
+        std::cout << "Part 1" << std::endl;
+
+        if (part1)
+                printSolution(part1.get());
         else
-                std::cerr << "No solution found" << std::endl;
+                std::cout << "No solution found" << std::endl;
+
+        int part2(solve(maze, -1, -1, 50).second);
+
+        std::cout << "Part 2: " << part2 << std::endl;
 
         return 0;
 }
