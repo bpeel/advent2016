@@ -3,6 +3,8 @@
 #include <memory>
 #include <deque>
 #include <vector>
+#include <set>
+#include <utility>
 
 const int GOAL_X = 31;
 const int GOAL_Y = 39;
@@ -91,6 +93,7 @@ std::shared_ptr<SearchNode>
 solve(const Maze &maze)
 {
         std::deque<std::shared_ptr<SearchNode>> queue;
+        std::set<std::pair<int, int>> history;
 
         queue.push_back(std::make_shared<SearchNode>(1, 1));
 
@@ -109,6 +112,9 @@ solve(const Maze &maze)
                         int x, y;
 
                         move(direction, node->x, node->y, x, y);
+
+                        if (!history.insert(std::make_pair(x, y)).second)
+                                continue;
 
                         auto newNode = std::make_shared<SearchNode>(node,
                                                                     x, y,
