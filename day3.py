@@ -22,17 +22,80 @@
 import math
 import sys
 
-def get_distance(address):
+def arc_for_address(address):
     arc_frac = (math.sqrt(16 * address) - 4) / 8
-    arc = math.ceil(arc_frac)
-    addresses_in_this_arc = 8 * arc
-    before_arc = 4 * (arc - 1) ** 2 + 4 * (arc - 1) + 1
+    return math.ceil(arc_frac)
+
+def addresses_for_size(arc):
+    return 4 * arc ** 2 + 4 * arc + 1
+
+def addresses_in_arc(arc):
+    return arc * 8
+
+def part1(address):
+    arc = arc_for_address(address)
+    addresses_in_this_arc = addresses_in_arc(arc)
+    before_arc = addresses_for_size(arc - 1)
     position_in_arc = address - before_arc - 1
     side_length = arc * 2
     in_side = position_in_arc % side_length
 
     return abs(in_side - arc + 1) + arc
 
+def address_for_pos(x, y):
+    arc = max(abs(x), abs(y))
+    address = addresses_for_size(arc - 1)
+    addresses_in_this_arc = addresses_in_arc(arc)
+    
+    if x == arc and y > -arc:
+        address += y + arc
+    elif y == arc:
+        address += arc - x + addresses_in_this_arc // 4
+    elif x == -arc:
+        address += arc - y + addresses_in_this_arc * 2 // 4
+    else:
+        address += x + arc + addresses_in_this_arc * 3 // 4
+
+    return address
+        
+def part2(goal):
+    memory = [ 1 ]
+    while memory[-1] <= goal:
+        address = len(memory) + 1
+        arc = arc_for_address(address)
+        addresses_in_this_arc = addresses_in_arc(arc)
+        before_arc = addresses_for_size(arc - 1)
+        position_in_arc = address - before_arc - 1
+        side_length = arc * 2
+        in_side = position_in_arc % side_length
+        side_num = position_in_arc * 4 // addresses_in_this_arc
+
+        if side_num & 1 == 0:
+            x = arc
+            y = 1 - arc + in_side
+        else:
+            x = arc - 1 - in_side
+            y = arc
+
+        if side_num & 2 == 2:
+            x = -x
+            y = -y
+
+        total = 0
+
+        for ox, oy in [(-1, 0), (1, 0), (0, -1), (0, 1),
+                       (-1, -1), (1, -1), (-1, 1), (1, 1)]:
+            nx = x + ox
+            ny = y + oy
+            naddress = address_for_pos(nx, ny)
+            if naddress < address:
+                total += memory[naddress - 1]
+
+        memory.append(total)
+
+    return memory[-1]
+
 for arg in sys.argv[1:]:
     s = int(arg)
-    print(s, get_distance(s))
+    print(("Part 1: {}\n"
+           "Part 2: {}").format(part1(s), part2(s)))
