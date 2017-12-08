@@ -1,5 +1,5 @@
 #include <iostream>
-#include <set>
+#include <map>
 #include <algorithm>
 #include <array>
 
@@ -66,24 +66,26 @@ Configuration::step()
 int
 main()
 {
-        std::set<Configuration> history;
-
+        std::map<Configuration, int> history;
+        auto found_pos = history.begin();
         Configuration conf = initial_configuration;
         int count = 0;
 
         while (true) {
                 std::cout << conf << std::endl;
 
-                if (history.find(conf) != history.end())
+                found_pos = history.find(conf);
+                if (found_pos != history.end())
                         break;
 
+                history.insert(std::make_pair(conf, count));
                 count++;
-                history.insert(conf);
 
                 conf.step();
         }
 
-        std::cout << "Part 1: " << count << std::endl;
+        std::cout << "Part 1: " << count << std::endl
+                  << "Part 2: " << count - found_pos->second << std::endl;
 
         return 0;
 }
