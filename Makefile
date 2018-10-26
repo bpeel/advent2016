@@ -13,7 +13,7 @@ day1-part2 : day1-part2.o
 day6 : day6.o
 	$(CXX) -o day6 $^
 
-day7 : day7.o fv-util.o fv-list.o
+day7 : day7.o
 	$(CC) -o day7 $^
 
 clean :

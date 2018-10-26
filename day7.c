@@ -4,56 +4,84 @@
 #include <ctype.h>
 #include <limits.h>
 #include <assert.h>
-
-#include "fv-list.h"
+#include <stdint.h>
+#include <stdlib.h>
 
 struct disk {
-        struct fv_list link;
-        struct fv_list children;
+        int16_t next;
+        int16_t first_child;
+        int16_t parent;
         int weight;
-        char name[1];
+        char *name;
 };
 
-static void
-free_disk(struct disk *disk);
+struct disk_set {
+        size_t buffer_size;
+        size_t n_disks;
+        struct disk *disks;
+};
 
-static struct disk *
-create_named_disk(const char *name,
-                  size_t name_length)
+static int
+get_disk(struct disk_set *set,
+         const char *name,
+         size_t name_length)
 {
-        struct disk *disk = fv_alloc(sizeof *disk + name_length);
-        memcpy(disk->name, name, name_length);
-        disk->name[name_length] = '\0';
-        fv_list_init(&disk->children);
-        disk->weight = INT_MIN;
+        for (size_t i = 0; i < set->n_disks; i++) {
+                if (strlen(set->disks[i].name) == name_length &&
+                    !memcmp(name, set->disks[i].name, name_length))
+                        return (int) i;
+        }
 
-        return disk;
+        if (set->buffer_size <= set->n_disks) {
+                if (set->buffer_size == 0) {
+                        set->buffer_size = 8;
+                        set->disks = malloc(sizeof set->disks[0] *
+                                            set->buffer_size);
+                } else {
+                        set->buffer_size *= 2;
+                        set->disks = realloc(set->disks,
+                                             sizeof set->disks[0] *
+                                             set->buffer_size);
+                }
+        }
+
+        struct disk *disk = set->disks + set->n_disks;
+
+        disk->name = malloc(name_length + 1);
+        memcpy(disk->name, name, name_length);
+        disk->name[name_length] = 0;
+        disk->first_child = -1;
+        disk->next = -1;
+        disk->parent = -1;
+        disk->weight = INT16_MIN;
+
+        return set->n_disks++;
 }
 
-static struct disk *
-parse_disk(const char *line)
+static bool
+parse_disk(struct disk_set *set, const char *line)
 {
         const char *name_end = strchr(line, ' ');
-        struct disk *disk;
+        int weight;
 
         if (name_end == NULL)
-                return NULL;
+                return false;
 
         size_t name_length = name_end - line;
 
-        disk = create_named_disk(line, name_length);
+        int disk_num = get_disk(set, line, name_length);
 
-        int res = sscanf(name_end, " (%i)", &disk->weight);
+        int res = sscanf(name_end, " (%i)", &weight);
 
-        if (res < 1) {
-                fv_free(disk);
-                return NULL;
-        }
+        if (res < 1)
+                return false;
+
+        set->disks[disk_num].weight = weight;
 
         const char *name_start = strstr(name_end, " -> ");
 
         if (name_start == NULL)
-                return disk;
+                return true;
 
         name_start += 4;
 
@@ -71,122 +99,48 @@ parse_disk(const char *line)
                                 name_end--;
                 }
 
-                struct disk *child =
-                        create_named_disk(name_start, name_end - name_start);
-                fv_list_insert(&disk->children, &child->link);
+                int child_num = get_disk(set,
+                                         name_start,
+                                         name_end - name_start);
+                struct disk *child = set->disks + child_num;
+                struct disk *parent = set->disks + disk_num;
+                child->next = parent->first_child;
+                parent->first_child = child_num;
+                child->parent = disk_num;
+
                 name_start = name_end;
         }
-
-        return disk;
-}
-
-static void
-free_disk_list(struct fv_list *list)
-{
-        struct disk *disk, *tmp;
-
-        fv_list_for_each_safe(disk, tmp, list, link)
-                free_disk(disk);
-}
-
-static void
-free_disk(struct disk *disk)
-{
-        free_disk_list(&disk->children);
-        fv_free(disk);
-}
-
-static bool
-find_parent(struct fv_list *list,
-            struct disk *disk,
-            struct disk **parent_out,
-            struct disk **stub_out)
-{
-        struct disk *parent, *stub;
-
-        fv_list_for_each(parent, list, link) {
-                fv_list_for_each(stub, &parent->children, link) {
-                        if (!strcmp(stub->name, disk->name)) {
-                                *parent_out = parent;
-                                *stub_out = stub;
-                                return true;
-                        }
-                }
-        }
-
-        return false;
-}
-
-static bool
-build_tree(struct fv_list *list,
-           struct disk **root_out)
-{
-        struct disk *disk, *tmp, *parent, *stub, *root = NULL;
-
-        fv_list_for_each_safe(disk, tmp, list, link) {
-                fv_list_remove(&disk->link);
-
-                if (!find_parent(list, disk, &parent, &stub)) {
-                        if (root) {
-                                fprintf(stderr,
-                                        "no parent for %s, but %s is already "
-                                        "the root\n",
-                                        disk->name,
-                                        root->name);
-                                free_disk(disk);
-                                free_disk(root);
-                                return false;
-                        } else {
-                                root = disk;
-                                continue;
-                        }
-                }
-
-                if (stub->weight != INT_MIN) {
-                        fprintf(stderr,
-                                "duplicate node found for %s\n",
-                                disk->name);
-                        free_disk(disk);
-                        if (root)
-                                free_disk(root);
-                        return false;
-                }
-
-                fv_list_remove(&stub->link);
-                free_disk(stub);
-                fv_list_insert(parent->children.prev, &disk->link);
-        }
-
-        assert(fv_list_empty(list));
-
-        if (root == NULL) {
-                fprintf(stderr, "no root found\n");
-                return false;
-        }
-
-        *root_out = root;
 
         return true;
 }
 
+static void
+free_disk_set(struct disk_set *set)
+{
+        if (set->disks == NULL)
+                return;
+
+        for (size_t i = 0; i < set->n_disks; i++)
+                free(set->disks[i].name);
+
+        free(set->disks);
+}
+
 static bool
-read_disks(struct fv_list *disks, FILE *in)
+read_disks(struct disk_set *set, FILE *in)
 {
         int line_number = 1;
         char line[512];
-        struct disk *disk;
 
         while (fgets(line, sizeof line, in)) {
-                disk = parse_disk(line);
+                bool res = parse_disk(set, line);
 
-                if (disk == NULL) {
+                if (!res) {
                         fprintf(stderr,
                                 "invalid disk at line %i\n",
                                 line_number);
                         return false;
                 }
-
-                fv_list_insert(disks, &disk->link);
 
                 line_number++;
         }
@@ -194,23 +148,50 @@ read_disks(struct fv_list *disks, FILE *in)
         return true;
 }
 
+static int
+find_root(const struct disk_set *set)
+{
+        int root = -1;
+
+        for (size_t i = 0; i < set->n_disks; i++) {
+                if (set->disks[i].parent == -1) {
+                        if (root == -1) {
+                                root = (int) i;
+                        } else {
+                                fprintf(stderr,
+                                        "both %s and %s have no parent\n",
+                                        set->disks[root].name,
+                                        set->disks[i].name);
+                                return -1;
+                        }
+                }
+        }
+
+        return root;
+}
+
 int
 main(int argc, char **argv)
 {
-        struct fv_list disks;
-        struct disk *root;
+        struct disk_set set = { 0 };
         int ret = EXIT_SUCCESS;
 
-        fv_list_init(&disks);
-
-        if (read_disks(&disks, stdin) &&
-            build_tree(&disks, &root)) {
-                printf("Part 1: %s\n", root->name);
-                free_disk(root);
+        if (!read_disks(&set, stdin)) {
                 ret = EXIT_FAILURE;
+                goto done;
         }
 
-        free_disk_list(&disks);
+        int root = find_root(&set);
+
+        if (root == -1) {
+                ret = EXIT_FAILURE;
+                goto done;
+        }
+
+        printf("Part 1: %s\n", set.disks[root].name);
+
+done:
+        free_disk_set(&set);
 
         return ret;
 }
