@@ -419,10 +419,8 @@ main(int argc, char **argv)
                 free(image);
                 image = next_image;
 
-                print_image(image);
                 if (i + 1 == 5)
                         part1 = count_pixels(image);
-
         }
 
         printf("Part 1: %i\n", part1);
