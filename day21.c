@@ -357,6 +357,7 @@ main(int argc, char **argv)
 {
         size_t n_rules;
         struct rule *rules;
+        int part1 = 0;
 
         if (!read_rules(stdin, &n_rules, &rules))
                 return EXIT_FAILURE;
@@ -369,7 +370,7 @@ main(int argc, char **argv)
 
         int ret = EXIT_SUCCESS;
 
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 18; i++) {
                 struct image *next_image =
                         transform_image(n_rules, rules, image);
 
@@ -383,9 +384,13 @@ main(int argc, char **argv)
                 image = next_image;
 
                 print_image(image);
+                if (i + 1 == 5)
+                        part1 = count_pixels(image);
+
         }
 
-        printf("Part 1: %i\n", count_pixels(image));
+        printf("Part 1: %i\n", part1);
+        printf("Part 2: %i\n", count_pixels(image));
 
         free(rules);
         free(image);
