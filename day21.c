@@ -423,7 +423,7 @@ main(int argc, char **argv)
                 if (next_image == NULL) {
                         fprintf(stderr, "failed to transform image\n");
                         ret = EXIT_FAILURE;
-                        break;
+                        goto out;
                 }
 
                 free(image);
@@ -446,6 +446,7 @@ main(int argc, char **argv)
                part1,
                count_pixels(image));
 
+out:
         free(rules);
         free(image);
 
