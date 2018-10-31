@@ -181,6 +181,31 @@ parse_rule(const char *line,
         return true;
 }
 
+static int
+compare_rule_input(const struct rule *rule,
+                   int input_size,
+                   uint16_t pattern)
+{
+        if (rule->input_size != input_size)
+                return input_size - rule->input_size;
+
+        if (rule->input < pattern)
+                return -1;
+        else if (rule->input > pattern)
+                return 1;
+        else
+                return 0;
+}
+
+static int
+compare_rule_cb(const void *a,
+                const void *b)
+{
+        const struct rule *rb = b;
+
+        return compare_rule_input(a, rb->input_size, rb->input);
+}
+
 static bool
 read_rules(FILE *in,
            size_t *n_rules_out,
@@ -208,6 +233,8 @@ read_rules(FILE *in,
                 line_num++;
         }
 
+        qsort(rules, n_rules, sizeof *rules, compare_rule_cb);
+
         *n_rules_out = n_rules;
         *rules_out = rules;
 
@@ -221,10 +248,19 @@ transform_pattern(size_t n_rules,
                   uint16_t pattern,
                   uint16_t *pattern_out)
 {
-        for (size_t i = 0; i < n_rules; i++) {
-                if (rules[i].input_size == input_size &&
-                    rules[i].input == pattern) {
-                        *pattern_out = rules[i].output;
+        size_t min = 0, max = n_rules;
+
+        while (max > min) {
+                size_t mid = (min + max) / 2;
+                int comparison = compare_rule_input(rules + mid,
+                                                    input_size,
+                                                    pattern);
+                if (comparison < 0) {
+                        min = mid + 1;
+                } else if (comparison > 0) {
+                        max = mid;
+                } else {
+                        *pattern_out = rules[mid].output;
                         return true;
                 }
         }
