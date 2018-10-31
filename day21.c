@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <time.h>
 
 struct rule {
         int input_size;
@@ -388,6 +389,12 @@ count_pixels(const struct image *image)
         return sum;
 }
 
+static double
+time_to_seconds(const struct timespec *ts)
+{
+        return ts->tv_sec + ts->tv_nsec / 1000000000.0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -406,6 +413,9 @@ main(int argc, char **argv)
 
         int ret = EXIT_SUCCESS;
 
+        struct timespec start_time;
+        clock_gettime(CLOCK_MONOTONIC, &start_time);
+
         for (int i = 0; i < 18; i++) {
                 struct image *next_image =
                         transform_image(n_rules, rules, image);
@@ -423,8 +433,18 @@ main(int argc, char **argv)
                         part1 = count_pixels(image);
         }
 
-        printf("Part 1: %i\n", part1);
-        printf("Part 2: %i\n", count_pixels(image));
+        struct timespec end_time;
+        clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+        double elapsed_time = (time_to_seconds(&end_time) -
+                               time_to_seconds(&start_time));
+
+        printf("%f seconds\n"
+               "Part 1: %i\n"
+               "Part 2: %i\n",
+               elapsed_time,
+               part1,
+               count_pixels(image));
 
         free(rules);
         free(image);
