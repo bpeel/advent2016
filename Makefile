@@ -19,6 +19,9 @@ day7 : day7.o
 day21 : day21.o
 	$(CC) -o day21 $^
 
+.c.o :
+	$(CC) -c $(CFLAGS) -o $@ $<
+
 clean :
 	rm -f $(PROGS) *.o
 
