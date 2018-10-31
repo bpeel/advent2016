@@ -18,6 +18,57 @@ struct image {
 
 #define GRID_SIZE(size) (((size) & 1) ? 3 : 2)
 
+static uint16_t
+normalise_pattern(int size,
+                  uint16_t pattern)
+{
+        if (size == 2) {
+                /* There are only 16 patterns so we can just make a
+                 * lookup table for them.
+                 */
+                static const uint16_t patterns[] = {
+                        0, 1, 1, 3, 1, 3, 9, 7, 1, 9, 3, 7, 3, 7, 7, 15
+                };
+                return patterns[pattern & 0xf];
+        } else {
+                /* Take the bits around the edge in order as a ring.
+                 * We can rearrange this ring to start from any
+                 * even-numbered position and in either direction to
+                 * form a valid transformation.
+                 */
+                uint16_t ring = ((pattern & 0x47) |
+                                 ((pattern >> 2) & 0x28) |
+                                 ((pattern >> 4) & 0x10) |
+                                 ((pattern << 4) & 0x80));
+                uint16_t r_ring = ((pattern & 0x21) |
+                                   ((pattern >> 2) & 0x2) |
+                                   ((pattern >> 4) & 0x1c) |
+                                   ((pattern << 4) & 0x40) |
+                                   ((pattern << 6) & 0x80));
+                uint16_t max = 0;
+
+                /* Pick whichever combination gives the highest
+                 * value
+                 */
+                for (int i = 0; i < 4; i++) {
+                        if (ring > max)
+                                max = ring;
+                        if (r_ring > max)
+                                max = r_ring;
+                        ring = (ring >> 2) | ((ring & 3) << 6);
+                        r_ring = (r_ring >> 2) | ((r_ring & 3) << 6);
+                }
+
+                /* Make this back into a pattern */
+                return ((max & 0x47) |
+                        ((max & 0x28) << 2) |
+                        ((max & 0x10) << 4) |
+                        ((max & 0x80) >> 4) |
+                        /* Middle part */
+                        (pattern & 0x10));
+        }
+}
+
 struct image *
 allocate_image(size_t size)
 {
@@ -31,44 +82,6 @@ allocate_image(size_t size)
         image->size = size;
 
         return image;
-}
-
-static uint16_t
-rotate_pattern(uint16_t pattern,
-               int size)
-{
-        uint16_t res = 0;
-
-        for (int y = 0; y < size; y++) {
-                for (int x = 0; x < size; x++) {
-                        if ((pattern & 1)) {
-                                int pos = size - 1 - y + x * size;
-                                res |= (1 << pos);
-                        }
-                        pattern >>= 1;
-                }
-        }
-
-        return res;
-}
-
-static uint16_t
-flip_pattern_x(uint16_t pattern,
-               int size)
-{
-        uint16_t res = 0;
-
-        for (int y = 0; y < size; y++) {
-                for (int x = 0; x < size; x++) {
-                        if ((pattern & 1)) {
-                                int pos = size - 1 - x + y * size;
-                                res |= (1 << pos);
-                        }
-                        pattern >>= 1;
-                }
-        }
-
-        return res;
 }
 
 static void
@@ -178,6 +191,7 @@ parse_rule(const char *line,
         }
 
         rule->input_size = input_size;
+        rule->input = normalise_pattern(input_size, rule->input);
 
         return true;
 }
@@ -251,6 +265,8 @@ transform_pattern(size_t n_rules,
 {
         size_t min = 0, max = n_rules;
 
+        pattern = normalise_pattern(input_size, pattern);
+
         while (max > min) {
                 size_t mid = (min + max) / 2;
                 int comparison = compare_rule_input(rules + mid,
@@ -264,32 +280,6 @@ transform_pattern(size_t n_rules,
                         *pattern_out = rules[mid].output;
                         return true;
                 }
-        }
-
-        return false;
-}
-
-static bool
-transform_any_pattern(size_t n_rules,
-                      const struct rule *rules,
-                      size_t input_size,
-                      uint16_t pattern,
-                      uint16_t *pattern_out)
-{
-        for (int i = 0; i < 4; i++) {
-                if (transform_pattern(n_rules, rules,
-                                      input_size,
-                                      pattern, pattern_out))
-                        return true;
-
-                uint16_t flipped_pattern = flip_pattern_x(pattern, input_size);
-
-                if (transform_pattern(n_rules, rules,
-                                      input_size,
-                                      flipped_pattern, pattern_out))
-                        return true;
-
-                pattern = rotate_pattern(pattern, input_size);
         }
 
         return false;
@@ -335,10 +325,10 @@ transform_image(size_t n_rules,
         for (size_t i = 0; i < n_patterns; i++) {
                 uint16_t pattern_out;
 
-                if (!transform_any_pattern(n_rules, rules,
-                                           grid_size,
-                                           image_in->patterns[i],
-                                           &pattern_out)) {
+                if (!transform_pattern(n_rules, rules,
+                                       grid_size,
+                                       image_in->patterns[i],
+                                       &pattern_out)) {
                         free(image_out);
                         return false;
                 }
@@ -407,7 +397,7 @@ main(int argc, char **argv)
 
         struct image *image = allocate_image(3);
 
-        image->patterns[0] = 0x1e2;
+        image->patterns[0] = normalise_pattern(3, 0x1e2);
 
         print_image(image);
 
