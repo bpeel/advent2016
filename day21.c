@@ -191,7 +191,6 @@ parse_rule(const char *line,
         }
 
         rule->input_size = input_size;
-        rule->input = normalise_pattern(input_size, rule->input);
 
         return true;
 }
@@ -247,8 +246,6 @@ read_rules(FILE *in,
                 n_rules++;
                 line_num++;
         }
-
-        qsort(rules, n_rules, sizeof *rules, compare_rule_cb);
 
         *n_rules_out = n_rules;
         *rules_out = rules;
@@ -405,6 +402,12 @@ main(int argc, char **argv)
 
         struct timespec start_time;
         clock_gettime(CLOCK_MONOTONIC, &start_time);
+
+        for (size_t i = 0; i < n_rules; i++) {
+                rules[i].input = normalise_pattern(rules[i].input_size,
+                                                   rules[i].input);
+        }
+        qsort(rules, n_rules, sizeof *rules, compare_rule_cb);
 
         for (int i = 0; i < 18; i++) {
                 struct image *next_image =
