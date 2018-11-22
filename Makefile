@@ -1,6 +1,6 @@
 CFLAGS = -Wall -g
 CXXFLAGS = -Wall -g
-PROGS = day1 day1-part2 day6 day7 day21
+PROGS = day1 day1-part2 day6 day7 day9 day21
 
 all : $(PROGS)
 
@@ -15,6 +15,9 @@ day6 : day6.o
 
 day7 : day7.o
 	$(CC) -o day7 $^
+
+day9 : day9.o
+	$(CC) -o day9 $^
 
 day21 : day21.o
 	$(CC) -o day21 $^
