@@ -2,11 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static int
-process_input(FILE *in)
+static bool
+process_input(FILE *in,
+              int *total_score_out,
+              int *total_garbage_out)
+
 {
         int depth = 0;
         int total_score = 0;
+        int total_garbage = 0;
         enum {
                 STATE_NONE,
                 STATE_IN_GARBAGE,
@@ -30,7 +34,7 @@ process_input(FILE *in)
                         case '}':
                                 if (depth < 1) {
                                         fprintf(stderr, "Unbalanced group\n");
-                                        return -1;
+                                        return false;
                                 }
                                 total_score += depth;
                                 depth--;
@@ -45,7 +49,7 @@ process_input(FILE *in)
                                 break;
                         default:
                                 fprintf(stderr, "Unexpected char: %c\n", ch);
-                                return -1;
+                                return false;
                         }
                         break;
                 case STATE_IN_GARBAGE:
@@ -55,6 +59,9 @@ process_input(FILE *in)
                                 break;
                         case '!':
                                 state = STATE_IN_QUOTE;
+                                break;
+                        default:
+                                total_garbage++;
                                 break;
                         }
                         break;
@@ -66,19 +73,26 @@ process_input(FILE *in)
 
         if (state != STATE_NONE || depth != 0) {
                 fprintf(stderr, "Unexpected EOF\n");
-                return -1;
+                return false;
         }
 
-        return total_score;
+        *total_score_out = total_score;
+        *total_garbage_out = total_garbage;
+
+        return true;
 }
 
 int
 main(int argc, char **argv)
 {
-        int total_score = process_input(stdin);
+        int part1, part2;
 
-        if (total_score != -1)
-                printf("Part 1: %i\n", total_score);
+        if (process_input(stdin, &part1, &part2)) {
+                printf("Part 1: %i\n"
+                       "Part 2: %i\n",
+                       part1,
+                       part2);
+        }
 
         return EXIT_SUCCESS;
 }
