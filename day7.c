@@ -170,6 +170,76 @@ find_root(const struct disk_set *set)
         return root;
 }
 
+static void
+show_adjustment(const struct disk_set *set,
+                int node,
+                int diff)
+{
+        const struct disk *disk = set->disks + node;
+
+        printf("Part 2: disk %s needs to change from %i to %i\n",
+               disk->name,
+               disk->weight,
+               disk->weight + diff);
+}
+
+static int
+find_bad_weight(const struct disk_set *set, int node)
+{
+        int total_weight = set->disks[node].weight;
+        int weight_a = -1, weight_b = -1;
+        bool have_third_weight = false;
+        int weight_a_count = 0, weight_b_count = 0;
+        int one_node = -1;
+
+        for (int child = set->disks[node].first_child;
+             child != -1;
+             child = set->disks[child].next) {
+                int child_weight = find_bad_weight(set, child);
+
+                total_weight += child_weight;
+
+                if (weight_a_count == 0) {
+                        weight_a = child_weight;
+                        weight_a_count = 1;
+                        one_node = child;
+                } else if (child_weight == weight_a) {
+                        weight_a_count++;
+                } else if (weight_b_count == 0) {
+                        weight_b = child_weight;
+                        weight_b_count = 1;
+                        one_node = child;
+                } else if (child_weight == weight_b) {
+                        weight_b_count++;
+                } else {
+                        have_third_weight = true;
+                }
+        }
+
+        if (have_third_weight) {
+                fprintf(stderr,
+                        "More than two weights found for children "
+                        "of %s\n",
+                        set->disks[node].name);
+        } else if (weight_a_count == 1) {
+                if (weight_b_count == 1) {
+                        fprintf(stderr,
+                                "Both children of %s have different weights\n",
+                                set->disks[node].name);
+                } else if (weight_b_count > 1) {
+                        int diff = weight_b - weight_a;
+                        show_adjustment(set, one_node, diff);
+                        total_weight += diff;
+                }
+        } else if (weight_b_count == 1) {
+                int diff = weight_a - weight_b;
+                show_adjustment(set, one_node, weight_a - weight_b);
+                total_weight += diff;
+        }
+
+        return total_weight;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -189,6 +259,8 @@ main(int argc, char **argv)
         }
 
         printf("Part 1: %s\n", set.disks[root].name);
+
+        find_bad_weight(&set, root);
 
 done:
         free_disk_set(&set);
