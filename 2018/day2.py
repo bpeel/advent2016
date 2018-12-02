@@ -83,3 +83,18 @@ with NamedTemporaryFile('w+') as infile, NamedTemporaryFile() as outfile:
     doubles, triples = struct.unpack("ii", output[0:8])
     print("doubles: {}, triples {}".format(doubles, triples))
     print("Part 1: {}".format(doubles * triples))
+
+# Part 2
+
+def pairs(l):
+    for i, a in enumerate(l):
+        for b in l[i + 1:]:
+            yield a, b
+
+for a, b in pairs(ids):
+    diff_count = sum(1 for i, v in enumerate(a) if v != b[i])
+
+    if diff_count == 1:
+        part2 = "".join(c for i, c in enumerate(a) if c == b[i])
+        print("Part 2: {}".format(part2))
+        break
