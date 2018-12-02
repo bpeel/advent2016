@@ -5,6 +5,7 @@ import sys
 import struct
 from tempfile import NamedTemporaryFile
 import subprocess
+import itertools
 
 TEMPLATE = """\
 [compute shader]
@@ -51,3 +52,15 @@ with NamedTemporaryFile('w+') as infile, NamedTemporaryFile() as outfile:
     output = outfile.read()
     part1 = struct.unpack("i", output)[0]
     print("Part 1: {}".format(part1))
+
+# Part 2
+
+frequency = 0
+history = set([frequency])
+
+for diff in itertools.cycle(inputs):
+    frequency += diff
+    if frequency in history:
+        print("Part 2: {}".format(frequency))
+        break
+    history.add(frequency)
