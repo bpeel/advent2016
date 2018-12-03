@@ -106,3 +106,13 @@ for rect in rects:
     claimed_region.add(rect)
 
 print("Part 1: {}".format(overlap_region.area()))
+
+for rect_a in rects:
+    for rect_b in rects:
+        if rect_a is rect_b:
+            continue
+
+        if rect_a.intersects(rect_b):
+            break
+    else:
+        print("Part 2: {}".format(rect_a.id))
