@@ -40,9 +40,16 @@ def find_sleepy_minute(sleeps):
         for m in range(start, end):
             minutes[m] += 1
 
-    return max(enumerate(minutes), key=lambda x: x[1])[0]
+    return max(enumerate(minutes), key=lambda x: x[1])
     
 sleepy_guard = max(guards.items(), key=lambda x: count_sleep_time(x[1]))
-sleepy_minute = find_sleepy_minute(sleepy_guard[1])
+sleepy_minute = find_sleepy_minute(sleepy_guard[1])[0]
 
 print("Part 1: {}".format(sleepy_minute * sleepy_guard[0]))
+
+consistent_guard = max(guards.items(),
+                       key=lambda x: find_sleepy_minute(x[1])[1])
+
+consistent_minute = find_sleepy_minute(consistent_guard[1])[0]
+
+print("Part 2: {}".format(consistent_guard[0] * consistent_minute))
