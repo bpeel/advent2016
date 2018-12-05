@@ -3,36 +3,51 @@
 import sys
 import re
 
-def step(polymer):
-    outpos = 0
-    inpos = 0
-    limit = len(polymer) - 1
+class Node:
+    def __init__(self, value):
+        self.value = value
+        self.prev = self
+        self.next = self
 
-    while inpos < limit:
-        a = polymer[inpos]
-        b = polymer[inpos + 1]
-        if a.isupper() == b.isupper() or a.lower() != b.lower():
-            polymer[outpos] = a
-            outpos += 1
-            inpos += 1
-        else:
-            inpos += 2
+    def insert_after(self, node):
+        node.prev = self
+        node.next = self.next
+        self.next = node
+        node.next.prev = node
 
-    if inpos < len(polymer):
-        polymer[outpos] = polymer[-1]
-        outpos += 1
+    def remove(self):
+        self.prev.next = self.next;
+        self.next.prev = self.prev;
+        self.next = None
+        self.prev = None
 
-    modified = outpos != len(polymer)
+def listify(input):
+    head = Node(None)
 
-    del polymer[outpos:]
+    for ch in input:
+        head.prev.insert_after(Node(ch))
 
-    return modified
+    return head
 
 def reduce_polymer(input):
-    polymer = list(input)
-    while step(polymer):
-        pass
-    return len(polymer)
+    length = len(input)
+    polymer = listify(input)
+    n = polymer.next
+
+    while n is not polymer and n.next is not polymer:
+        a = n.value
+        b = n.next.value
+        if a.isupper() != b.isupper() and a.lower() == b.lower():
+            n = n.next.next
+            n.prev.remove()
+            n.prev.remove()
+            length -= 2
+            if n.prev is not polymer:
+                n = n.prev
+        else:
+            n = n.next
+
+    return length
 
 def strip_reduce_polymer(input, ch):
     return reduce_polymer(re.sub(ch, "", input, flags=re.IGNORECASE))
