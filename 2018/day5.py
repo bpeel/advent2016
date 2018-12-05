@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import re
 
 def step(polymer):
     outpos = 0
@@ -27,9 +28,21 @@ def step(polymer):
 
     return modified
 
-polymer = list(sys.stdin.read().rstrip())
+def reduce_polymer(input):
+    polymer = list(input)
+    while step(polymer):
+        pass
+    return len(polymer)
 
-while step(polymer):
-    pass
+def strip_reduce_polymer(input, ch):
+    return reduce_polymer(re.sub(ch, "", input, flags=re.IGNORECASE))
 
-print("Part 1: {}".format(len(polymer)))
+input = sys.stdin.read().rstrip()
+
+print("Part 1: {}".format(reduce_polymer(input)))
+
+part2 = min(((chr(ch), strip_reduce_polymer(input, chr(ch)))
+             for ch in range(ord("a"), ord("z") + 1)),
+            key=lambda x: x[1])
+
+print("Part 2: {} {}".format(*part2))
