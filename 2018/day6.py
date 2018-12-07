@@ -4,6 +4,7 @@ import sys
 import re
 
 POINT_RE = re.compile(r'([0-9]+), ([0-9]+)$')
+SAFE_DISTANCE = 10000
 
 class Data:
     def __init__(self, points):
@@ -67,8 +68,38 @@ def point_area_size(data, point):
 
     return len(area_points)
 
+def center_point(data):
+    return (sum(p[0] for p in data.points) // len(data.points),
+            sum(p[1] for p in data.points) // len(data.points))
+
+def point_is_safe(data, point):
+    return sum(point_distance(p, point) for p in data.points) < SAFE_DISTANCE
+
+def safe_area_size(data):
+    stack = [center_point(data)]
+    area_points = set()
+
+    while len(stack) > 0:
+        try_point = stack.pop()
+
+        if try_point in area_points:
+            continue
+
+        if not point_is_safe(data, try_point):
+            continue
+
+        area_points.add(try_point)
+
+        stack.append((try_point[0], try_point[1] - 1))
+        stack.append((try_point[0], try_point[1] + 1))
+        stack.append((try_point[0] - 1, try_point[1]))
+        stack.append((try_point[0] + 1, try_point[1]))
+
+    return len(area_points)
+
 data = Data(parse_point(line) for line in sys.stdin)
 
 part1 = max(point_area_size(data, point) for point in data.points)
 
 print("Part 1: {}".format(part1))
+print("Part 2: {}".format(safe_area_size(data)))
