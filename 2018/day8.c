@@ -1,9 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <limits.h>
 
 struct node {
         struct node *next;
-        struct node *first_child;
+        int n_children;
+        struct node **children;
+        int value;
         int n_meta;
         int meta[];
 };
@@ -11,13 +14,12 @@ struct node {
 static void
 free_node(struct node *node)
 {
-        struct node *child, *next;
-
-        for (child = node->first_child; child; child = next) {
-                next = child->next;
-                free_node(child);
+        for (int i = 0; i < node->n_children; i++) {
+                if (node->children[i])
+                        free_node(node->children[i]);
         }
 
+        free(node->children);
         free(node);
 }
 
@@ -33,19 +35,18 @@ read_node(FILE *in)
                                    sizeof (node->meta[0]) * n_meta);
 
         node->next = NULL;
-        node->first_child = NULL;
+        node->value = INT_MAX;
+        node->n_children = n_children;
+        node->children = calloc(node->n_children, sizeof (struct node *));
         node->n_meta = n_meta;
 
         for (int i = 0; i < n_children; i++) {
-                struct node *child = read_node(in);
+                node->children[i] = read_node(in);
 
-                if (child == NULL) {
+                if (node->children[i] == NULL) {
                         free_node(node);
                         return NULL;
                 }
-
-                child->next = node->first_child;
-                node->first_child = child;
         }
 
         for (int i = 0; i < n_meta; i++) {
@@ -66,8 +67,35 @@ sum_meta(const struct node *node)
         for (int i = 0; i < node->n_meta; i++)
                 sum += node->meta[i];
 
-        for (struct node *child = node->first_child; child; child = child->next)
-                sum += sum_meta(child);
+        for (int i = 0; i < node->n_children; i++)
+                sum += sum_meta(node->children[i]);
+
+        return sum;
+}
+
+static int
+node_value(struct node *node)
+{
+        if (node->value != INT_MAX)
+                return node->value;
+
+        int sum = 0;
+
+        if (node->n_children <= 0) {
+                for (int i = 0; i < node->n_meta; i++)
+                        sum += node->meta[i];
+        } else {
+                for (int i = 0; i < node->n_meta; i++) {
+                        int meta = node->meta[i];
+
+                        if (meta < 1 || meta > node->n_children)
+                                continue;
+
+                        sum += node_value(node->children[meta - 1]);
+                }
+        }
+
+        node->value = sum;
 
         return sum;
 }
@@ -83,6 +111,7 @@ main(int argc, char **argv)
         }
 
         printf("Part 1: %i\n", sum_meta(node));
+        printf("Part 2: %i\n", node_value(node));
 
         free_node(node);
 
