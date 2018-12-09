@@ -8,115 +8,74 @@
 #include <inttypes.h>
 
 struct marble {
-        int value;
-        struct marble *ccw;
-        struct marble *cw;
+        unsigned ccw;
+        unsigned cw;
 };
 
 static void
-insert_cw_after(struct marble *pos,
-                struct marble *marble)
+insert_cw_after(struct marble *marbles,
+                unsigned pos,
+                unsigned marble)
 {
-        marble->ccw = pos;
-        marble->cw = pos->cw;
-        pos->cw = marble;
-        marble->cw->ccw = marble;
+        marbles[marble].ccw = pos;
+        marbles[marble].cw = marbles[pos].cw;
+        marbles[pos].cw = marble;
+        marbles[marbles[marble].cw].ccw = marble;
 }
 
 static void
-remove_marble(struct marble *pos)
+remove_marble(struct marble *marbles,
+              unsigned pos)
 {
-        pos->ccw->cw = pos->cw;
-        pos->cw->ccw = pos->ccw;
-        free(pos);
+        marbles[marbles[pos].ccw].cw = marbles[pos].cw;
+        marbles[marbles[pos].cw].ccw = marbles[pos].ccw;
 }
 
 static struct marble *
-new_marble(int value)
+allocate_marbles(unsigned last_marble)
 {
-        struct marble *marble = malloc(sizeof *marble);
+        struct marble *marbles = malloc(sizeof *marbles * (last_marble + 1));
 
-        marble->value = value;
+        marbles[0].cw = 0;
+        marbles[0].ccw = 0;
 
-        return marble;
-}
-
-static void
-free_marbles(struct marble *start_marble)
-{
-        struct marble *m = start_marble, *next;
-
-        do {
-                next = m->cw;
-                free(m);
-                m = next;
-        } while (m != start_marble);
-}
-
-static void
-print_marbles(const struct marble *start_marble)
-{
-#if 0
-        const struct marble *lowest_marble = start_marble;
-
-        for (const struct marble *m = start_marble->cw;
-             m != start_marble;
-             m = m->cw) {
-                if (m->value < lowest_marble->value)
-                        lowest_marble = m;
-        }
-
-        const struct marble *m = lowest_marble;
-
-        do {
-                printf("%i ", m->value);
-                m = m->cw;
-        } while (m != lowest_marble);
-
-        fputc('\n', stdout);
-#endif
+        return marbles;
 }
 
 static int64_t
-run(int n_players,
-    int n_marbles)
+run(unsigned n_players,
+    unsigned last_marble)
 {
-        struct marble *current_marble = new_marble(0);
+        struct marble *marbles = allocate_marbles(last_marble);
+        unsigned current_marble = 0;
         int64_t scores[n_players];
 
         memset(scores, 0, sizeof scores);
 
-        current_marble->cw = current_marble;
-        current_marble->ccw = current_marble;
-
-        print_marbles(current_marble);
-
-        for (int marble_num = 1; marble_num <= n_marbles; marble_num++) {
+        for (unsigned marble_num = 1; marble_num <= last_marble; marble_num++) {
                 if (marble_num % 23 == 0) {
                         int player_num = (marble_num - 1) % n_players;
 
                         scores[player_num] += marble_num;
 
                         for (int i = 0; i < 7; i++)
-                                current_marble = current_marble->ccw;
+                                current_marble = marbles[current_marble].ccw;
 
-                        scores[player_num] += current_marble->value;
+                        scores[player_num] += current_marble;
 
-                        current_marble = current_marble->cw;
+                        current_marble = marbles[current_marble].cw;
 
-                        remove_marble(current_marble->ccw);
+                        remove_marble(marbles, marbles[current_marble].ccw);
                 } else {
-                        struct marble *marble = new_marble(marble_num);
+                        insert_cw_after(marbles,
+                                        marbles[current_marble].cw,
+                                        marble_num);
 
-                        insert_cw_after(current_marble->cw, marble);
-
-                        current_marble = marble;
+                        current_marble = marble_num;
                 }
-
-                print_marbles(current_marble);
         }
 
-        free_marbles(current_marble);
+        free(marbles);
 
         int64_t max_score = INT64_MIN;
 
