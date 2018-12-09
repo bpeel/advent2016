@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <string.h>
+#include <inttypes.h>
 
 struct marble {
         int value;
@@ -76,12 +77,12 @@ print_marbles(const struct marble *start_marble)
 #endif
 }
 
-static int
+static int64_t
 run(int n_players,
     int n_marbles)
 {
         struct marble *current_marble = new_marble(0);
-        int scores[n_players];
+        int64_t scores[n_players];
 
         memset(scores, 0, sizeof scores);
 
@@ -117,7 +118,7 @@ run(int n_players,
 
         free_marbles(current_marble);
 
-        int max_score = INT_MIN;
+        int64_t max_score = INT64_MIN;
 
         for (int i = 0; i < n_players; i++) {
                 if (scores[i] > max_score)
@@ -140,9 +141,9 @@ main(int argc, char **argv)
         int n_players = strtol(argv[1], NULL, 10);
         int last_marble = strtol(argv[2], NULL, 10);
 
-        int part1 = run(n_players, last_marble);
+        int64_t score = run(n_players, last_marble);
 
-        printf("Part 1: %i\n", part1);
+        printf("High score: %" PRId64 "\n", score);
 
         return EXIT_SUCCESS;
 }
