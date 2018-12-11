@@ -35,8 +35,8 @@ main(int argc, char **argv)
                         int sum = 0;
                         int max_coord = x > y ? x : y;
 
-                        for (int square_size = 0;
-                             square_size < GRID_SIZE - max_coord;
+                        for (int square_size = 1;
+                             square_size <= GRID_SIZE - max_coord;
                              square_size++) {
                                 for (int xx = 0; xx < square_size; xx++) {
                                         sum += power_level(x + xx,
