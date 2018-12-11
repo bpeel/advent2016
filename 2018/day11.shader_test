@@ -1,15 +1,8 @@
-[comment]
-
-Run the program once to get the maximum power level in the first
-probe. Then set EXPECTED_POWER_LEVEL to that value so that it will
-write out the grid position and size in the second probe.
-
 [compute shader]
 #version 450
 
 #define GRID_SIZE 300
 #define SERIAL_NUMBER 9445
-#define EXPECTED_POWER_LEVEL 156
 
 layout(binding = 0) buffer block {
         int best_score;
@@ -57,7 +50,12 @@ main()
                 }
         }
 
-        if (best_sum == EXPECTED_POWER_LEVEL)
+        /* When this is run a second time this condition will only be
+         * hit once because best_score will already have the real best
+         * score. That way it will write out the position of the best
+         * score once.
+         */
+        if (best_sum == best_score)
                 result = ivec3(best_pos + 1, best_square_size);
 
         atomicMax(best_score, best_sum);
@@ -68,6 +66,7 @@ ssbo 0 1024
 ssbo 0 subdata int 0 -2147483648
 
 compute 300 300 1
+# Run a second time to get the position of the best score
+compute 300 300 1
 
-probe ssbo int 0 0 == 0
 probe ssbo ivec3 0 16 == 0 0 0
