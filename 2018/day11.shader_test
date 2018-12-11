@@ -25,7 +25,6 @@ main()
 {
         ivec2 pos = ivec2(gl_WorkGroupID.xy);
 
-        ivec2 best_pos = ivec2(0);
         int best_square_size = 0;
         int best_sum = -1000;
 
@@ -45,7 +44,6 @@ main()
                 }
                 if (sum > best_sum) {
                         best_sum = sum;
-                        best_pos = pos;
                         best_square_size = square_size;
                 }
         }
@@ -56,7 +54,7 @@ main()
          * score once.
          */
         if (best_sum == best_score)
-                result = ivec3(best_pos + 1, best_square_size);
+                result = ivec3(pos + 1, best_square_size);
 
         atomicMax(best_score, best_sum);
 }
