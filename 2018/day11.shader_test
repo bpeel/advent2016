@@ -1,0 +1,675 @@
+[comment]
+
+Run the program once to get the maximum power level in the first
+probe. Then set EXPECTED_POWER_LEVEL to that value so that it will
+write out the grid position and size in the second probe.
+
+I wanted it to set the square size in gl_WorkGroup.z but it doesn’t
+seem to work. Maybe it goes over the limits of the compute work space.
+Instead the script just runs 300 compute commands with a different
+push constant to set the size.
+
+[compute shader]
+#version 450
+
+#define GRID_SIZE 300
+#define SERIAL_NUMBER 9445
+#define EXPECTED_POWER_LEVEL 156
+
+layout(binding = 0) buffer block {
+        int best_score;
+        ivec3 result;
+};
+
+layout(std140, push_constant) uniform block {
+        int square_size;
+};
+
+int
+calc_power_level(int x, int y)
+{
+        int rack_id = x + 11;
+        int base_power_level = rack_id * (y + 1);
+        int increase_power_level = base_power_level + SERIAL_NUMBER;
+        int rack_power_level = increase_power_level * rack_id;
+        int hundreds = rack_power_level / 100 % 10;
+        return hundreds - 5;
+}
+
+int
+calc_square_power_level(int x, int y, int square_size)
+{
+        int sum = 0;
+
+        for (int i = 0; i < square_size * square_size; i++) {
+                int xx = i / square_size;
+                int yy = i % square_size;
+                sum += calc_power_level(x + xx, y + yy);
+        }
+
+        return sum;
+}
+
+void
+main()
+{
+        int power_level = calc_square_power_level(int(gl_WorkGroupID.x),
+                                                  int(gl_WorkGroupID.y),
+                                                  square_size);
+
+        atomicMax(best_score, power_level);
+
+        if (power_level == EXPECTED_POWER_LEVEL) {
+                result = ivec3(int(gl_WorkGroupID.x + 1),
+                               int(gl_WorkGroupID.y + 1),
+                               square_size);
+        }
+}
+
+[test]
+ssbo 0 1024
+ssbo 0 subdata int 0 -2147483648
+
+uniform int 0 1
+compute 300 300 1
+uniform int 0 2
+compute 299 299 1
+uniform int 0 3
+compute 298 298 1
+uniform int 0 4
+compute 297 297 1
+uniform int 0 5
+compute 296 296 1
+uniform int 0 6
+compute 295 295 1
+uniform int 0 7
+compute 294 294 1
+uniform int 0 8
+compute 293 293 1
+uniform int 0 9
+compute 292 292 1
+uniform int 0 10
+compute 291 291 1
+uniform int 0 11
+compute 290 290 1
+uniform int 0 12
+compute 289 289 1
+uniform int 0 13
+compute 288 288 1
+uniform int 0 14
+compute 287 287 1
+uniform int 0 15
+compute 286 286 1
+uniform int 0 16
+compute 285 285 1
+uniform int 0 17
+compute 284 284 1
+uniform int 0 18
+compute 283 283 1
+uniform int 0 19
+compute 282 282 1
+uniform int 0 20
+compute 281 281 1
+uniform int 0 21
+compute 280 280 1
+uniform int 0 22
+compute 279 279 1
+uniform int 0 23
+compute 278 278 1
+uniform int 0 24
+compute 277 277 1
+uniform int 0 25
+compute 276 276 1
+uniform int 0 26
+compute 275 275 1
+uniform int 0 27
+compute 274 274 1
+uniform int 0 28
+compute 273 273 1
+uniform int 0 29
+compute 272 272 1
+uniform int 0 30
+compute 271 271 1
+uniform int 0 31
+compute 270 270 1
+uniform int 0 32
+compute 269 269 1
+uniform int 0 33
+compute 268 268 1
+uniform int 0 34
+compute 267 267 1
+uniform int 0 35
+compute 300 300 1
+uniform int 0 36
+compute 265 265 1
+uniform int 0 37
+compute 264 264 1
+uniform int 0 38
+compute 263 263 1
+uniform int 0 39
+compute 262 262 1
+uniform int 0 40
+compute 261 261 1
+uniform int 0 41
+compute 260 260 1
+uniform int 0 42
+compute 259 259 1
+uniform int 0 43
+compute 258 258 1
+uniform int 0 44
+compute 257 257 1
+uniform int 0 45
+compute 256 256 1
+uniform int 0 46
+compute 255 255 1
+uniform int 0 47
+compute 254 254 1
+uniform int 0 48
+compute 253 253 1
+uniform int 0 49
+compute 252 252 1
+uniform int 0 50
+compute 251 251 1
+uniform int 0 51
+compute 250 250 1
+uniform int 0 52
+compute 249 249 1
+uniform int 0 53
+compute 248 248 1
+uniform int 0 54
+compute 247 247 1
+uniform int 0 55
+compute 246 246 1
+uniform int 0 56
+compute 245 245 1
+uniform int 0 57
+compute 244 244 1
+uniform int 0 58
+compute 243 243 1
+uniform int 0 59
+compute 242 242 1
+uniform int 0 60
+compute 241 241 1
+uniform int 0 61
+compute 240 240 1
+uniform int 0 62
+compute 239 239 1
+uniform int 0 63
+compute 238 238 1
+uniform int 0 64
+compute 237 237 1
+uniform int 0 65
+compute 236 236 1
+uniform int 0 66
+compute 235 235 1
+uniform int 0 67
+compute 234 234 1
+uniform int 0 68
+compute 233 233 1
+uniform int 0 69
+compute 232 232 1
+uniform int 0 70
+compute 231 231 1
+uniform int 0 71
+compute 230 230 1
+uniform int 0 72
+compute 229 229 1
+uniform int 0 73
+compute 228 228 1
+uniform int 0 74
+compute 227 227 1
+uniform int 0 75
+compute 226 226 1
+uniform int 0 76
+compute 225 225 1
+uniform int 0 77
+compute 224 224 1
+uniform int 0 78
+compute 223 223 1
+uniform int 0 79
+compute 222 222 1
+uniform int 0 80
+compute 221 221 1
+uniform int 0 81
+compute 220 220 1
+uniform int 0 82
+compute 219 219 1
+uniform int 0 83
+compute 218 218 1
+uniform int 0 84
+compute 217 217 1
+uniform int 0 85
+compute 216 216 1
+uniform int 0 86
+compute 215 215 1
+uniform int 0 87
+compute 214 214 1
+uniform int 0 88
+compute 213 213 1
+uniform int 0 89
+compute 212 212 1
+uniform int 0 90
+compute 211 211 1
+uniform int 0 91
+compute 210 210 1
+uniform int 0 92
+compute 209 209 1
+uniform int 0 93
+compute 208 208 1
+uniform int 0 94
+compute 207 207 1
+uniform int 0 95
+compute 206 206 1
+uniform int 0 96
+compute 205 205 1
+uniform int 0 97
+compute 204 204 1
+uniform int 0 98
+compute 203 203 1
+uniform int 0 99
+compute 202 202 1
+uniform int 0 100
+compute 201 201 1
+uniform int 0 101
+compute 200 200 1
+uniform int 0 102
+compute 199 199 1
+uniform int 0 103
+compute 198 198 1
+uniform int 0 104
+compute 197 197 1
+uniform int 0 105
+compute 196 196 1
+uniform int 0 106
+compute 195 195 1
+uniform int 0 107
+compute 194 194 1
+uniform int 0 108
+compute 193 193 1
+uniform int 0 109
+compute 192 192 1
+uniform int 0 110
+compute 191 191 1
+uniform int 0 111
+compute 190 190 1
+uniform int 0 112
+compute 189 189 1
+uniform int 0 113
+compute 188 188 1
+uniform int 0 114
+compute 187 187 1
+uniform int 0 115
+compute 186 186 1
+uniform int 0 116
+compute 185 185 1
+uniform int 0 117
+compute 184 184 1
+uniform int 0 118
+compute 183 183 1
+uniform int 0 119
+compute 182 182 1
+uniform int 0 120
+compute 181 181 1
+uniform int 0 121
+compute 180 180 1
+uniform int 0 122
+compute 179 179 1
+uniform int 0 123
+compute 178 178 1
+uniform int 0 124
+compute 177 177 1
+uniform int 0 125
+compute 176 176 1
+uniform int 0 126
+compute 175 175 1
+uniform int 0 127
+compute 174 174 1
+uniform int 0 128
+compute 173 173 1
+uniform int 0 129
+compute 172 172 1
+uniform int 0 130
+compute 171 171 1
+uniform int 0 131
+compute 170 170 1
+uniform int 0 132
+compute 169 169 1
+uniform int 0 133
+compute 168 168 1
+uniform int 0 134
+compute 167 167 1
+uniform int 0 135
+compute 166 166 1
+uniform int 0 136
+compute 165 165 1
+uniform int 0 137
+compute 164 164 1
+uniform int 0 138
+compute 163 163 1
+uniform int 0 139
+compute 162 162 1
+uniform int 0 140
+compute 161 161 1
+uniform int 0 141
+compute 160 160 1
+uniform int 0 142
+compute 159 159 1
+uniform int 0 143
+compute 158 158 1
+uniform int 0 144
+compute 157 157 1
+uniform int 0 145
+compute 156 156 1
+uniform int 0 146
+compute 155 155 1
+uniform int 0 147
+compute 154 154 1
+uniform int 0 148
+compute 153 153 1
+uniform int 0 149
+compute 152 152 1
+uniform int 0 150
+compute 151 151 1
+uniform int 0 151
+compute 150 150 1
+uniform int 0 152
+compute 149 149 1
+uniform int 0 153
+compute 148 148 1
+uniform int 0 154
+compute 147 147 1
+uniform int 0 155
+compute 146 146 1
+uniform int 0 156
+compute 145 145 1
+uniform int 0 157
+compute 144 144 1
+uniform int 0 158
+compute 143 143 1
+uniform int 0 159
+compute 142 142 1
+uniform int 0 160
+compute 141 141 1
+uniform int 0 161
+compute 140 140 1
+uniform int 0 162
+compute 139 139 1
+uniform int 0 163
+compute 138 138 1
+uniform int 0 164
+compute 137 137 1
+uniform int 0 165
+compute 136 136 1
+uniform int 0 166
+compute 135 135 1
+uniform int 0 167
+compute 134 134 1
+uniform int 0 168
+compute 133 133 1
+uniform int 0 169
+compute 132 132 1
+uniform int 0 170
+compute 131 131 1
+uniform int 0 171
+compute 130 130 1
+uniform int 0 172
+compute 129 129 1
+uniform int 0 173
+compute 128 128 1
+uniform int 0 174
+compute 127 127 1
+uniform int 0 175
+compute 126 126 1
+uniform int 0 176
+compute 125 125 1
+uniform int 0 177
+compute 124 124 1
+uniform int 0 178
+compute 123 123 1
+uniform int 0 179
+compute 122 122 1
+uniform int 0 180
+compute 121 121 1
+uniform int 0 181
+compute 120 120 1
+uniform int 0 182
+compute 119 119 1
+uniform int 0 183
+compute 118 118 1
+uniform int 0 184
+compute 117 117 1
+uniform int 0 185
+compute 116 116 1
+uniform int 0 186
+compute 115 115 1
+uniform int 0 187
+compute 114 114 1
+uniform int 0 188
+compute 113 113 1
+uniform int 0 189
+compute 112 112 1
+uniform int 0 190
+compute 111 111 1
+uniform int 0 191
+compute 110 110 1
+uniform int 0 192
+compute 109 109 1
+uniform int 0 193
+compute 108 108 1
+uniform int 0 194
+compute 107 107 1
+uniform int 0 195
+compute 106 106 1
+uniform int 0 196
+compute 105 105 1
+uniform int 0 197
+compute 104 104 1
+uniform int 0 198
+compute 103 103 1
+uniform int 0 199
+compute 102 102 1
+uniform int 0 200
+compute 101 101 1
+uniform int 0 201
+compute 100 100 1
+uniform int 0 202
+compute 99 99 1
+uniform int 0 203
+compute 98 98 1
+uniform int 0 204
+compute 97 97 1
+uniform int 0 205
+compute 96 96 1
+uniform int 0 206
+compute 95 95 1
+uniform int 0 207
+compute 94 94 1
+uniform int 0 208
+compute 93 93 1
+uniform int 0 209
+compute 92 92 1
+uniform int 0 210
+compute 91 91 1
+uniform int 0 211
+compute 90 90 1
+uniform int 0 212
+compute 89 89 1
+uniform int 0 213
+compute 88 88 1
+uniform int 0 214
+compute 87 87 1
+uniform int 0 215
+compute 86 86 1
+uniform int 0 216
+compute 85 85 1
+uniform int 0 217
+compute 84 84 1
+uniform int 0 218
+compute 83 83 1
+uniform int 0 219
+compute 82 82 1
+uniform int 0 220
+compute 81 81 1
+uniform int 0 221
+compute 80 80 1
+uniform int 0 222
+compute 79 79 1
+uniform int 0 223
+compute 78 78 1
+uniform int 0 224
+compute 77 77 1
+uniform int 0 225
+compute 76 76 1
+uniform int 0 226
+compute 75 75 1
+uniform int 0 227
+compute 74 74 1
+uniform int 0 228
+compute 73 73 1
+uniform int 0 229
+compute 72 72 1
+uniform int 0 230
+compute 71 71 1
+uniform int 0 231
+compute 70 70 1
+uniform int 0 232
+compute 69 69 1
+uniform int 0 233
+compute 68 68 1
+uniform int 0 234
+compute 67 67 1
+uniform int 0 235
+compute 66 66 1
+uniform int 0 236
+compute 65 65 1
+uniform int 0 237
+compute 64 64 1
+uniform int 0 238
+compute 63 63 1
+uniform int 0 239
+compute 62 62 1
+uniform int 0 240
+compute 61 61 1
+uniform int 0 241
+compute 60 60 1
+uniform int 0 242
+compute 59 59 1
+uniform int 0 243
+compute 58 58 1
+uniform int 0 244
+compute 57 57 1
+uniform int 0 245
+compute 56 56 1
+uniform int 0 246
+compute 55 55 1
+uniform int 0 247
+compute 54 54 1
+uniform int 0 248
+compute 53 53 1
+uniform int 0 249
+compute 52 52 1
+uniform int 0 250
+compute 51 51 1
+uniform int 0 251
+compute 50 50 1
+uniform int 0 252
+compute 49 49 1
+uniform int 0 253
+compute 48 48 1
+uniform int 0 254
+compute 47 47 1
+uniform int 0 255
+compute 46 46 1
+uniform int 0 256
+compute 45 45 1
+uniform int 0 257
+compute 44 44 1
+uniform int 0 258
+compute 43 43 1
+uniform int 0 259
+compute 42 42 1
+uniform int 0 260
+compute 41 41 1
+uniform int 0 261
+compute 40 40 1
+uniform int 0 262
+compute 39 39 1
+uniform int 0 263
+compute 38 38 1
+uniform int 0 264
+compute 37 37 1
+uniform int 0 265
+compute 36 36 1
+uniform int 0 266
+compute 35 35 1
+uniform int 0 267
+compute 34 34 1
+uniform int 0 268
+compute 33 33 1
+uniform int 0 269
+compute 32 32 1
+uniform int 0 270
+compute 31 31 1
+uniform int 0 271
+compute 30 30 1
+uniform int 0 272
+compute 29 29 1
+uniform int 0 273
+compute 28 28 1
+uniform int 0 274
+compute 27 27 1
+uniform int 0 275
+compute 26 26 1
+uniform int 0 276
+compute 25 25 1
+uniform int 0 277
+compute 24 24 1
+uniform int 0 278
+compute 23 23 1
+uniform int 0 279
+compute 22 22 1
+uniform int 0 280
+compute 21 21 1
+uniform int 0 281
+compute 20 20 1
+uniform int 0 282
+compute 19 19 1
+uniform int 0 283
+compute 18 18 1
+uniform int 0 284
+compute 17 17 1
+uniform int 0 285
+compute 16 16 1
+uniform int 0 286
+compute 15 15 1
+uniform int 0 287
+compute 14 14 1
+uniform int 0 288
+compute 13 13 1
+uniform int 0 289
+compute 12 12 1
+uniform int 0 290
+compute 11 11 1
+uniform int 0 291
+compute 10 10 1
+uniform int 0 292
+compute 9 9 1
+uniform int 0 293
+compute 8 8 1
+uniform int 0 294
+compute 7 7 1
+uniform int 0 295
+compute 6 6 1
+uniform int 0 296
+compute 5 5 1
+uniform int 0 297
+compute 4 4 1
+uniform int 0 298
+compute 3 3 1
+uniform int 0 299
+compute 2 2 1
+uniform int 0 300
+compute 1 1 1
+
+probe ssbo int 0 0 == 0
+probe ssbo ivec3 0 16 == 0 0 0
