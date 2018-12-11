@@ -32,7 +32,7 @@ main()
         int sum = 0;
 
         for (int square_size = 1;
-             square_size < GRID_SIZE - max_coord;
+             square_size <= GRID_SIZE - max_coord;
              square_size++) {
                 for (int x = 0; x < square_size; x++) {
                         sum += calc_power_level(pos.x + x,
