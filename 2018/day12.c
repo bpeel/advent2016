@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <stdint.h>
+#include <inttypes.h>
 
 struct bit_set {
         int first_bit;
@@ -110,7 +112,7 @@ bit_set_for_each_bit(const struct bit_set *bit_set,
 static bool
 read_state(FILE *in,
            bool *rules,
-           struct bit_set *state)
+           struct bit_set *set)
 {
         static const char header[] = "initial state: ";
 
@@ -124,7 +126,7 @@ read_state(FILE *in,
         while (true) {
                 switch (fgetc(in)) {
                 case '#':
-                        bit_set_set_bit(state, pos);
+                        bit_set_set_bit(set, pos);
                         break;
                 case '.':
                         break;
@@ -183,8 +185,8 @@ got_initial_state:
 
 struct iterate_closure {
         const bool *rules;
-        const struct bit_set *state_a;
-        struct bit_set *state_b;
+        const struct bit_set *set_a;
+        struct bit_set *set_b;
         int last_bit;
 };
 
@@ -203,13 +205,13 @@ iterate_cb(int bit_pos,
                 int rule_index = 0;
 
                 for (int i = 0; i < 5; i++) {
-                        if (bit_set_test_bit(data->state_a,
+                        if (bit_set_test_bit(data->set_a,
                                              test_bit + i - 2))
                                 rule_index |= (1 << i);
                 }
 
                 if (data->rules[rule_index])
-                        bit_set_set_bit(data->state_b, test_bit);
+                        bit_set_set_bit(data->set_b, test_bit);
         }
 
         data->last_bit = bit_pos + 2;
@@ -217,33 +219,70 @@ iterate_cb(int bit_pos,
 
 static void
 iterate(const bool *rules,
-        const struct bit_set *state_a,
-        struct bit_set *state_b)
+        const struct bit_set *set_a,
+        struct bit_set *set_b)
 {
         struct iterate_closure data = {
                 .rules = rules,
-                .state_a = state_a,
-                .state_b = state_b,
+                .set_a = set_a,
+                .set_b = set_b,
                 .last_bit = INT_MIN,
         };
 
-        bit_set_for_each_bit(state_a, iterate_cb, &data);
+        bit_set_for_each_bit(set_a, iterate_cb, &data);
 }
 
 static void
 calc_sum_cb(int bit, void *user_data)
 {
-        int *sum = user_data;
+        uint64_t *sum = user_data;
 
         *sum += bit;
 }
 
-static int
+static uint64_t
 calc_sum(const struct bit_set *set)
 {
-        int sum = 0;
+        uint64_t sum = 0;
 
         bit_set_for_each_bit(set, calc_sum_cb, &sum);
+
+        return sum;
+}
+
+static uint64_t
+run_iterations(const bool *rules,
+               const struct bit_set *initial_state,
+               uint64_t n_iterations)
+{
+        struct bit_set bit_sets[2];
+        struct bit_set *set_a = bit_sets + 0;
+        struct bit_set *set_b = bit_sets + 1;
+        struct bit_set *tmp_set;
+
+        *set_a = *initial_state;
+        set_a->bits = malloc(initial_state->n_longs * sizeof *set_a->bits);
+        memcpy(set_a->bits,
+               initial_state->bits,
+               initial_state->n_longs * sizeof *set_a->bits);
+        bit_set_init(set_b);
+
+        uint64_t sum = 0;
+
+        for (uint64_t i = 0; i < n_iterations; i++) {
+                iterate(rules, set_a, set_b);
+
+                tmp_set = set_a;
+                set_a = set_b;
+                set_b = tmp_set;
+
+                bit_set_clear_all(set_b);
+        }
+
+        sum = calc_sum(set_a);
+
+        bit_set_destroy(set_a);
+        bit_set_destroy(set_b);
 
         return sum;
 }
@@ -251,36 +290,25 @@ calc_sum(const struct bit_set *set)
 int
 main(int argc, char **argv)
 {
-        struct bit_set state, next_state;
+        struct bit_set initial_state;
         bool rules[1 << 5] = { false };
         int ret = EXIT_SUCCESS;
 
-        bit_set_init(&state);
-        bit_set_init(&next_state);
+        bit_set_init(&initial_state);
 
-        if (read_state(stdin, rules, &state)) {
-                struct bit_set *state_a = &state;
-                struct bit_set *state_b = &next_state;
-                struct bit_set *tmp_state;
-
-                for (int i = 0; i < 20; i++) {
-                        iterate(rules, state_a, state_b);
-
-                        tmp_state = state_a;
-                        state_a = state_b;
-                        state_b = tmp_state;
-
-                        bit_set_clear_all(state_b);
-                }
-
-                printf("Part 1: %i\n", calc_sum(state_a));
+        if (read_state(stdin, rules, &initial_state)) {
+                printf("Part 1: %" PRIu64 "\n",
+                       run_iterations(rules, &initial_state, 20));
+                printf("Part 2: %" PRIu64 "\n",
+                       run_iterations(rules,
+                                      &initial_state,
+                                      UINT64_C(50000000000)));
         } else {
                 fprintf(stderr, "error reading input\n");
                 ret = EXIT_FAILURE;
         }
 
-        bit_set_destroy(&next_state);
-        bit_set_destroy(&state);
+        bit_set_destroy(&initial_state);
 
         return ret;
 }
