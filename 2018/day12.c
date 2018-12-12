@@ -259,6 +259,9 @@ run_iterations(const bool *rules,
         struct bit_set *set_a = bit_sets + 0;
         struct bit_set *set_b = bit_sets + 1;
         struct bit_set *tmp_set;
+        uint64_t last_sum = 0;
+        uint64_t last_diff = 0;
+        int same_diff_count = 0;
 
         *set_a = *initial_state;
         set_a->bits = malloc(initial_state->n_longs * sizeof *set_a->bits);
@@ -272,6 +275,26 @@ run_iterations(const bool *rules,
         for (uint64_t i = 0; i < n_iterations; i++) {
                 iterate(rules, set_a, set_b);
 
+                uint64_t this_sum = calc_sum(set_b);
+
+                /* Hacky shortcut: if the difference has been the same
+                 * for the last 100 times, assume it will probably
+                 * keep being the same and just multiply the diff
+                 */
+                if (this_sum < last_sum ||
+                    this_sum - last_sum != last_diff) {
+                        same_diff_count = 0;
+                        last_diff = this_sum - last_sum;
+                } else {
+                        same_diff_count++;
+                        if (same_diff_count >= 100) {
+                                sum = last_sum + (n_iterations - i) * last_diff;
+                                goto shortcut;
+                        }
+                }
+
+                last_sum = this_sum;
+
                 tmp_set = set_a;
                 set_a = set_b;
                 set_b = tmp_set;
@@ -280,6 +303,8 @@ run_iterations(const bool *rules,
         }
 
         sum = calc_sum(set_a);
+
+shortcut:
 
         bit_set_destroy(set_a);
         bit_set_destroy(set_b);
