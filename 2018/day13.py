@@ -16,6 +16,7 @@ class State:
 
         self.lines = []
         self.carts = []
+        self.had_collision = False
 
         for y, line in enumerate(lines):
             self.lines.append(re.sub(r'[<>^]',
@@ -36,9 +37,9 @@ class State:
                 self.carts.append(Cart(x, y, d))
 
     def take_turn(self):
-        self.carts.sort(key = lambda cart: cart.y)
+        sorted_carts = list(sorted(self.carts, key = lambda cart: cart.y))
 
-        for cart in self.carts:
+        for cart in sorted_carts:
             ch = self.lines[cart.y][cart.x]
             if ch == '/':
                 cart.d ^= 1
@@ -69,17 +70,20 @@ class State:
                     continue
 
                 if other_cart.x == cart.x and other_cart.y == cart.y:
-                    return (cart.x, cart.y)
+                    if not self.had_collision:
+                        print("Part 1: {},{}".format(cart.x, cart.y))
+                        self.had_collision = True
+                    self.carts.remove(other_cart)
+                    self.carts.remove(cart)
+                    break
 
-        return None
-
-    def find_collision(self):
+    def find_last_pos(self):
         while True:
-            collision = self.take_turn()
+            self.take_turn()
 
-            if collision is not None:
-                return collision
+            if len(self.carts) <= 1:
+                return (self.carts[0].x, self.carts[0].y)
 
-collision = State(sys.stdin).find_collision()
+last_pos = State(sys.stdin).find_last_pos()
 
-print("Part 1: {}".format(",".join(str(x) for x in collision)))
+print("Part 2: {}".format(",".join(str(x) for x in last_pos)))
