@@ -66,6 +66,7 @@ class Counter:
     def __init__(self, terrain):
         self.terrain = terrain
         self.water = set()
+        self.forever_water = set()
 
     def add_water(self, x, y):
         if y > self.terrain.max_y:
@@ -82,8 +83,27 @@ class Counter:
         self.add_water(x, y + 1)
 
         if self.terrain.can_settle(x, y + 1):
+            is_forever = True
+
             for step in (-1, 1):
-                self.add_water(x + step, y)
+                for xx in itertools.count(x + step, step):
+                    if self.terrain.is_clay(xx, y):
+                        break
+
+                    self.water.add((xx, y))
+                    self.add_water(xx, y + 1)
+
+                    if not self.terrain.can_settle(xx, y + 1):
+                        is_forever = False
+                        break
+
+            if is_forever:
+                self.forever_water.add((x, y))
+                for step in (-1, 1):
+                    for xx in itertools.count(x + step, step):
+                        if self.terrain.is_clay(xx, y):
+                            break
+                        self.forever_water.add((xx, y))
 
 sys.setrecursionlimit(10000)
 
@@ -96,3 +116,4 @@ counter = Counter(terrain)
 counter.add_water(500, terrain.min_y)
 
 print("Part 1: {}".format(len(counter.water)))
+print("Part 2: {}".format(len(counter.forever_water)))
