@@ -29,6 +29,7 @@ class Terrain:
 
                 self.clay.add(coord)
 
+        self.min_y = min(coord[1] for coord in self.clay)
         self.max_y = max(coord[1] for coord in self.clay)
 
     def is_clay(self, x, y):
@@ -92,6 +93,6 @@ if len(sys.argv) > 1:
 else:
     terrain = Terrain(sys.stdin)
 counter = Counter(terrain)
-counter.add_water(500, 1)
+counter.add_water(500, terrain.min_y)
 
 print("Part 1: {}".format(len(counter.water)))
