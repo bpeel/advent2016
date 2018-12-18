@@ -197,6 +197,26 @@ step_area(const struct area *area_in,
         }
 }
 
+static bool
+find_history(size_t history_length,
+             struct area **history,
+             const struct area *area,
+             size_t *repeat_pos)
+{
+        for (size_t i = 0; i < history_length; i++) {
+                if (area->size == history[i]->size &&
+                    !memcmp(history[i]->state,
+                            area->state,
+                            sizeof area->state[0] *
+                            area->size * area->size)) {
+                        *repeat_pos = i;
+                        return true;
+                }
+        }
+
+        return false;
+}
+
 static int
 run_steps(const struct area *initial_state,
           unsigned long n_steps)
@@ -204,6 +224,7 @@ run_steps(const struct area *initial_state,
         size_t history_size = 1;
         size_t history_length = 1;
         struct area **history = malloc(history_size * sizeof *history);
+        size_t final_pos = 0;
 
         history[0] = copy_area(initial_state);
 
@@ -218,13 +239,28 @@ run_steps(const struct area *initial_state,
                         new_area(history[history_length - 1]->size);
                 history_length++;
 
+                size_t repeat_pos;
+
                 step_area(history[history_length - 2],
                           history[history_length - 1]);
+
+                if (find_history(history_length - 1,
+                                 history,
+                                 history[history_length - 1],
+                                 &repeat_pos)) {
+                        final_pos =
+                                repeat_pos +
+                                (n_steps - minute - 1) %
+                                (history_length - 1 - repeat_pos);
+                        break;
+                }
+
+                final_pos = history_length - 1;
         }
 
-        int trees = count_all(history[history_length - 1],
+        int trees = count_all(history[final_pos],
                               ACRE_STATE_TREES);
-        int lumberyards = count_all(history[history_length - 1],
+        int lumberyards = count_all(history[final_pos],
                                     ACRE_STATE_LUMBERYARD);
 
         for (size_t i = 0; i < history_length; i++)
