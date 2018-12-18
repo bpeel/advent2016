@@ -201,22 +201,35 @@ static int
 run_steps(const struct area *initial_state,
           unsigned long n_steps)
 {
-        struct area *area_a = copy_area(initial_state);
-        struct area *area_b = new_area(area_a->size);
+        size_t history_size = 1;
+        size_t history_length = 1;
+        struct area **history = malloc(history_size * sizeof *history);
+
+        history[0] = copy_area(initial_state);
 
         for (unsigned long minute = 0; minute < n_steps; minute++) {
-                step_area(area_a, area_b);
+                if (history_length >= history_size) {
+                        history_size *= 2;
+                        history = realloc(history,
+                                          sizeof *history * history_size);
+                }
 
-                struct area *t = area_a;
-                area_a = area_b;
-                area_b = t;
+                history[history_length] =
+                        new_area(history[history_length - 1]->size);
+                history_length++;
+
+                step_area(history[history_length - 2],
+                          history[history_length - 1]);
         }
 
-        int trees = count_all(area_a, ACRE_STATE_TREES);
-        int lumberyards = count_all(area_a, ACRE_STATE_LUMBERYARD);
+        int trees = count_all(history[history_length - 1],
+                              ACRE_STATE_TREES);
+        int lumberyards = count_all(history[history_length - 1],
+                                    ACRE_STATE_LUMBERYARD);
 
-        free(area_b);
-        free(area_a);
+        for (size_t i = 0; i < history_length; i++)
+                free(history[i]);
+        free(history);
 
         return trees * lumberyards;
 }
