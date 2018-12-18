@@ -29,6 +29,16 @@ new_area(int size)
 }
 
 static struct area *
+copy_area(const struct area *area_in)
+{
+        struct area *area_out = new_area(area_in->size);
+        memcpy(area_out, area_in,
+               sizeof (struct area) +
+               area_in->size * area_in->size * sizeof area_in->state[0]);
+        return area_out;
+}
+
+static struct area *
 read_area(FILE *in)
 {
         struct area *area = NULL;
@@ -187,52 +197,15 @@ step_area(const struct area *area_in,
         }
 }
 
-static void
-print_area(const struct area *area)
+static int
+run_steps(const struct area *initial_state,
+          unsigned long n_steps)
 {
-        const enum acre_state *pin = area->state;
-
-        for (int y = 0; y < area->size; y++) {
-                for (int x = 0; x < area->size; x++) {
-                        char ch = '?';
-
-                        switch (*(pin++)) {
-                        case ACRE_STATE_TREES:
-                                ch = '|';
-                                break;
-                        case ACRE_STATE_LUMBERYARD:
-                                ch = '#';
-                                break;
-                        case ACRE_STATE_OPEN:
-                                ch = '.';
-                                break;
-                        }
-
-                        fputc(ch, stdout);
-                }
-
-                fputc('\n', stdout);
-        }
-
-        fputc('\n', stdout);
-}
-
-int
-main(int argc, char **argv)
-{
-        struct area *area_a = read_area(stdin);
-
-        if (area_a == NULL)
-                return EXIT_FAILURE;
-
+        struct area *area_a = copy_area(initial_state);
         struct area *area_b = new_area(area_a->size);
 
-        print_area(area_a);
-
-        for (int minute = 0; minute < 10; minute++) {
+        for (unsigned long minute = 0; minute < n_steps; minute++) {
                 step_area(area_a, area_b);
-
-                print_area(area_b);
 
                 struct area *t = area_a;
                 area_a = area_b;
@@ -245,7 +218,21 @@ main(int argc, char **argv)
         free(area_b);
         free(area_a);
 
-        printf("Part 1: %i\n", trees * lumberyards);
+        return trees * lumberyards;
+}
+
+int
+main(int argc, char **argv)
+{
+        struct area *area = read_area(stdin);
+
+        if (area == NULL)
+                return EXIT_FAILURE;
+
+        printf("Part 1: %i\n", run_steps(area, 10));
+        printf("Part 2: %i\n", run_steps(area, 1000000000ul));
+
+        free(area);
 
         return EXIT_SUCCESS;
 }
