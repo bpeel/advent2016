@@ -209,17 +209,54 @@ read_ip_register(FILE *in)
         return reg;
 }
 
+static void
+print_regs(const struct cpu_state *cpu)
+{
+        fputc('[', stdout);
+        for (int i = 0; i < N_REGISTERS; i++) {
+                if (i > 0)
+                        fputs(", ", stdout);
+                printf("%i", cpu->reg[i]);
+        }
+        fputc(']', stdout);
+}
+
+static void
+print_instruction(const struct instruction *instruction)
+{
+        if (instruction->opc < 0 || instruction->opc > N_OPCODES)
+                printf(" (%i)", instruction->opc);
+        else
+                printf(" %s", opcodes[instruction->opc].name);
+
+        for (int i = 0; i < 3; i++)
+                printf(" %i", instruction->params[i]);
+}
+
 static bool
-run_program(struct cpu_state *cpu,
+run_program(bool trace,
+            struct cpu_state *cpu,
             int ip_reg,
             size_t n_instructions,
             const struct instruction *instructions)
 {
         while (cpu->reg[ip_reg] >= 0 && cpu->reg[ip_reg] < n_instructions) {
+                if (trace) {
+                        print_regs(cpu);
+                        print_instruction(instructions + cpu->reg[ip_reg]);
+                }
+
                 if (!apply_instruction(cpu, instructions + cpu->reg[ip_reg])) {
                         fprintf(stderr, "Invalid instruction encountered\n");
                         return false;
                 }
+
+                if (trace) {
+                        fputc(' ', stdout);
+                        print_regs(cpu);
+                        fputc('\n', stdout);
+                }
+
                 cpu->reg[ip_reg]++;
         }
 
@@ -229,6 +266,8 @@ run_program(struct cpu_state *cpu,
 int
 main(int argc, char **argv)
 {
+        bool trace = argc > 1;
+
         int ip_reg = read_ip_register(stdin);
 
         if (ip_reg == -1)
@@ -242,14 +281,19 @@ main(int argc, char **argv)
 
         struct cpu_state cpu = { .reg = { 0 } };
 
-        if (run_program(&cpu, ip_reg, n_instructions, instructions)) {
+        if (run_program(trace, &cpu, ip_reg, n_instructions, instructions)) {
                 printf("Part 1: %i\n", cpu.reg[0]);
 
                 memset(&cpu, 0, sizeof cpu);
                 cpu.reg[0] = 1;
 
-                if (run_program(&cpu, ip_reg, n_instructions, instructions))
+                if (run_program(trace,
+                                &cpu,
+                                ip_reg,
+                                n_instructions,
+                                instructions)) {
                         printf("Part 2: %i\n", cpu.reg[0]);
+                }
         }
 
         free(instructions);
