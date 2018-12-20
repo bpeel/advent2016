@@ -233,6 +233,21 @@ print_instruction(const struct instruction *instruction)
                 printf(" %i", instruction->params[i]);
 }
 
+static void
+run_is_factor(struct cpu_state *cpu)
+{
+        /* Is r3 a factor of r1 */
+        if (cpu->reg[1] % cpu->reg[3] == 0) {
+                /* Add r3 to r0 */
+                cpu->reg[0] += cpu->reg[3];
+        }
+
+        /* Loop terminator */
+        cpu->reg[2] = cpu->reg[1] + 1;
+        cpu->reg[4] = 1;
+        cpu->reg[5] = 11;
+}
+
 static bool
 run_program(bool trace,
             struct cpu_state *cpu,
@@ -246,9 +261,16 @@ run_program(bool trace,
                         print_instruction(instructions + cpu->reg[ip_reg]);
                 }
 
-                if (!apply_instruction(cpu, instructions + cpu->reg[ip_reg])) {
-                        fprintf(stderr, "Invalid instruction encountered\n");
-                        return false;
+                if (cpu->reg[ip_reg] == 3) {
+                        run_is_factor(cpu);
+                } else {
+                        const struct instruction *instruction =
+                                instructions + cpu->reg[ip_reg];
+                        if (!apply_instruction(cpu, instruction)) {
+                                fprintf(stderr,
+                                        "Invalid instruction encountered\n");
+                                return false;
+                        }
                 }
 
                 if (trace) {
