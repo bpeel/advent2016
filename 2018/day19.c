@@ -209,6 +209,23 @@ read_ip_register(FILE *in)
         return reg;
 }
 
+static bool
+run_program(struct cpu_state *cpu,
+            int ip_reg,
+            size_t n_instructions,
+            const struct instruction *instructions)
+{
+        while (cpu->reg[ip_reg] >= 0 && cpu->reg[ip_reg] < n_instructions) {
+                if (!apply_instruction(cpu, instructions + cpu->reg[ip_reg])) {
+                        fprintf(stderr, "Invalid instruction encountered\n");
+                        return false;
+                }
+                cpu->reg[ip_reg]++;
+        }
+
+        return true;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -225,15 +242,15 @@ main(int argc, char **argv)
 
         struct cpu_state cpu = { .reg = { 0 } };
 
-        while (cpu.reg[ip_reg] >= 0 && cpu.reg[ip_reg] < n_instructions) {
-                if (!apply_instruction(&cpu, instructions + cpu.reg[ip_reg])) {
-                        fprintf(stderr, "Invalid instruction encountered\n");
-                        break;
-                }
-                cpu.reg[ip_reg]++;
+        if (run_program(&cpu, ip_reg, n_instructions, instructions)) {
+                printf("Part 1: %i\n", cpu.reg[0]);
+
+                memset(&cpu, 0, sizeof cpu);
+                cpu.reg[0] = 1;
+
+                if (run_program(&cpu, ip_reg, n_instructions, instructions))
+                        printf("Part 2: %i\n", cpu.reg[0]);
         }
 
         free(instructions);
-
-        printf("Part 1: %i\n", cpu.reg[0]);
 }
