@@ -164,6 +164,20 @@ read_observation(FILE *fin,
 }
 
 static bool
+read_instruction(FILE *fin,
+                 struct instruction *instruction)
+{
+        int got = fscanf(fin,
+                         "%i %i %i %i\n",
+                         &instruction->opc,
+                         &instruction->params[0],
+                         &instruction->params[1],
+                         &instruction->params[2]);
+
+        return got == 4;
+}
+
+static bool
 cpu_state_equal(const struct cpu_state *a,
                 const struct cpu_state *b)
 {
@@ -176,8 +190,10 @@ cpu_state_equal(const struct cpu_state *a,
 }
 
 static int
-count_opcodes(const struct observation *observation)
+find_opcodes(const struct observation *observation,
+             int *possible_opcodes_out)
 {
+        int possible_opcodes = 0;
         int count = 0;
 
         for (int opc = 0; opc < N_OPCODES; opc++) {
@@ -188,11 +204,38 @@ count_opcodes(const struct observation *observation)
                                        observation->instruction.params))
                         continue;
 
-                if (cpu_state_equal(&observation->after, &cpu))
+                if (cpu_state_equal(&observation->after, &cpu)) {
                         count++;
+                        possible_opcodes |= 1 << opc;
+                }
         }
 
+        *possible_opcodes_out = possible_opcodes;
+
         return count;
+}
+
+static bool
+build_opcode_map(const int *possible_opcodes_map,
+                 int *opcode_map)
+{
+        bool ret = true;
+
+        for (int i = 0; i < N_OPCODES; i++) {
+                int opc = ffs(possible_opcodes_map[i]);
+
+                if (opc == 0 || possible_opcodes_map[i] != (1 << (opc - 1))) {
+                        fprintf(stderr,
+                                "Unknown mapping for %i: 0x%04x\n",
+                                i,
+                                possible_opcodes_map[i]);
+                        ret = false;
+                }
+
+                opcode_map[i] = opc - 1;
+        }
+
+        return ret;
 }
 
 int
@@ -200,11 +243,49 @@ main(int argc, char **argv)
 {
         struct observation observation;
         int n_samples = 0;
+        int possible_opcodes_map[N_OPCODES];
+
+        for (int i = 0; i < N_OPCODES; i++)
+                possible_opcodes_map[i] = (1 << N_OPCODES) - 1;
 
         while (read_observation(stdin, &observation)) {
-                if (count_opcodes(&observation) >= 3)
+                int possible_opcodes;
+                int n_opcodes = find_opcodes(&observation, &possible_opcodes);
+
+                if (n_opcodes >= 3)
                         n_samples++;
+
+                if (observation.instruction.opc < 0 ||
+                    observation.instruction.opc >= N_OPCODES) {
+                        fprintf(stderr,
+                                "Encountered opcode %i\n",
+                                observation.instruction.opc);
+                        return EXIT_FAILURE;
+                }
+
+                possible_opcodes_map[observation.instruction.opc] &=
+                        possible_opcodes;
         }
 
         printf("Part 1: %i\n", n_samples);
+
+        int opcode_map[N_OPCODES];
+
+        if (!build_opcode_map(possible_opcodes_map, opcode_map))
+                return EXIT_FAILURE;
+
+        struct instruction instruction;
+        struct cpu_state cpu = { .reg = { 0 } };
+
+        while (read_instruction(stdin, &instruction)) {
+                if (!apply_instruction(&cpu,
+                                       opcode_map[instruction.opc],
+                                       instruction.params)) {
+                        fprintf(stderr,
+                                "Tried to execute invalid instruction\n");
+                        return EXIT_FAILURE;
+                }
+        }
+
+        printf("Part 2: %i\n", cpu.reg[0]);
 }
