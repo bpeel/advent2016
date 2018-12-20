@@ -216,26 +216,51 @@ find_opcodes(const struct observation *observation,
 }
 
 static bool
-build_opcode_map(const int *possible_opcodes_map,
-                 int *opcode_map)
+is_pot(int x)
 {
-        bool ret = true;
+        return x && (x & (x-1)) == 0;
+}
 
+static int
+find_one_possible_opcode(const int *possible_opcodes_map)
+{
         for (int i = 0; i < N_OPCODES; i++) {
-                int opc = ffs(possible_opcodes_map[i]);
-
-                if (opc == 0 || possible_opcodes_map[i] != (1 << (opc - 1))) {
-                        fprintf(stderr,
-                                "Unknown mapping for %i: 0x%04x\n",
-                                i,
-                                possible_opcodes_map[i]);
-                        ret = false;
-                }
-
-                opcode_map[i] = opc - 1;
+                if (is_pot(possible_opcodes_map[i]))
+                        return i;
         }
 
-        return ret;
+        return -1;
+}
+
+static bool
+build_opcode_map(const int *possible_opcodes_map_in,
+                 int *opcode_map)
+{
+        int possible_opcodes_map[N_OPCODES];
+
+        memcpy(possible_opcodes_map,
+               possible_opcodes_map_in,
+               sizeof possible_opcodes_map);
+
+        for (int count = 0; count < N_OPCODES; count++) {
+                int next_one = find_one_possible_opcode(possible_opcodes_map);
+
+                if (next_one == -1) {
+                        fprintf(stderr,
+                                "Run out of one opcode mappings\n");
+                        return false;
+                }
+
+                int mapped_opc = ffs(possible_opcodes_map[next_one]) - 1;
+                opcode_map[next_one] = mapped_opc;
+
+                possible_opcodes_map[next_one] = 0;
+
+                for (int opc = 0; opc < N_OPCODES; opc++)
+                        possible_opcodes_map[opc] &= ~(1 << mapped_opc);
+        }
+
+        return true;
 }
 
 int
