@@ -14,6 +14,8 @@ day2_src = [
         'intcode.c',
         'pcx-util.c',
         'pcx-error.c',
+        'pcx-buffer.c',
+        'read-memory.c',
         'day2.c'
 ]
 
