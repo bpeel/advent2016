@@ -185,7 +185,7 @@ intcode_step(struct intcode *machine,
                 pcx_set_error(error,
                               &intcode_error_domain,
                               INTCODE_ERROR_INVALID_OPCODE,
-                              "Invalide opcode %" PRIi64 " at %" PRIi64,
+                              "Invalid opcode %" PRIi64 " at %" PRIi64,
                               opcode,
                               machine->pc);
                 return false;
