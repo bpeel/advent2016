@@ -21,6 +21,7 @@ def positions_for_wire(wire_desc):
     def get_positions():
         x = 0
         y = 0
+        distance = 0
 
         for d, c in moves:
             offset = OFFSETS[d]
@@ -28,17 +29,29 @@ def positions_for_wire(wire_desc):
             for i in range(c):
                 x += offset[0]
                 y += offset[1]
+                distance += 1
 
-                yield x, y
+                yield x, y, distance
             
     return get_positions()
 
 def crossovers(a, b):
-    b_positions = set(positions_for_wire(b))
+    b_positions = {}
 
-    for pos_a in positions_for_wire(a):
-        if pos_a in b_positions:
-            yield pos_a
+    for x, y, d in positions_for_wire(b):
+        pos = (x, y)
+        try:
+            old_d = b_positions[pos]
+        except KeyError:
+            b_positions[pos] = d
+        else:
+            if old_d > d:
+                b_positions[pos] = d
+
+    for x, y, d in positions_for_wire(a):
+        pos = (x, y)
+        if pos in b_positions:
+            yield x, y, d + b_positions[pos]
 
 def manhattan_distance(pos):
     return abs(pos[0]) + abs(pos[1])
@@ -49,3 +62,7 @@ b = next(sys.stdin)
 best_crossover = min(crossovers(a, b), key=manhattan_distance)
 
 print("Part 1: {}".format(manhattan_distance(best_crossover)))
+
+shortest_signal = min(crossovers(a, b), key=lambda x: x[2])
+
+print("Part 2: {}".format(shortest_signal[2]))
