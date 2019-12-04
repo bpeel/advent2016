@@ -55,23 +55,27 @@ first_sequence(int v)
         return v;
 }
 
+static int
+count_repeats(int v, int max)
+{
+        int digit = v % 10;
+        int count;
+
+        for (count = 1; count < max; count++) {
+                v /= 10;
+
+                if (v % 10 != digit)
+                        break;
+        }
+
+        return count;
+}
+
 static bool
 has_repeat(int v, int part)
 {
-        for (int digit = 0, div = 1; digit < N_DIGITS - 1;) {
-                int c = v / div % 10;
-                int repeats = 1, next_div = div;
-
-                while (digit + repeats < N_DIGITS) {
-                        next_div *= 10;
-
-                        int next = v / next_div % 10;
-
-                        if (next != c)
-                                break;
-
-                        repeats++;
-                }
+        for (int digit = 0; digit < N_DIGITS - 1;) {
+                int repeats = count_repeats(v, N_DIGITS - digit);
 
                 if (part >= 2) {
                         if (repeats == 2)
@@ -82,7 +86,7 @@ has_repeat(int v, int part)
 
                 for (int i = 0; i < repeats; i++) {
                         digit++;
-                        div *= 10;
+                        v /= 10;
                 }
         }
 
