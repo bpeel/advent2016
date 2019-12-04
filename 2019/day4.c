@@ -2,6 +2,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 
 #define N_DIGITS 6
 
@@ -55,32 +56,52 @@ first_sequence(int v)
 }
 
 static bool
-has_repeat(int v)
+has_repeat(int v, int part)
 {
-        for (int digit = 0, div = 1; digit < N_DIGITS - 1; digit++, div *= 10) {
+        for (int digit = 0, div = 1; digit < N_DIGITS - 1;) {
                 int c = v / div % 10;
-                int next = v / (div * 10) % 10;
+                int repeats = 1, next_div = div;
 
-                if (c == next)
+                while (digit + repeats < N_DIGITS) {
+                        next_div *= 10;
+
+                        int next = v / next_div % 10;
+
+                        if (next != c)
+                                break;
+
+                        repeats++;
+                }
+
+                if (part >= 2) {
+                        if (repeats == 2)
+                                return true;
+                } else if (repeats >= 2) {
                         return true;
+                }
+
+                for (int i = 0; i < repeats; i++) {
+                        digit++;
+                        div *= 10;
+                }
         }
 
         return false;
 }
 
-static int
-count_valid_passwords(int min, int max)
+static void
+count_valid_passwords(int min, int max, int *results)
 {
-        int count = 0;
+        memset(results, 0, 2 * sizeof *results);
 
         for (int v = first_sequence(min);
              v <= max;
              v = next_sequence(v)) {
-                if (has_repeat(v))
-                        count++;
+                for (int i = 0; i < 2; i++) {
+                        if (has_repeat(v, i + 1))
+                                results[i]++;
+                }
         }
-
-        return count;
 }
 
 int
@@ -91,10 +112,14 @@ main(int argc, char **argv)
                 return EXIT_FAILURE;
         }
 
-        int count = count_valid_passwords(strtoul(argv[1], NULL, 10),
-                                          strtoul(argv[2], NULL, 10));
+        int min = strtoul(argv[1], NULL, 10);
+        int max = strtoul(argv[2], NULL, 10);
+        int count[2];
 
-        printf("Part 1: %i\n", count);
+        count_valid_passwords(min, max, count);
+
+        for (int i = 0; i < 2; i++)
+                printf("Part %i: %i\n", i + 1, count[i]);
 
         return EXIT_SUCCESS;
 }
