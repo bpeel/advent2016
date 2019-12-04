@@ -20,3 +20,9 @@ day2_src = [
 ]
 
 executable('day2', day2_src)
+
+day4_src = [
+        'day4.c',
+]
+
+executable('day4', day4_src)
