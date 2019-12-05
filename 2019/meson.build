@@ -26,3 +26,14 @@ day4_src = [
 ]
 
 executable('day4', day4_src)
+
+day5_src = [
+        'intcode.c',
+        'pcx-util.c',
+        'pcx-error.c',
+        'pcx-buffer.c',
+        'read-memory.c',
+        'day5.c'
+]
+
+executable('day5', day5_src)
