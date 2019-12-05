@@ -55,6 +55,8 @@ store_result(struct intcode *machine,
 
 ALU_OP(add, a + b);
 ALU_OP(multiply, a * b);
+ALU_OP(less_than, a < b);
+ALU_OP(equals, a == b);
 
 #undef ALU_OP
 
@@ -127,6 +129,8 @@ opcodes[] = {
         [4] = { 1, opcode_output },
         [5] = { 2, opcode_jump_true },
         [6] = { 2, opcode_jump_false },
+        [7] = { 2, opcode_less_than },
+        [8] = { 2, opcode_equals },
         [99] = { 0, opcode_stop }
 };
 
