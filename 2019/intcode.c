@@ -6,6 +6,8 @@
 
 #include "pcx-util.h"
 
+#define MAX_PARAMS 3
+
 struct pcx_error_domain
 intcode_error_domain;
 
@@ -16,30 +18,12 @@ struct intcode {
         bool stopped;
 };
 
-typedef bool
-(* opcode_func)(struct intcode *machine,
-                struct pcx_error **error);
-
-static bool
-start_alu(struct intcode *machine,
-          int64_t *a,
-          int64_t *b,
-          struct pcx_error **error)
-{
-        if (!intcode_read_indirect(machine,
-                                   machine->pc,
-                                   a,
-                                   error) ||
-            !intcode_read_indirect(machine,
-                                   machine->pc + 1,
-                                   b,
-                                   error))
-                return false;
-
-        machine->pc += 2;
-
-        return true;
-}
+struct opcode {
+        int n_params;
+        bool (* func)(struct intcode *machine,
+                      const int64_t *params,
+                      struct pcx_error **error);
+};
 
 static bool
 end_alu(struct intcode *machine,
@@ -60,12 +44,10 @@ end_alu(struct intcode *machine,
 #define ALU_OP(name, code)                              \
         static bool                                     \
         opcode_ ## name(struct intcode *machine,        \
+                        const int64_t *params,          \
                         struct pcx_error **error)       \
         {                                               \
-                int64_t a, b;                           \
-                                                        \
-                if (!start_alu(machine, &a, &b, error)) \
-                        return false;                   \
+                int64_t a = params[0], b = params[1];   \
                                                         \
                 return end_alu(machine, (code), error); \
         }
@@ -77,6 +59,7 @@ ALU_OP(multiply, a * b);
 
 static bool
 opcode_stop(struct intcode *machine,
+            const int64_t *params,
             struct pcx_error **error)
 {
         machine->stopped = true;
@@ -84,11 +67,11 @@ opcode_stop(struct intcode *machine,
         return true;
 }
 
-static const opcode_func
+static const struct opcode
 opcodes[] = {
-        [1] = opcode_add,
-        [2] = opcode_multiply,
-        [99] = opcode_stop,
+        [1] = { 2, opcode_add },
+        [2] = { 2, opcode_multiply },
+        [99] = { 0, opcode_stop }
 };
 
 static bool
@@ -170,18 +153,66 @@ intcode_write_indirect(struct intcode *machine,
                               error));
 }
 
+static bool
+get_params(struct intcode *machine,
+           int64_t opcode,
+           int n_params,
+           int64_t *params,
+           struct pcx_error **error)
+{
+        opcode /= 100;
+
+        for (int i = 0; i < n_params; i++) {
+                int mode = opcode % 10;
+
+                switch (mode) {
+                case 0:
+                        if (!intcode_read_indirect(machine,
+                                                   machine->pc,
+                                                   params + i,
+                                                   error))
+                                return false;
+                        break;
+                case 1:
+                        if (!intcode_read(machine,
+                                          machine->pc,
+                                          params + i,
+                                          error))
+                                return false;
+                        break;
+                default:
+                        pcx_set_error(error,
+                                      &intcode_error_domain,
+                                      INTCODE_ERROR_INVALID_ADDRESSING_MODE,
+                                      "Invalid addressing mode %i at %" PRIi64,
+                                      mode,
+                                      machine->pc - i - 1);
+                        return false;
+                }
+
+                opcode /= 10;
+                machine->pc++;
+        }
+
+        return true;
+}
+
+
 bool
 intcode_step(struct intcode *machine,
              struct pcx_error **error)
 {
-        int64_t opcode;
+        int64_t instruction, opcode;
+        int64_t params[MAX_PARAMS];
 
-        if (!intcode_read(machine, machine->pc, &opcode, error))
+        if (!intcode_read(machine, machine->pc, &instruction, error))
                 return false;
+
+        opcode = instruction % 100;
 
         if (opcode < 0 ||
             opcode >= PCX_N_ELEMENTS(opcodes) ||
-            opcodes[opcode] == NULL) {
+            opcodes[opcode].func == NULL) {
                 pcx_set_error(error,
                               &intcode_error_domain,
                               INTCODE_ERROR_INVALID_OPCODE,
@@ -193,7 +224,14 @@ intcode_step(struct intcode *machine,
 
         machine->pc++;
 
-        return opcodes[opcode](machine, error);
+        if (!get_params(machine,
+                        opcode,
+                        opcodes[opcode].n_params,
+                        params,
+                        error))
+                return false;
+
+        return opcodes[opcode].func(machine, params, error);
 }
 
 bool

@@ -14,6 +14,7 @@ intcode_error_domain;
 enum intcode_error {
         INTCODE_ERROR_INVALID_ADDRESS,
         INTCODE_ERROR_INVALID_OPCODE,
+        INTCODE_ERROR_INVALID_ADDRESSING_MODE,
 };
 
 bool
