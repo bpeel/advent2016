@@ -225,7 +225,7 @@ intcode_step(struct intcode *machine,
         machine->pc++;
 
         if (!get_params(machine,
-                        opcode,
+                        instruction,
                         opcodes[opcode].n_params,
                         params,
                         error))
