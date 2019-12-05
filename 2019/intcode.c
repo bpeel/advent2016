@@ -97,12 +97,36 @@ opcode_output(struct intcode *machine,
         return true;
 }
 
+static bool
+opcode_jump_true(struct intcode *machine,
+                 const int64_t *params,
+                 struct pcx_error **error)
+{
+        if (params[0])
+                machine->pc = params[1];
+
+        return true;
+}
+
+static bool
+opcode_jump_false(struct intcode *machine,
+                  const int64_t *params,
+                  struct pcx_error **error)
+{
+        if (!params[0])
+                machine->pc = params[1];
+
+        return true;
+}
+
 static const struct opcode
 opcodes[] = {
         [1] = { 2, opcode_add },
         [2] = { 2, opcode_multiply },
         [3] = { 0, opcode_input },
         [4] = { 1, opcode_output },
+        [5] = { 2, opcode_jump_true },
+        [6] = { 2, opcode_jump_false },
         [99] = { 0, opcode_stop }
 };
 
