@@ -12,6 +12,7 @@ read_memory(FILE *in,
         struct pcx_buffer buf = PCX_BUFFER_STATIC_INIT;
         int64_t value = 0;
         bool has_value = true;
+        bool negative = false;
 
         while (true) {
                 int ch = fgetc(in);
@@ -19,15 +20,22 @@ read_memory(FILE *in,
                 if (ch == EOF)
                         break;
 
-                if (ch >= '0' && ch <= '9') {
+                if (ch == '-') {
+                        if (has_value || negative)
+                                goto error;
+                        negative = true;
+                } else if (ch >= '0' && ch <= '9') {
                         value = value * 10 + ch - '0';
                         has_value = true;
                 } else if (ch == ',') {
                         if (!has_value)
                                 goto error;
+                        if (negative)
+                                value = -value;
                         pcx_buffer_append(&buf, &value, sizeof value);
                         value = 0;
                         has_value = false;
+                        negative = false;
                 } else if (!isspace(ch)) {
                         goto error;
                 }
