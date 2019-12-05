@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <stdio.h>
 
 #include "pcx-util.h"
 
@@ -26,9 +27,9 @@ struct opcode {
 };
 
 static bool
-end_alu(struct intcode *machine,
-        int64_t result,
-        struct pcx_error **error)
+store_result(struct intcode *machine,
+             int64_t result,
+             struct pcx_error **error)
 {
         if (!intcode_write_indirect(machine,
                                     machine->pc,
@@ -41,15 +42,15 @@ end_alu(struct intcode *machine,
         return true;
 }
 
-#define ALU_OP(name, code)                              \
-        static bool                                     \
-        opcode_ ## name(struct intcode *machine,        \
-                        const int64_t *params,          \
-                        struct pcx_error **error)       \
-        {                                               \
-                int64_t a = params[0], b = params[1];   \
-                                                        \
-                return end_alu(machine, (code), error); \
+#define ALU_OP(name, code)                                      \
+        static bool                                             \
+        opcode_ ## name(struct intcode *machine,                \
+                        const int64_t *params,                  \
+                        struct pcx_error **error)               \
+        {                                                       \
+                int64_t a = params[0], b = params[1];           \
+                                                                \
+                return store_result(machine, (code), error);    \
         }
 
 ALU_OP(add, a + b);
@@ -67,10 +68,41 @@ opcode_stop(struct intcode *machine,
         return true;
 }
 
+static bool
+opcode_input(struct intcode *machine,
+             const int64_t *params,
+             struct pcx_error **error)
+{
+        int value;
+
+        int got = fscanf(stdin, "%d", &value);
+
+        if (got != 1) {
+                pcx_set_error(error,
+                              &intcode_error_domain,
+                              INTCODE_ERROR_IO,
+                              "Error getting input");
+                return false;
+        }
+
+        return store_result(machine, value, error);
+}
+
+static bool
+opcode_output(struct intcode *machine,
+              const int64_t *params,
+              struct pcx_error **error)
+{
+        fprintf(stdout, "%" PRIi64 "\n", params[0]);
+        return true;
+}
+
 static const struct opcode
 opcodes[] = {
         [1] = { 2, opcode_add },
         [2] = { 2, opcode_multiply },
+        [3] = { 0, opcode_input },
+        [4] = { 1, opcode_output },
         [99] = { 0, opcode_stop }
 };
 
