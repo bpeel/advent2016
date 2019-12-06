@@ -85,6 +85,7 @@ read_objects(FILE *in,
                                                 buf.length -
                                                 sizeof (struct object));
         strcpy(com->name, "COM");
+        com->parent = -1;
         com->parent_name[0] = '\0';
         com->first_child = -1;
         com->next_sibling = -1;
