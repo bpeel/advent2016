@@ -37,3 +37,11 @@ day5_src = [
 ]
 
 executable('day5', day5_src)
+
+day6_src = [
+        'pcx-util.c',
+        'pcx-buffer.c',
+        'day6.c'
+]
+
+executable('day6', day6_src)
