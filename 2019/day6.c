@@ -4,6 +4,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#include <limits.h>
 
 #include "pcx-buffer.h"
 
@@ -11,12 +12,17 @@ struct object {
         char name[4];
         char parent_name[4];
         int first_child;
+        int parent;
         int next_sibling;
 };
 
 struct stack_entry {
         int object_num;
-        int depth;
+        union {
+                int depth;
+                int next_sibling;
+        };
+        bool tried_parent;
 };
 
 static bool
@@ -45,6 +51,7 @@ parse_object(struct object *obj,
 
         obj->first_child = -1;
         obj->next_sibling = -1;
+        obj->parent = -1;
 
         return true;
 
@@ -152,6 +159,7 @@ build_tree(size_t n_objects,
                 }
 
                 obj->next_sibling = parent->first_child;
+                obj->parent = parent - objects;
                 parent->first_child = i;
         }
 
@@ -171,6 +179,7 @@ add_to_stack(struct pcx_buffer *stack,
                                       sizeof (struct stack_entry)));
         entry->object_num = object_num;
         entry->depth = depth;
+        entry->tried_parent = false;
 }
 
 static int
@@ -209,6 +218,128 @@ count_orbits(size_t n_objects,
         return total_orbits;
 }
 
+static bool
+is_in_stack(const struct pcx_buffer *stack,
+            int object_num)
+{
+        size_t n_entries = stack->length / sizeof (struct stack_entry);
+        struct stack_entry *entries = (struct stack_entry *) stack->data;
+
+        for (unsigned i = 0; i < n_entries; i++) {
+                if (entries[i].object_num == object_num)
+                        return true;
+        }
+
+        return false;
+}
+
+static void
+print_route(const struct pcx_buffer *stack,
+            const struct object *objects)
+{
+        size_t n_entries = stack->length / sizeof (struct stack_entry);
+        struct stack_entry *entries = (struct stack_entry *) stack->data;
+
+        printf("Best route:\n");
+
+        for (unsigned i = 0; i < n_entries; i++) {
+                if (i > 0)
+                        fputc(',', stdout);
+                printf("%s", objects[entries[i].object_num].name);
+        }
+
+        fputc('\n', stdout);
+
+        printf("Length %zd\n", n_entries - 3);
+}
+
+static bool
+find_best_route(size_t n_objects,
+                const struct object *objects)
+{
+        const struct object *santa = find_object(n_objects, objects, "SAN");
+
+        if (santa == NULL) {
+                fprintf(stderr, "SAN is missing\n");
+                return false;
+        }
+
+        const struct object *you = find_object(n_objects, objects, "YOU");
+
+        if (you == NULL) {
+                fprintf(stderr, "YOU is missing\n");
+                return false;
+        }
+
+        struct pcx_buffer stack = PCX_BUFFER_STATIC_INIT;
+        struct pcx_buffer best_route = PCX_BUFFER_STATIC_INIT;
+        size_t best_route_length = INT_MAX;
+
+        add_to_stack(&stack, you - objects, -1);
+
+        while (stack.length > 0) {
+                struct stack_entry *entry = ((struct stack_entry *)
+                                             (stack.data +
+                                              stack.length -
+                                              sizeof *entry));
+
+                const struct object *obj = objects + entry->object_num;
+
+                if (obj == santa && stack.length < best_route_length) {
+                        pcx_buffer_set_length(&best_route, 0);
+                        pcx_buffer_append(&best_route,
+                                          stack.data,
+                                          stack.length);
+                        best_route_length = stack.length;
+                }
+
+                while (entry->next_sibling >= 0 &&
+                       is_in_stack(&stack, entry->next_sibling)) {
+                        entry->next_sibling =
+                                objects[entry->next_sibling].next_sibling;
+                }
+
+                if (entry->next_sibling >= 0) {
+                        int next_sibling = entry->next_sibling;
+                        entry->next_sibling =
+                                objects[next_sibling].next_sibling;
+                        add_to_stack(&stack,
+                                     next_sibling,
+                                     objects[next_sibling].first_child);
+
+                        continue;
+                }
+
+                if (!entry->tried_parent) {
+                        entry->tried_parent = true;
+
+                        if (obj->parent != -1 &&
+                            !is_in_stack(&stack, obj->parent)) {
+                                add_to_stack(&stack,
+                                             obj->parent,
+                                             objects[obj->parent].first_child);
+                                continue;
+                        }
+                }
+
+                stack.length -= sizeof *entry;
+        }
+
+        bool ret = true;
+
+        if (best_route.length == 0) {
+                fprintf(stderr, "no route found\n");
+                ret = false;
+        } else {
+                print_route(&best_route, objects);
+        }
+
+        pcx_buffer_destroy(&stack);
+        pcx_buffer_destroy(&best_route);
+
+        return ret;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -228,6 +359,9 @@ main(int argc, char **argv)
         }
 
         printf("Part 1: %i\n", count_orbits(n_objects, objects));
+
+        if (!find_best_route(n_objects, objects))
+                ret = EXIT_FAILURE;
 
 out:
         pcx_free(objects);
