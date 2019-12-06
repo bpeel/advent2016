@@ -233,6 +233,15 @@ is_in_stack(const struct pcx_buffer *stack,
         return false;
 }
 
+static bool
+is_valid_transfer(const struct object *objects,
+                  int obj_a,
+                  int obj_b)
+{
+        return (objects[obj_a].parent == obj_b ||
+                objects[obj_b].parent == obj_a);
+}
+
 static void
 print_route(const struct pcx_buffer *stack,
             const struct object *objects)
@@ -245,6 +254,13 @@ print_route(const struct pcx_buffer *stack,
         for (unsigned i = 0; i < n_entries; i++) {
                 if (i > 0)
                         fputc(',', stdout);
+
+                if (i < n_entries - 1 &&
+                    !is_valid_transfer(objects,
+                                       entries[i].object_num,
+                                       entries[i + 1].object_num))
+                        fputs("***", stdout);
+
                 printf("%s", objects[entries[i].object_num].name);
         }
 
