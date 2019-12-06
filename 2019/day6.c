@@ -18,11 +18,7 @@ struct object {
 
 struct stack_entry {
         int object_num;
-        union {
-                int depth;
-                int next_sibling;
-        };
-        bool tried_parent;
+        int depth;
 };
 
 static bool
@@ -180,7 +176,6 @@ add_to_stack(struct pcx_buffer *stack,
                                       sizeof (struct stack_entry)));
         entry->object_num = object_num;
         entry->depth = depth;
-        entry->tried_parent = false;
 }
 
 static int
@@ -219,55 +214,29 @@ count_orbits(size_t n_objects,
         return total_orbits;
 }
 
-static bool
-is_in_stack(const struct pcx_buffer *stack,
-            int object_num)
+static int
+get_depth(const struct object *objects,
+          int pos)
 {
-        size_t n_entries = stack->length / sizeof (struct stack_entry);
-        struct stack_entry *entries = (struct stack_entry *) stack->data;
+        int count = 0;
 
-        for (unsigned i = 0; i < n_entries; i++) {
-                if (entries[i].object_num == object_num)
-                        return true;
+        while (objects[pos].parent != -1) {
+                count++;
+                pos = objects[pos].parent;
         }
 
-        return false;
+        return count;
 }
 
-static bool
-is_valid_transfer(const struct object *objects,
-                  int obj_a,
-                  int obj_b)
+static int
+jump_parents(const struct object *objects,
+             int pos,
+             int count)
 {
-        return (objects[obj_a].parent == obj_b ||
-                objects[obj_b].parent == obj_a);
-}
+        for (int i = 0; i < count; i++)
+                pos = objects[pos].parent;
 
-static void
-print_route(const struct pcx_buffer *stack,
-            const struct object *objects)
-{
-        size_t n_entries = stack->length / sizeof (struct stack_entry);
-        struct stack_entry *entries = (struct stack_entry *) stack->data;
-
-        printf("Best route:\n");
-
-        for (unsigned i = 0; i < n_entries; i++) {
-                if (i > 0)
-                        fputc(',', stdout);
-
-                if (i < n_entries - 1 &&
-                    !is_valid_transfer(objects,
-                                       entries[i].object_num,
-                                       entries[i + 1].object_num))
-                        fputs("***", stdout);
-
-                printf("%s", objects[entries[i].object_num].name);
-        }
-
-        fputc('\n', stdout);
-
-        printf("Transfers %zd\n", n_entries - 1);
+        return pos;
 }
 
 static bool
@@ -283,84 +252,42 @@ find_best_route(size_t n_objects,
 
         assert(santa->parent >= 0 && santa->parent < n_objects);
 
-        const struct object *end = objects + santa->parent;
-
         const struct object *you = find_object(n_objects, objects, "YOU");
-
-        assert(you->parent >= 0 && you->parent < n_objects);
 
         if (you == NULL) {
                 fprintf(stderr, "YOU is missing\n");
                 return false;
         }
 
-        struct pcx_buffer stack = PCX_BUFFER_STATIC_INIT;
-        struct pcx_buffer best_route = PCX_BUFFER_STATIC_INIT;
-        size_t best_route_length = INT_MAX;
+        assert(you->parent >= 0 && you->parent < n_objects);
 
-        add_to_stack(&stack, you->parent, -1);
+        int a = you->parent;
+        int b = santa->parent;
+        int a_depth = get_depth(objects, a);
+        int b_depth = get_depth(objects, b);
 
-        while (stack.length > 0) {
-                struct stack_entry *entry = ((struct stack_entry *)
-                                             (stack.data +
-                                              stack.length -
-                                              sizeof *entry));
+        int count = abs(b_depth - a_depth);
 
-                const struct object *obj = objects + entry->object_num;
+        /* Skip entries from the node at a deeper depth until we find
+         * a node that is the same depth as the shallower one.
+         */
+        if (a_depth > b_depth)
+                a = jump_parents(objects, a, count);
+        else
+                b = jump_parents(objects, b, count);
 
-                if (obj == end && stack.length < best_route_length) {
-                        pcx_buffer_set_length(&best_route, 0);
-                        pcx_buffer_append(&best_route,
-                                          stack.data,
-                                          stack.length);
-                        best_route_length = stack.length;
-                }
-
-                while (entry->next_sibling >= 0 &&
-                       is_in_stack(&stack, entry->next_sibling)) {
-                        entry->next_sibling =
-                                objects[entry->next_sibling].next_sibling;
-                }
-
-                if (entry->next_sibling >= 0) {
-                        int next_sibling = entry->next_sibling;
-                        entry->next_sibling =
-                                objects[next_sibling].next_sibling;
-                        add_to_stack(&stack,
-                                     next_sibling,
-                                     objects[next_sibling].first_child);
-
-                        continue;
-                }
-
-                if (!entry->tried_parent) {
-                        entry->tried_parent = true;
-
-                        if (obj->parent != -1 &&
-                            !is_in_stack(&stack, obj->parent)) {
-                                add_to_stack(&stack,
-                                             obj->parent,
-                                             objects[obj->parent].first_child);
-                                continue;
-                        }
-                }
-
-                stack.length -= sizeof *entry;
+        /* Walk up both branches simultaneously until we find the
+         * common root.
+         */
+        while (a != b) {
+                a = objects[a].parent;
+                b = objects[b].parent;
+                count += 2;
         }
 
-        bool ret = true;
+        printf("Part 2: %i\n", count);
 
-        if (best_route.length == 0) {
-                fprintf(stderr, "no route found\n");
-                ret = false;
-        } else {
-                print_route(&best_route, objects);
-        }
-
-        pcx_buffer_destroy(&stack);
-        pcx_buffer_destroy(&best_route);
-
-        return ret;
+        return true;
 }
 
 int
