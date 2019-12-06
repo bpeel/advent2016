@@ -215,15 +215,15 @@ intcode_write_indirect(struct intcode *machine,
 
 static bool
 get_params(struct intcode *machine,
-           int64_t opcode,
+           int64_t instruction,
            int n_params,
            int64_t *params,
            struct pcx_error **error)
 {
-        opcode /= 100;
+        instruction /= 100;
 
         for (int i = 0; i < n_params; i++) {
-                int mode = opcode % 10;
+                int mode = instruction % 10;
 
                 switch (mode) {
                 case 0:
@@ -250,7 +250,7 @@ get_params(struct intcode *machine,
                         return false;
                 }
 
-                opcode /= 10;
+                instruction /= 10;
                 machine->pc++;
         }
 
