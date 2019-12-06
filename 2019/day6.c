@@ -250,7 +250,7 @@ print_route(const struct pcx_buffer *stack,
 
         fputc('\n', stdout);
 
-        printf("Length %zd\n", n_entries - 3);
+        printf("Transfers %zd\n", n_entries - 1);
 }
 
 static bool
@@ -264,7 +264,13 @@ find_best_route(size_t n_objects,
                 return false;
         }
 
+        assert(santa->parent >= 0 && santa->parent < n_objects);
+
+        const struct object *end = objects + santa->parent;
+
         const struct object *you = find_object(n_objects, objects, "YOU");
+
+        assert(you->parent >= 0 && you->parent < n_objects);
 
         if (you == NULL) {
                 fprintf(stderr, "YOU is missing\n");
@@ -275,7 +281,7 @@ find_best_route(size_t n_objects,
         struct pcx_buffer best_route = PCX_BUFFER_STATIC_INIT;
         size_t best_route_length = INT_MAX;
 
-        add_to_stack(&stack, you - objects, -1);
+        add_to_stack(&stack, you->parent, -1);
 
         while (stack.length > 0) {
                 struct stack_entry *entry = ((struct stack_entry *)
@@ -285,7 +291,7 @@ find_best_route(size_t n_objects,
 
                 const struct object *obj = objects + entry->object_num;
 
-                if (obj == santa && stack.length < best_route_length) {
+                if (obj == end && stack.length < best_route_length) {
                         pcx_buffer_set_length(&best_route, 0);
                         pcx_buffer_append(&best_route,
                                           stack.data,
