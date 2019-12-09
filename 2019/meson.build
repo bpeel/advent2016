@@ -56,4 +56,4 @@ day7_src = [
         'day7.c'
 ]
 
-executable('day7', day7_src)
+executable('day7', day7_src, link_args : '-pthread')
