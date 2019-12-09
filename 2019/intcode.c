@@ -16,6 +16,8 @@ struct intcode {
         size_t memory_size;
         int64_t *memory;
         int64_t pc;
+        int64_t current_instruction_start;
+        int64_t current_instruction;
         bool stopped;
 };
 
@@ -27,14 +29,50 @@ struct opcode {
 };
 
 static bool
+get_address(const struct intcode *machine,
+            int addressing_mode,
+            int64_t *address_in_out,
+            struct pcx_error **error)
+{
+        switch (addressing_mode) {
+        case 0:
+                if (!intcode_read(machine,
+                                  *address_in_out,
+                                  address_in_out,
+                                  error))
+                        return false;
+                break;
+        default:
+                pcx_set_error(error,
+                              &intcode_error_domain,
+                              INTCODE_ERROR_INVALID_ADDRESSING_MODE,
+                              "Invalid addressing mode %i at %" PRIi64,
+                              addressing_mode,
+                              machine->current_instruction_start);
+                return false;
+        }
+
+        return true;
+}
+
+static bool
 store_result(struct intcode *machine,
+             int addressing_mode,
              int64_t result,
              struct pcx_error **error)
 {
-        if (!intcode_write_indirect(machine,
-                                    machine->pc,
-                                    result,
-                                    error))
+        int64_t address = machine->pc;
+
+        if (!get_address(machine,
+                         addressing_mode,
+                         &address,
+                         error))
+                return false;
+
+        if (!intcode_write(machine,
+                           address,
+                           result,
+                           error))
                 return false;
 
         machine->pc++;
@@ -42,15 +80,16 @@ store_result(struct intcode *machine,
         return true;
 }
 
-#define ALU_OP(name, code)                                      \
-        static bool                                             \
-        opcode_ ## name(struct intcode *machine,                \
-                        const int64_t *params,                  \
-                        struct pcx_error **error)               \
-        {                                                       \
-                int64_t a = params[0], b = params[1];           \
-                                                                \
-                return store_result(machine, (code), error);    \
+#define ALU_OP(name, code)                                              \
+        static bool                                                     \
+        opcode_ ## name(struct intcode *machine,                        \
+                        const int64_t *params,                          \
+                        struct pcx_error **error)                       \
+        {                                                               \
+        int64_t a = params[0], b = params[1];                           \
+        int write_mode = machine->current_instruction / 10000 % 10;     \
+                                                                        \
+        return store_result(machine, write_mode, (code), error);        \
         }
 
 ALU_OP(add, a + b);
@@ -87,7 +126,10 @@ opcode_input(struct intcode *machine,
                 return false;
         }
 
-        return store_result(machine, value, error);
+        return store_result(machine,
+                            machine->current_instruction / 100 % 10,
+                            value,
+                            error);
 }
 
 static bool
@@ -181,38 +223,6 @@ intcode_write(struct intcode *machine,
         return true;
 }
 
-bool
-intcode_read_indirect(const struct intcode *machine,
-                      int64_t address,
-                      int64_t *value,
-                      struct pcx_error **error)
-{
-        return (intcode_read(machine,
-                             address,
-                             &address,
-                             error) &&
-                intcode_read(machine,
-                             address,
-                             value,
-                             error));
-}
-
-bool
-intcode_write_indirect(struct intcode *machine,
-                       int64_t address,
-                       int64_t value,
-                       struct pcx_error **error)
-{
-        return (intcode_read(machine,
-                             address,
-                             &address,
-                             error) &&
-                intcode_write(machine,
-                              address,
-                              value,
-                              error));
-}
-
 static bool
 get_params(struct intcode *machine,
            int64_t instruction,
@@ -224,31 +234,20 @@ get_params(struct intcode *machine,
 
         for (int i = 0; i < n_params; i++) {
                 int mode = instruction % 10;
+                int64_t address = machine->pc;
 
-                switch (mode) {
-                case 0:
-                        if (!intcode_read_indirect(machine,
-                                                   machine->pc,
-                                                   params + i,
-                                                   error))
-                                return false;
-                        break;
-                case 1:
-                        if (!intcode_read(machine,
-                                          machine->pc,
-                                          params + i,
-                                          error))
-                                return false;
-                        break;
-                default:
-                        pcx_set_error(error,
-                                      &intcode_error_domain,
-                                      INTCODE_ERROR_INVALID_ADDRESSING_MODE,
-                                      "Invalid addressing mode %i at %" PRIi64,
-                                      mode,
-                                      machine->pc - i - 1);
+                if (mode != 1 &&
+                    !get_address(machine,
+                                 mode,
+                                 &address,
+                                 error))
                         return false;
-                }
+
+                if (!intcode_read(machine,
+                                  address,
+                                  params + i,
+                                  error))
+                        return false;
 
                 instruction /= 10;
                 machine->pc++;
@@ -262,13 +261,18 @@ bool
 intcode_step(struct intcode *machine,
              struct pcx_error **error)
 {
-        int64_t instruction, opcode;
+        int64_t opcode;
         int64_t params[MAX_PARAMS];
 
-        if (!intcode_read(machine, machine->pc, &instruction, error))
+        machine->current_instruction_start = machine->pc;
+
+        if (!intcode_read(machine,
+                          machine->pc,
+                          &machine->current_instruction,
+                          error))
                 return false;
 
-        opcode = instruction % 100;
+        opcode = machine->current_instruction % 100;
 
         if (opcode < 0 ||
             opcode >= PCX_N_ELEMENTS(opcodes) ||
@@ -285,7 +289,7 @@ intcode_step(struct intcode *machine,
         machine->pc++;
 
         if (!get_params(machine,
-                        instruction,
+                        machine->current_instruction,
                         opcodes[opcode].n_params,
                         params,
                         error))

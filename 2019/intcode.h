@@ -31,18 +31,6 @@ intcode_write(struct intcode *machine,
               struct pcx_error **error);
 
 bool
-intcode_read_indirect(const struct intcode *machine,
-                      int64_t address,
-                      int64_t *value,
-                      struct pcx_error **error);
-
-bool
-intcode_write_indirect(struct intcode *machine,
-                       int64_t address,
-                       int64_t value,
-                       struct pcx_error **error);
-
-bool
 intcode_step(struct intcode *machine,
              struct pcx_error **error);
 
