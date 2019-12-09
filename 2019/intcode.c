@@ -173,6 +173,16 @@ opcode_jump_false(struct intcode *machine,
         return true;
 }
 
+static bool
+opcode_relative_offset(struct intcode *machine,
+                       const int64_t *params,
+                       struct pcx_error **error)
+{
+        machine->ra += params[0];
+
+        return true;
+}
+
 static const struct opcode
 opcodes[] = {
         [1] = { 2, opcode_add },
@@ -183,6 +193,7 @@ opcodes[] = {
         [6] = { 2, opcode_jump_false },
         [7] = { 2, opcode_less_than },
         [8] = { 2, opcode_equals },
+        [9] = { 1, opcode_relative_offset },
         [99] = { 0, opcode_stop }
 };
 
