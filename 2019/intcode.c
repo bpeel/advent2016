@@ -16,6 +16,7 @@ struct intcode {
         size_t memory_size;
         int64_t *memory;
         int64_t pc;
+        int64_t ra;
         int64_t current_instruction_start;
         int64_t current_instruction;
         bool stopped;
@@ -41,6 +42,14 @@ get_address(const struct intcode *machine,
                                   address_in_out,
                                   error))
                         return false;
+                break;
+        case 2:
+                if (!intcode_read(machine,
+                                  *address_in_out,
+                                  address_in_out,
+                                  error))
+                        return false;
+                *address_in_out += machine->ra;
                 break;
         default:
                 pcx_set_error(error,
