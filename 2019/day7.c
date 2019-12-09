@@ -6,6 +6,7 @@
 #include "intcode.h"
 #include "read-memory.h"
 #include "pcx-error.h"
+#include "permutations.h"
 
 #define N_AMPLIFIERS 5
 #define MAX_PHASE_SETTING 4
@@ -14,6 +15,14 @@ struct io_data {
         int64_t input[2];
         size_t input_pos;
         int64_t output;
+};
+
+struct sequence_data {
+        int64_t best_result;
+        int best_sequence[N_AMPLIFIERS];
+        const int64_t *memory;
+        size_t memory_size;
+        struct pcx_error **error;
 };
 
 static bool
@@ -74,7 +83,7 @@ run_machine(size_t memory_size,
 static bool
 run_sequence(size_t memory_size,
              const int64_t *memory,
-             const int64_t *phase_sequence,
+             const int *phase_sequence,
              int64_t *result,
              struct pcx_error **error)
 {
@@ -95,49 +104,50 @@ run_sequence(size_t memory_size,
 }
 
 static bool
-next_sequence(int64_t *sequence)
+permutation_cb(const int *sequence,
+               void *user_data)
 {
-        for (int i = 0; i < N_AMPLIFIERS; i++) {
-                if (sequence[i] < MAX_PHASE_SETTING) {
-                        sequence[i]++;
-                        memset(sequence, 0, i * sizeof sequence[0]);
-                        return true;
-                }
+        struct sequence_data *data = user_data;
+        int64_t this_result;
+
+        if (!run_sequence(data->memory_size, data->memory,
+                          sequence,
+                          &this_result,
+                          data->error))
+                return false;
+
+        if (this_result > data->best_result) {
+                memcpy(data->best_sequence,
+                       sequence,
+                       N_AMPLIFIERS * sizeof sequence[0]);
+                data->best_result = this_result;
         }
 
-        return false;
+        return true;
 }
 
 static bool
 get_best_sequence(size_t memory_size,
                   const int64_t *memory,
-                  int64_t *best_sequence_out,
+                  int *best_sequence_out,
                   int64_t *best_result_out,
                   struct pcx_error **error)
 {
-        int64_t phase_sequence[N_AMPLIFIERS] = { 0 };
-        int64_t best_result = INT64_MIN;
-        int64_t best_sequence[N_AMPLIFIERS] = { 0 };
+        struct sequence_data data = {
+                .best_result = INT64_MIN,
+                .best_sequence = { 0 },
+                .memory = memory,
+                .memory_size = memory_size,
+                .error = error
+        };
 
-        do {
-                int64_t this_result;
+        if (!permutations(N_AMPLIFIERS, permutation_cb, &data))
+                return false;
 
-                if (!run_sequence(memory_size, memory,
-                                  phase_sequence,
-                                  &this_result,
-                                  error))
-                        return false;
-
-                if (this_result > best_result) {
-                        memcpy(best_sequence,
-                               phase_sequence,
-                               sizeof phase_sequence);
-                        best_result = this_result;
-                }
-        } while (next_sequence(phase_sequence));
-
-        memcpy(best_sequence_out, best_sequence, sizeof best_sequence);
-        *best_result_out = best_result;
+        memcpy(best_sequence_out,
+               data.best_sequence,
+               sizeof data.best_sequence);
+        *best_result_out = data.best_result;
 
         return true;
 }
@@ -155,7 +165,7 @@ main(int argc, char **argv)
 
         struct pcx_error *error = NULL;
         int ret = EXIT_SUCCESS;
-        int64_t best_sequence[N_AMPLIFIERS];
+        int best_sequence[N_AMPLIFIERS];
         int64_t best_result;
 
         if (get_best_sequence(memory_size, memory,
@@ -164,7 +174,7 @@ main(int argc, char **argv)
                               &error)) {
                 printf("Best sequence:");
                 for (int i = 0; i < N_AMPLIFIERS; i++)
-                        printf(" %" PRIi64, best_sequence[i]);
+                        printf(" %i", best_sequence[i]);
                 fputc('\n', stdout);
                 printf("Best value: %" PRIi64 "\n", best_result);
         } else {

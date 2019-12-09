@@ -52,6 +52,7 @@ day7_src = [
         'pcx-error.c',
         'pcx-buffer.c',
         'read-memory.c',
+        'permutations.c',
         'day7.c'
 ]
 
