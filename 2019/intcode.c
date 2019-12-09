@@ -4,8 +4,10 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "pcx-util.h"
+#include "pcx-buffer.h"
 
 #define MAX_PARAMS 3
 
@@ -13,8 +15,7 @@ struct pcx_error_domain
 intcode_error_domain;
 
 struct intcode {
-        size_t memory_size;
-        int64_t *memory;
+        struct pcx_buffer memory;
         int64_t pc;
         int64_t ra;
         int64_t current_instruction_start;
@@ -191,7 +192,7 @@ check_address(const struct intcode *machine,
               const char *action,
               struct pcx_error **error)
 {
-        if (address < 0 || address >= machine->memory_size) {
+        if (address < 0) {
                 pcx_set_error(error,
                               &intcode_error_domain,
                               INTCODE_ERROR_INVALID_ADDRESS,
@@ -213,7 +214,10 @@ intcode_read(const struct intcode *machine,
         if (!check_address(machine, address, "read from", error))
                 return false;
 
-        *value = machine->memory[address];
+        if (address * sizeof (int64_t) >= machine->memory.length)
+                *value = 0;
+        else
+                *value = ((int64_t *) machine->memory.data)[address];
 
         return true;
 }
@@ -227,7 +231,18 @@ intcode_write(struct intcode *machine,
         if (!check_address(machine, address, "write to", error))
                 return false;
 
-        machine->memory[address] = value;
+        if (address * sizeof (int64_t) >= machine->memory.length) {
+                size_t to_add = ((address + 1) * sizeof (int64_t) -
+                                 machine->memory.length);
+                pcx_buffer_ensure_size(&machine->memory,
+                                       to_add + machine->memory.length);
+                memset(machine->memory.data + machine->memory.length,
+                       0,
+                       to_add);
+                machine->memory.length += to_add;
+        }
+
+        ((int64_t *) machine->memory.data)[address] = value;
 
         return true;
 }
@@ -325,9 +340,10 @@ intcode_new(size_t memory_size,
 {
         struct intcode *machine = pcx_calloc(sizeof *machine);
 
-        machine->memory = pcx_memdup(memory,
-                                     memory_size * sizeof *machine->memory);
-        machine->memory_size = memory_size;
+        pcx_buffer_init(&machine->memory);
+        pcx_buffer_append(&machine->memory,
+                          memory,
+                          memory_size * sizeof *memory);
 
         return machine;
 }
@@ -335,6 +351,6 @@ intcode_new(size_t memory_size,
 void
 intcode_free(struct intcode *machine)
 {
-        pcx_free(machine->memory);
+        pcx_buffer_destroy(&machine->memory);
         pcx_free(machine);
 }
