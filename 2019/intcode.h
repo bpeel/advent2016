@@ -18,6 +18,14 @@ enum intcode_error {
         INTCODE_ERROR_IO,
 };
 
+typedef bool
+(* intcode_input_function)(void *user_data,
+                           int64_t *value);
+
+typedef bool
+(* intcode_output_function)(void *user_data,
+                            int64_t value);
+
 bool
 intcode_read(const struct intcode *machine,
              int64_t address,
@@ -41,6 +49,16 @@ intcode_run(struct intcode *machine,
 struct intcode *
 intcode_new(size_t memory_size,
             const int64_t *memory);
+
+void
+intcode_set_input_function(struct intcode *machine,
+                           intcode_input_function func,
+                           void *user_data);
+
+void
+intcode_set_output_function(struct intcode *machine,
+                            intcode_output_function func,
+                            void *user_data);
 
 void
 intcode_free(struct intcode *machine);

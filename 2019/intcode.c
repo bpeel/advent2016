@@ -16,6 +16,12 @@ intcode_error_domain;
 
 struct intcode {
         struct pcx_buffer memory;
+
+        intcode_input_function input_function;
+        void *input_user_data;
+        intcode_output_function output_function;
+        void *output_user_data;
+
         int64_t pc;
         int64_t ra;
         int64_t current_instruction_start;
@@ -29,6 +35,28 @@ struct opcode {
                       const int64_t *params,
                       struct pcx_error **error);
 };
+
+static bool
+stdin_input_cb(void *user_data,
+               int64_t *value)
+{
+        int int_value;
+        int got = fscanf(stdin, "%d", &int_value);
+
+        if (got == 1) {
+                *value = int_value;
+                return true;
+        } else {
+                return false;
+        }
+}
+
+static bool
+stdout_output_cb(void *user_data,
+                 int64_t value)
+{
+        return fprintf(stdout, "%" PRIi64 "\n", value) >= 0;
+}
 
 static bool
 get_address(const struct intcode *machine,
@@ -124,11 +152,9 @@ opcode_input(struct intcode *machine,
              const int64_t *params,
              struct pcx_error **error)
 {
-        int value;
+        int64_t value;
 
-        int got = fscanf(stdin, "%d", &value);
-
-        if (got != 1) {
+        if (!machine->input_function(machine->input_user_data, &value)) {
                 pcx_set_error(error,
                               &intcode_error_domain,
                               INTCODE_ERROR_IO,
@@ -147,7 +173,14 @@ opcode_output(struct intcode *machine,
               const int64_t *params,
               struct pcx_error **error)
 {
-        fprintf(stdout, "%" PRIi64 "\n", params[0]);
+        if (!machine->output_function(machine->output_user_data, params[0])) {
+                pcx_set_error(error,
+                              &intcode_error_domain,
+                              INTCODE_ERROR_IO,
+                              "Error writing output");
+                return false;
+        }
+
         return true;
 }
 
@@ -357,7 +390,28 @@ intcode_new(size_t memory_size,
                           memory,
                           memory_size * sizeof *memory);
 
+        machine->input_function = stdin_input_cb;
+        machine->output_function = stdout_output_cb;
+
         return machine;
+}
+
+void
+intcode_set_input_function(struct intcode *machine,
+                           intcode_input_function func,
+                           void *user_data)
+{
+        machine->input_function = func;
+        machine->input_user_data = user_data;
+}
+
+void
+intcode_set_output_function(struct intcode *machine,
+                            intcode_output_function func,
+                            void *user_data)
+{
+        machine->output_function = func;
+        machine->output_user_data = user_data;
 }
 
 void
