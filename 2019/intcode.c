@@ -207,9 +207,10 @@ check_address(const struct intcode *machine,
                 pcx_set_error(error,
                               &intcode_error_domain,
                               INTCODE_ERROR_INVALID_ADDRESS,
-                              "Invalid %s %" PRIi64,
+                              "Invalid %s %" PRIi64 " at %" PRIi64,
                               action,
-                              address);
+                              address,
+                              machine->current_instruction_start);
                 return false;
         }
 
