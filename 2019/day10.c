@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <string.h>
 
 #include "pcx-buffer.h"
 #include "pcx-util.h"
@@ -91,14 +92,14 @@ is_blocking(const struct asteroid *base,
             const struct asteroid *middle,
             const struct asteroid *end)
 {
+        if (!is_same_side(base->x, middle->x, end->x) ||
+            !is_same_side(base->y, middle->y, end->y))
+                return false;
+
         if (middle->x == base->x)
                 return end->x == base->x;
         if (middle->y == base->y)
                 return end->y == base->y;
-
-        if (!is_same_side(base->x, middle->x, end->x) ||
-            !is_same_side(base->y, middle->y, end->y))
-                return false;
 
         int x_dist = abs(middle->x - base->x);
         int y_dist = abs(middle->y - base->y);
@@ -117,6 +118,53 @@ is_blocking(const struct asteroid *base,
 
         return ex_dist / x_dist == ey_dist / y_dist;
 }
+
+#if 0
+
+static void
+get_bounds(size_t n_asteroids,
+           const struct asteroid *asteroids,
+           int *width,
+           int *height)
+{
+        int w = 0, h = 0;
+
+        for (unsigned i = 0; i < n_asteroids; i++) {
+                if (asteroids[i].x >= w)
+                        w = asteroids[i].x + 1;
+                if (asteroids[i].y >= h)
+                        h = asteroids[i].y + 1;
+        }
+
+        *width = w;
+        *height = h;
+}
+
+static void
+dump_asteroids(size_t n_asteroids,
+               const struct asteroid *asteroids)
+{
+        int width, height;
+
+        get_bounds(n_asteroids, asteroids, &width, &height);
+
+        char *buf = pcx_alloc(width * height);
+
+        memset(buf, '.', width * height);
+
+        for (unsigned i = 0; i < n_asteroids; i++) {
+                const struct asteroid *a = asteroids + i;
+
+                buf[a->x + a->y * width] = a->blocked ? 'o' : '#';
+        }
+
+        for (int y = 0; y < height; y++)
+                printf("%.*s\n", width, buf + y * width);
+
+        pcx_free(buf);
+}
+
+#endif
 
 static int
 count_visible(size_t n_asteroids,
