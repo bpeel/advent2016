@@ -92,7 +92,14 @@ main(int argc, char **argv)
                 if (intcode_run(machine, &error)) {
                         if (part == 1)
                                 printf("Part 1: %i\n", bot.painted_count);
-                        else if (!grid_dump(bot.grid, "day11-part2.ppm"))
+
+                        char filename[64];
+                        snprintf(filename,
+                                 sizeof filename,
+                                 "day11-part%i.ppm",
+                                 part);
+
+                        if (!grid_dump(bot.grid, filename))
                                 ret = EXIT_FAILURE;
                 } else {
                         fprintf(stderr, "%s\n", error->message);
