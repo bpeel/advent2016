@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>
+#include <errno.h>
 
 #include "intcode.h"
 #include "read-memory.h"
@@ -223,6 +224,39 @@ output_cb(void *user_data,
         return true;
 }
 
+static bool
+dump_grid(const struct grid *grid,
+          const char *filename)
+{
+        FILE *out = fopen(filename, "wb");
+
+        if (out == NULL) {
+                fprintf(stderr, "%s: %s\n", filename, strerror(errno));
+                return false;
+        }
+
+        fprintf(out,
+                "P6\n"
+                "%i %i\n"
+                "255\n",
+                grid->width, grid->height);
+
+        const uint8_t *p = grid->data;
+
+        for (int y = 0; y < grid->height; y++) {
+                for (int x = 0; x < grid->width; x++) {
+                        if (*(p++) & 0x7f)
+                                fwrite("\xff\xff\xff", 1, 3, out);
+                        else
+                                fwrite("\x00\x00\x00", 1, 3, out);
+                }
+        }
+
+        fclose(out);
+
+        return true;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -234,26 +268,35 @@ main(int argc, char **argv)
                 return EXIT_FAILURE;
         }
 
-
-        struct bot bot = { .grid = grid_new() };
-        struct intcode *machine = intcode_new(memory_size, memory);
         int ret = EXIT_SUCCESS;
 
-        intcode_set_input_function(machine, input_cb, &bot);
-        intcode_set_output_function(machine, output_cb, &bot);
+        for (int part = 1; part <= 2; part++) {
+                struct bot bot = { .grid = grid_new() };
+                struct intcode *machine = intcode_new(memory_size, memory);
 
-        struct pcx_error *error = NULL;
+                if (part == 2)
+                        bot.grid->data[0] = 1;
 
-        if (intcode_run(machine, &error)) {
-                printf("Part 1: %i\n", bot.painted_count);
-        } else {
-                fprintf(stderr, "%s\n", error->message);
-                pcx_error_free(error);
-                ret = EXIT_FAILURE;
+                intcode_set_input_function(machine, input_cb, &bot);
+                intcode_set_output_function(machine, output_cb, &bot);
+
+                struct pcx_error *error = NULL;
+
+                if (intcode_run(machine, &error)) {
+                        if (part == 1)
+                                printf("Part 1: %i\n", bot.painted_count);
+                        else if (!dump_grid(bot.grid, "day11-part2.ppm"))
+                                ret = EXIT_FAILURE;
+                } else {
+                        fprintf(stderr, "%s\n", error->message);
+                        pcx_error_free(error);
+                        ret = EXIT_FAILURE;
+                }
+
+                intcode_free(machine);
+                grid_free(bot.grid);
         }
 
-        intcode_free(machine);
-        grid_free(bot.grid);
         pcx_free(memory);
 
         return ret;
