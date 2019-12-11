@@ -9,31 +9,34 @@
 #include "pcx-buffer.h"
 #include "pcx-util.h"
 
-struct asteroid {
+struct xy_pos {
         int x, y;
+};
+
+struct asteroid {
         bool blocked;
+        int dir_x, dir_y, mult;
 };
 
 static void
-add_asteroid(struct pcx_buffer *buf,
+add_position(struct pcx_buffer *buf,
              int x,
              int y)
 {
-        pcx_buffer_set_length(buf, buf->length + sizeof (struct asteroid));
+        pcx_buffer_set_length(buf, buf->length + sizeof (struct xy_pos));
 
-        struct asteroid *asteroid =
-                (struct asteroid *)
-                (buf->data + buf->length - sizeof *asteroid);
+        struct xy_pos *xy_pos =
+                (struct xy_pos *)
+                (buf->data + buf->length - sizeof *xy_pos);
 
-        asteroid->x = x;
-        asteroid->y = y;
-        asteroid->blocked = false;
+        xy_pos->x = x;
+        xy_pos->y = y;
 }
 
 static void
-read_asteroids(FILE *in,
+read_positions(FILE *in,
                size_t *n_asteroids_out,
-               struct asteroid **asteroids_out)
+               struct xy_pos **asteroids_out)
 {
         struct pcx_buffer buf = PCX_BUFFER_STATIC_INIT;
         char line[512];
@@ -42,37 +45,30 @@ read_asteroids(FILE *in,
         while (fgets(line, sizeof line, in)) {
                 for (int x = 0; line[x]; x++) {
                         if (line[x] == '#')
-                                add_asteroid(&buf, x, y);
+                                add_position(&buf, x, y);
                 }
 
                 y++;
         }
 
-        *n_asteroids_out = buf.length / sizeof (struct asteroid);
-        *asteroids_out = (struct asteroid *) buf.data;
+        *n_asteroids_out = buf.length / sizeof (struct xy_pos);
+        *asteroids_out = (struct xy_pos *) buf.data;
 }
 
 static int
-distance(const struct asteroid *a,
-         const struct asteroid *b)
+compare_distance(const void *pa,
+                 const void *pb)
 {
-        return abs(a->x - b->x) + abs(a->y - b->y);
-}
+        const struct asteroid *a = pa;
+        const struct asteroid *b = pb;
+        int ax = a->dir_x * a->mult;
+        int ay = a->dir_y * a->mult;
+        int a_dist2 = ax * ax + ay * ay;
+        int bx = b->dir_x * b->mult;
+        int by = b->dir_y * b->mult;
+        int b_dist2 = bx * bx + by * by;
 
-static int
-compare_distance(const void *a,
-                 const void *b,
-                 void *base)
-{
-        return distance(a, base) - distance(b, base);
-}
-
-static bool
-is_same_side(int base,
-             int middle,
-             int end)
-{
-        return (middle < base) == (end < middle);
+        return a_dist2 - b_dist2;
 }
 
 static int
@@ -88,105 +84,73 @@ get_gcd(int a, int b)
 }
 
 static bool
-is_blocking(const struct asteroid *base,
-            const struct asteroid *middle,
+is_blocking(const struct asteroid *middle,
             const struct asteroid *end)
 {
-        if (!is_same_side(base->x, middle->x, end->x) ||
-            !is_same_side(base->y, middle->y, end->y))
-                return false;
-
-        if (middle->x == base->x)
-                return end->x == base->x;
-        if (middle->y == base->y)
-                return end->y == base->y;
-
-        int x_dist = abs(middle->x - base->x);
-        int y_dist = abs(middle->y - base->y);
-
-        int gcd = get_gcd(x_dist, y_dist);
-
-        x_dist /= gcd;
-        y_dist /= gcd;
-
-        int ex_dist = abs(end->x - base->x);
-        int ey_dist = abs(end->y - base->y);
-
-        if (ex_dist % x_dist != 0 ||
-            ey_dist % y_dist != 0)
-                return false;
-
-        return ex_dist / x_dist == ey_dist / y_dist;
+        return (middle->dir_x == end->dir_x &&
+                middle->dir_y == end->dir_y &&
+                middle->mult < end->mult);
 }
 
-#if 0
-
-static void
-get_bounds(size_t n_asteroids,
-           const struct asteroid *asteroids,
-           int *width,
-           int *height)
+static struct asteroid *
+get_asteroids(size_t n_asteroids,
+              const struct xy_pos *positions,
+              const struct xy_pos *base)
 {
-        int w = 0, h = 0;
+        struct asteroid *asteroids =
+                pcx_alloc(n_asteroids * sizeof *asteroids);
 
         for (unsigned i = 0; i < n_asteroids; i++) {
-                if (asteroids[i].x >= w)
-                        w = asteroids[i].x + 1;
-                if (asteroids[i].y >= h)
-                        h = asteroids[i].y + 1;
+                int x = positions[i].x - base->x;
+                int y = positions[i].y - base->y;
+
+                if (x == 0) {
+                        asteroids[i].dir_x = 0;
+                        asteroids[i].dir_y = (y == 0 ? 0 :
+                                              y < 0 ? -1 :
+                                              1);
+                        asteroids[i].mult = abs(y);
+                } else if (y == 0) {
+                        asteroids[i].dir_x = (x < 0 ? -1 :
+                                              1);
+                        asteroids[i].dir_y = 0;
+                        asteroids[i].mult = abs(x);
+                } else {
+                        int gcd = get_gcd(abs(x), abs(y));
+
+                        asteroids[i].dir_x = x / gcd;
+                        asteroids[i].dir_y = y / gcd;
+                        asteroids[i].mult = gcd;
+                }
+
+                asteroids[i].blocked = false;
         }
 
-        *width = w;
-        *height = h;
+        return asteroids;
 }
-
-static void
-dump_asteroids(size_t n_asteroids,
-               const struct asteroid *asteroids)
-{
-        int width, height;
-
-        get_bounds(n_asteroids, asteroids, &width, &height);
-
-        char *buf = pcx_alloc(width * height);
-
-        memset(buf, '.', width * height);
-
-        for (unsigned i = 0; i < n_asteroids; i++) {
-                const struct asteroid *a = asteroids + i;
-
-                buf[a->x + a->y * width] = a->blocked ? 'o' : '#';
-        }
-
-        for (int y = 0; y < height; y++)
-                printf("%.*s\n", width, buf + y * width);
-
-        pcx_free(buf);
-}
-
-#endif
 
 static int
 count_visible(size_t n_asteroids,
-              const struct asteroid *asteroids_in,
-              const struct asteroid *base)
+              const struct xy_pos *positions,
+              const struct xy_pos *base)
 {
-        struct asteroid *asteroids =
-                pcx_memdup(asteroids_in, n_asteroids * sizeof *asteroids_in);
+        struct asteroid *asteroids = get_asteroids(n_asteroids,
+                                                   positions,
+                                                   base);
         size_t blocked_count = 0;
 
         /* Sort the asteroids as distance from the base. Further
          * asteroids can not block further ones.
          */
 
-        qsort_r(asteroids,
-                n_asteroids,
-                sizeof *asteroids,
-                compare_distance,
-                (void *) base);
+        qsort(asteroids,
+              n_asteroids,
+              sizeof *asteroids,
+              compare_distance);
 
-        assert(asteroids[0].x == base->x &&
-               asteroids[0].y == base->y);
+        assert(asteroids[0].mult == 0 &&
+               asteroids[0].dir_x == 0 &&
+               asteroids[0].dir_y == 0);
 
         for (unsigned i = 1; i < n_asteroids; i++) {
                 if (asteroids[i].blocked)
@@ -195,8 +159,7 @@ count_visible(size_t n_asteroids,
                         if (asteroids[j].blocked)
                                 continue;
 
-                        if (is_blocking(asteroids + 0,
-                                        asteroids + i,
+                        if (is_blocking(asteroids + i,
                                         asteroids + j)) {
                                 asteroids[j].blocked = true;
                                 blocked_count++;
@@ -213,16 +176,16 @@ int
 main(int argc, char **argv)
 {
         size_t n_asteroids;
-        struct asteroid *asteroids;
+        struct xy_pos *positions;
         int most_visible = -1;
         int best_asteroid = -1;
 
-        read_asteroids(stdin, &n_asteroids, &asteroids);
+        read_positions(stdin, &n_asteroids, &positions);
 
         for (unsigned i = 0; i < n_asteroids; i++) {
                 int this_count = count_visible(n_asteroids,
-                                               asteroids,
-                                               asteroids + i);
+                                               positions,
+                                               positions + i);
 
                 if (this_count > most_visible) {
                         most_visible = this_count;
@@ -230,12 +193,13 @@ main(int argc, char **argv)
                 }
         }
 
-        pcx_free(asteroids);
+        pcx_free(positions);
 
         printf("Part 1: %i (%i,%i)\n",
                most_visible,
-               asteroids[best_asteroid].x,
-               asteroids[best_asteroid].y);
+               positions[best_asteroid].x,
+               positions[best_asteroid].y);
+
 
         return 0;
 }
