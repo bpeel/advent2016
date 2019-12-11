@@ -57,3 +57,14 @@ day7_src = [
 ]
 
 executable('day7', day7_src, link_args : '-pthread')
+
+day11_src = [
+        'intcode.c',
+        'pcx-util.c',
+        'pcx-error.c',
+        'pcx-buffer.c',
+        'read-memory.c',
+        'day11.c'
+]
+
+executable('day11', day11_src)
