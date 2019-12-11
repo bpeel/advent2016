@@ -64,6 +64,7 @@ day11_src = [
         'pcx-error.c',
         'pcx-buffer.c',
         'read-memory.c',
+        'grid.c',
         'day11.c'
 ]
 
