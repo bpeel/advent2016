@@ -40,19 +40,20 @@ def step(moons):
     for axis in range(3):
         step_axis(moons, axis)
 
+def get_pos_for_axis(moons, axis):
+    return tuple((moon.pos[axis], moon.velocity[axis]) for moon in moons)
+
 def find_cycle_for_axis(base_moons, axis):
     moons = list(copy.copy(moon) for moon in base_moons)
-    history = {}
+    base_pos = get_pos_for_axis(moons, axis)
 
     for step in itertools.count():
-        pos = tuple((moon.pos[axis], moon.velocity[axis]) for moon in moons)
-
-        if pos in history:
-            return step
-
-        history[pos] = step
-
         step_axis(moons, axis)
+
+        pos = get_pos_for_axis(moons, axis)
+
+        if pos == base_pos:
+            return step + 1
 
 def get_lcm(a, b):
     return a * b // math.gcd(a, b)
