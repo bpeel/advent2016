@@ -148,6 +148,16 @@ grid_write(struct grid *grid,
         grid->data[grid_get_offset(grid, x, y)] = value;
 }
 
+void
+grid_get_size(const struct grid *grid,
+              struct grid_size *size)
+{
+        size->base_x = grid->base_x;
+        size->base_y = grid->base_y;
+        size->width = grid->width;
+        size->height = grid->height;
+}
+
 struct grid *
 grid_new(void)
 {
