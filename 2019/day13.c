@@ -44,13 +44,15 @@ output_cb(void *user_data,
                 game->out_y = value;
                 break;
         case 2:
-                if (game->out_x == -1 && game->out_y == 0)
+                if (game->out_x == -1 && game->out_y == 0) {
                         game->score = value;
-                else if (value == 3)
-                        game->bat_x = game->out_x;
-                else if (value == 4)
-                        game->ball_x = game->out_x;
-                grid_write(game->grid, game->out_x, game->out_y, value);
+                } else {
+                        if (value == 3)
+                                game->bat_x = game->out_x;
+                        else if (value == 4)
+                                game->ball_x = game->out_x;
+                        grid_write(game->grid, game->out_x, game->out_y, value);
+                }
                 break;
         }
 
