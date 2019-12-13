@@ -2,6 +2,10 @@
 
 import re
 import sys
+import itertools
+import copy
+import functools
+import math
 
 class Moon:
     def __init__(self, desc):
@@ -36,6 +40,23 @@ def step(moons):
     for axis in range(3):
         step_axis(moons, axis)
 
+def find_cycle_for_axis(base_moons, axis):
+    moons = list(copy.copy(moon) for moon in base_moons)
+    history = {}
+
+    for step in itertools.count():
+        pos = tuple((moon.pos[axis], moon.velocity[axis]) for moon in moons)
+
+        if pos in history:
+            return step
+
+        history[pos] = step
+
+        step_axis(moons, axis)
+
+def get_lcm(a, b):
+    return a * b // math.gcd(a, b)
+
 moons = [Moon(line) for line in sys.stdin]
 
 for i in range(1000):
@@ -43,3 +64,8 @@ for i in range(1000):
 
 print("Part 1: {}".format(sum(moon.get_total_energy() for moon in moons)))
 
+cycles = [find_cycle_for_axis(moons, axis) for axis in range(3)]
+
+lcm = functools.reduce(get_lcm, cycles)
+
+print("Part 2: {}".format(lcm))
