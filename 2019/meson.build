@@ -77,3 +77,15 @@ day11_src = [
 ]
 
 executable('day11', day11_src)
+
+day13_src = [
+        'intcode.c',
+        'pcx-util.c',
+        'pcx-error.c',
+        'pcx-buffer.c',
+        'read-memory.c',
+        'grid.c',
+        'day13.c'
+]
+
+executable('day13', day13_src)
