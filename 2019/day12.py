@@ -13,26 +13,28 @@ class Moon:
         return (sum(abs(x) for x in self.pos) *
                 sum(abs(x) for x in self.velocity))
 
-def step(moons):
+def step_axis(moons, axis):
     for i in range(len(moons)):
         mi = moons[i]
         for j in range(i + 1, len(moons)):
             mj = moons[j]
 
-            for axis in range(3):
-                pi = mi.pos[axis]
-                pj = mj.pos[axis]
+            pi = mi.pos[axis]
+            pj = mj.pos[axis]
 
-                if pi < pj:
-                    mi.velocity[axis] += 1
-                    mj.velocity[axis] -= 1
-                elif pi > pj:
-                    mi.velocity[axis] -= 1
-                    mj.velocity[axis] += 1
+            if pi < pj:
+                mi.velocity[axis] += 1
+                mj.velocity[axis] -= 1
+            elif pi > pj:
+                mi.velocity[axis] -= 1
+                mj.velocity[axis] += 1
 
     for moon in moons:
-        for axis in range(3):
-            moon.pos[axis] += moon.velocity[axis]
+        moon.pos[axis] += moon.velocity[axis]
+
+def step(moons):
+    for axis in range(3):
+        step_axis(moons, axis)
 
 moons = [Moon(line) for line in sys.stdin]
 
