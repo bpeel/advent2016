@@ -12,7 +12,7 @@
 #include "pcx-error.h"
 
 struct stack_entry {
-        int direction_taken;
+        int direction_to_try;
 };
 
 struct build_grid_data {
@@ -125,14 +125,14 @@ ask_machine(struct intcode *machine,
 
 static void
 stack_push(struct pcx_buffer *stack,
-           int direction_taken)
+           int direction_to_try)
 {
         pcx_buffer_set_length(stack,
                               stack->length + sizeof (struct stack_entry));
 
         struct stack_entry *entry =
                 ((struct stack_entry *) (stack->data + stack->length)) - 1;
-        entry->direction_taken = direction_taken;
+        entry->direction_to_try = direction_to_try;
 }
 
 static void
@@ -147,6 +147,52 @@ move_robot(int dir,
         case 4: *nx = x + 1; *ny = y; break;
         default: assert(false);
         };
+}
+
+static bool
+backtrack(struct intcode *machine,
+          struct build_grid_data *data,
+          struct pcx_buffer *stack,
+          int *x, int *y,
+          struct pcx_error **error)
+{
+        while (true) {
+                stack->length -= sizeof (struct stack_entry);
+
+                if (stack->length <= 0)
+                        break;
+
+                struct stack_entry *entry = ((struct stack_entry *)
+                                             (stack->data + stack->length)) - 1;
+
+                assert(entry->direction_to_try >= 2);
+
+                int back_dir = ((entry->direction_to_try - 2) ^ 1) + 1;
+
+                int result;
+
+                if (!ask_machine(machine,
+                                 data,
+                                 back_dir,
+                                 &result,
+                                 error))
+                        return false;
+
+                if (result == 0) {
+                        pcx_set_error(error,
+                                      &build_grid_error,
+                                      BUILD_GRID_ERROR_INCONSISTENT_RESULT,
+                                      "Backtracking failed");
+                        return false;
+                }
+
+                move_robot(back_dir, *x, *y, x, y);
+
+                if (entry->direction_to_try < 5)
+                        break;
+        }
+
+        return true;
 }
 
 static bool
@@ -165,7 +211,7 @@ build_grid(size_t memory_size,
         int x = 0, y = 0;
         bool ret = true;
 
-        stack_push(&stack, 0);
+        stack_push(&stack, 1);
         grid_write(grid, x, y, 1);
 
         while (stack.length > 0) {
@@ -175,21 +221,22 @@ build_grid(size_t memory_size,
                 sleep(1);
 
                 int result;
-                struct stack_entry entry = ((struct stack_entry *)
-                                            (stack.data + stack.length))[-1];
-                stack.length -= sizeof (struct stack_entry);
+                struct stack_entry *entry = ((struct stack_entry *)
+                                             (stack.data + stack.length)) - 1;
 
-                for (int dir = entry.direction_taken + 1; dir <= 4; dir++) {
+                for (;
+                     entry->direction_to_try <= 4;
+                     entry->direction_to_try++) {
                         int nx, ny;
 
-                        move_robot(dir, x, y, &nx, &ny);
+                        move_robot(entry->direction_to_try, x, y, &nx, &ny);
 
                         if (grid_read(grid, nx, ny))
                                 continue;
 
                         if (!ask_machine(machine,
                                          &data,
-                                         dir,
+                                         entry->direction_to_try,
                                          &result,
                                          error)) {
                                 ret = false;
@@ -204,36 +251,15 @@ build_grid(size_t memory_size,
                         grid_write(grid, nx, ny, result);
                         x = nx;
                         y = ny;
-                        stack_push(&stack, dir);
-                        stack_push(&stack, 0);
+                        entry->direction_to_try++;
+                        stack_push(&stack, 1);
                         goto found_dir;
                 }
 
-                if (entry.direction_taken == 0)
-                        continue;
-
-                /* Backtrack */
-                int back_dir = ((entry.direction_taken - 1) ^ 1) + 1;
-
-                if (!ask_machine(machine,
-                                 &data,
-                                 back_dir,
-                                 &result,
-                                 error)) {
+                if (!backtrack(machine, &data, &stack, &x, &y, error)) {
                         ret = false;
                         goto done;
                 }
-
-                if (result == 0) {
-                        pcx_set_error(error,
-                                      &build_grid_error,
-                                      BUILD_GRID_ERROR_INCONSISTENT_RESULT,
-                                      "Backtracking failed");
-                        ret = false;
-                        goto done;
-                }
-
-                move_robot(back_dir, x, y, &x, &y);
 
         found_dir:
                 continue;
