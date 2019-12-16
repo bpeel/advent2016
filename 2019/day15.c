@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <assert.h>
+#include <limits.h>
 
 #include "intcode.h"
 #include "read-memory.h"
@@ -10,6 +11,11 @@
 #include "pcx-error.h"
 
 struct stack_entry {
+        int direction_to_try;
+};
+
+struct pos_entry {
+        int x, y;
         int direction_to_try;
 };
 
@@ -260,6 +266,96 @@ done:
         return ret;
 }
 
+static void
+pos_push(struct pcx_buffer *stack,
+         int x, int y)
+{
+        pcx_buffer_set_length(stack,
+                              stack->length + sizeof (struct pos_entry));
+
+        struct pos_entry *entry =
+                ((struct pos_entry *) (stack->data + stack->length)) - 1;
+
+        entry->x = x;
+        entry->y = y;
+        entry->direction_to_try = 0;
+}
+
+static bool
+already_visited(const struct pcx_buffer *stack,
+                int x, int y)
+{
+        const struct pos_entry *entries =
+                (const struct pos_entry *) stack->data;
+        size_t n_entries = stack->length / sizeof *entries;
+
+        for (unsigned i = 0; i < n_entries; i++) {
+                if (entries[i].x == x && entries[i].y == y)
+                        return true;
+        }
+
+        return false;
+}
+
+static bool
+find_shortest_path(const struct grid *grid,
+                   int *result)
+{
+        struct pcx_buffer stack = PCX_BUFFER_STATIC_INIT;
+        int shortest_path = INT_MAX;
+
+        pos_push(&stack, 0, 0);
+
+        while (stack.length > 0) {
+                struct pos_entry *entry =
+                        ((struct pos_entry *) (stack.data + stack.length)) - 1;
+
+                for (int dir = entry->direction_to_try; dir < 4; dir++) {
+                        int x = entry->x;
+                        int y = entry->y;
+
+                        switch (dir) {
+                        case 0: x--; break;
+                        case 1: x++; break;
+                        case 2: y--; break;
+                        case 3: y++; break;
+                        }
+
+                        if (already_visited(&stack, x, y))
+                                continue;
+
+                        uint8_t cell = grid_read(grid, x, y);
+
+                        if (cell == 3)
+                                continue;
+
+                        if (cell == 2) {
+                                int length = stack.length / sizeof *entry;
+
+                                if (length < shortest_path)
+                                        shortest_path = length;
+                        }
+
+                        entry->direction_to_try = dir + 1;
+                        pos_push(&stack, x, y);
+                        goto found_dir;
+                }
+
+                do {
+                        stack.length -= sizeof (struct pos_entry);
+                } while (stack.length > 0 &&
+                         ((struct pos_entry *) (stack.data + stack.length))[-1].
+                         direction_to_try >= 4);
+
+        found_dir:
+                continue;
+        }
+
+        *result = shortest_path;
+
+        return true;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -276,17 +372,20 @@ main(int argc, char **argv)
         for (int part = 1; part <= 1; part++) {
                 struct grid *grid = grid_new();
                 struct pcx_error *error = NULL;
+                int shortest_path;
 
-                if (!build_grid(memory_size,
-                                memory,
-                                grid,
-                                &error)) {
+                if (build_grid(memory_size,
+                               memory,
+                               grid,
+                               &error) &&
+                    find_shortest_path(grid, &shortest_path)) {
+                        print_grid(grid);
+                        printf("Part %i: %i\n", part, shortest_path);
+                } else {
                         fprintf(stderr, "Part %i: %s\n", part, error->message);
                         pcx_error_free(error);
                         ret = EXIT_FAILURE;
                 }
-
-                print_grid(grid);
 
                 grid_free(grid);
         }
