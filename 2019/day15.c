@@ -2,8 +2,6 @@
 #include <inttypes.h>
 #include <string.h>
 #include <assert.h>
-#include <limits.h>
-#include <unistd.h>
 
 #include "intcode.h"
 #include "read-memory.h"
@@ -31,7 +29,7 @@ enum {
 };
 
 static void
-print_grid(const struct grid *grid, int rx, int ry)
+print_grid(const struct grid *grid)
 {
         struct grid_size size;
 
@@ -40,11 +38,6 @@ print_grid(const struct grid *grid, int rx, int ry)
         for (int y = 0; y < size.height; y++) {
                 for (int x = 0; x < size.width; x++) {
                         int ch;
-
-                        if (rx == x + size.base_x && ry == y + size.base_y) {
-                                fputc('r', stdout);
-                                continue;
-                        }
 
                         switch (grid_read(grid,
                                           x + size.base_x,
@@ -215,11 +208,6 @@ build_grid(size_t memory_size,
         grid_write(grid, x, y, 1);
 
         while (stack.length > 0) {
-                fputs("\033[2J", stdout);
-                print_grid(grid, x, y);
-                fputs("\n\n", stdout);
-                sleep(1);
-
                 int result;
                 struct stack_entry *entry = ((struct stack_entry *)
                                              (stack.data + stack.length)) - 1;
@@ -298,7 +286,7 @@ main(int argc, char **argv)
                         ret = EXIT_FAILURE;
                 }
 
-                print_grid(grid, INT_MIN, INT_MIN);
+                print_grid(grid);
 
                 grid_free(grid);
         }
