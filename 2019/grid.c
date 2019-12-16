@@ -8,6 +8,8 @@
 
 struct grid {
         int base_x, base_y;
+        int min_x, min_y;
+        int max_x, max_y;
         int width, height;
         uint8_t *data;
 };
@@ -145,6 +147,16 @@ grid_write(struct grid *grid,
         grid_resize_for_x(grid, x);
         grid_resize_for_y(grid, y);
 
+        if (x < grid->min_x)
+                grid->min_x = x;
+        else if (x > grid->max_x)
+                grid->max_x = x;
+
+        if (y < grid->min_y)
+                grid->min_y = y;
+        else if (y > grid->max_y)
+                grid->max_y = y;
+
         grid->data[grid_get_offset(grid, x, y)] = value;
 }
 
@@ -152,10 +164,10 @@ void
 grid_get_size(const struct grid *grid,
               struct grid_size *size)
 {
-        size->base_x = grid->base_x;
-        size->base_y = grid->base_y;
-        size->width = grid->width;
-        size->height = grid->height;
+        size->base_x = grid->min_x;
+        size->base_y = grid->min_y;
+        size->width = grid->max_x - grid->min_x + 1;
+        size->height = grid->max_y - grid->min_y + 1;
 }
 
 struct grid *
