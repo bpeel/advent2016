@@ -34,6 +34,13 @@ enum {
         BUILD_GRID_ERROR_INCONSISTENT_RESULT,
 };
 
+static struct pcx_error_domain
+day15_error;
+
+enum {
+        DAY15_ERROR_NO_OXYGEN,
+};
+
 static void
 print_grid(const struct grid *grid)
 {
@@ -298,13 +305,51 @@ already_visited(const struct pcx_buffer *stack,
 }
 
 static bool
-find_shortest_path(const struct grid *grid,
-                   int *result)
+find_oxygen(const struct grid *grid,
+            int *x_out,
+            int *y_out,
+            struct pcx_error **error)
+{
+        struct grid_size size;
+
+        grid_get_size(grid, &size);
+
+        for (int y = 0; y < size.height; y++) {
+                for (int x = 0; x < size.width; x++) {
+                        if (grid_read(grid,
+                                      x + size.base_x,
+                                      y + size.base_y) == 2) {
+                                *x_out = x + size.base_x;
+                                *y_out = y + size.base_y;
+                                return true;
+                        }
+                }
+        }
+
+        pcx_set_error(error,
+                      &day15_error,
+                      DAY15_ERROR_NO_OXYGEN,
+                      "No oxygen module was found");
+        return false;
+}
+
+static bool
+find_path(const struct grid *grid,
+          int part,
+          int *result,
+          struct pcx_error **error)
 {
         struct pcx_buffer stack = PCX_BUFFER_STATIC_INIT;
-        int shortest_path = INT_MAX;
+        int path = part == 2 ? INT_MIN : INT_MAX;
 
-        pos_push(&stack, 0, 0);
+        if (part == 1) {
+                pos_push(&stack, 0, 0);
+        } else {
+                int x, y;
+                if (!find_oxygen(grid, &x, &y, error))
+                        return false;
+                pos_push(&stack, x, y);
+        }
 
         while (stack.length > 0) {
                 struct pos_entry *entry =
@@ -329,11 +374,13 @@ find_shortest_path(const struct grid *grid,
                         if (cell == 3)
                                 continue;
 
-                        if (cell == 2) {
-                                int length = stack.length / sizeof *entry;
+                        int length = stack.length / sizeof *entry;
 
-                                if (length < shortest_path)
-                                        shortest_path = length;
+                        if (part == 1) {
+                                if (cell == 2 && length < path)
+                                        path = length;
+                        } else if (length > path) {
+                                path = length;
                         }
 
                         entry->direction_to_try = dir + 1;
@@ -351,7 +398,7 @@ find_shortest_path(const struct grid *grid,
                 continue;
         }
 
-        *result = shortest_path;
+        *result = path;
 
         return true;
 }
@@ -369,18 +416,18 @@ main(int argc, char **argv)
 
         int ret = EXIT_SUCCESS;
 
-        for (int part = 1; part <= 1; part++) {
+        for (int part = 1; part <= 2; part++) {
                 struct grid *grid = grid_new();
                 struct pcx_error *error = NULL;
-                int shortest_path;
+                int path;
 
                 if (build_grid(memory_size,
                                memory,
                                grid,
                                &error) &&
-                    find_shortest_path(grid, &shortest_path)) {
+                    find_path(grid, part, &path, &error)) {
                         print_grid(grid);
-                        printf("Part %i: %i\n", part, shortest_path);
+                        printf("Part %i: %i\n", part, path);
                 } else {
                         fprintf(stderr, "Part %i: %s\n", part, error->message);
                         pcx_error_free(error);
