@@ -127,97 +127,67 @@ part1(size_t memory_size,
 }
 
 static bool
-advance(size_t memory_size,
-        const int64_t *memory,
-        bool x_first,
-        int *x_in_out, int *y_in_out,
-        struct pcx_error **error)
-{
-        int x = *x_in_out, y = *y_in_out;
-
-        if (x_first)
-                x++;
-        else
-                y++;
-
-        for (int i = 0; i < 100; i++) {
-                bool lit;
-
-                if (!query_program(memory_size,
-                                   memory,
-                                   x, y,
-                                   &lit,
-                                   error))
-                        return false;
-
-                if (lit)
-                        goto found;
-
-                if (x_first)
-                        y++;
-                else
-                        x++;
-        }
-
-        if (x_first)
-                y = *y_in_out;
-        else
-                x = *x_in_out;
-
-found:
-        *x_in_out = x;
-        *y_in_out = y;
-
-        return true;
-}
-
-static bool
 part2(size_t memory_size,
       const int64_t *memory,
       int *result,
       struct pcx_error **error)
 {
-        int top_x = 0, top_y = 0;
-        int bottom_x = 0, bottom_y = 0;
-        int ship_w = 1, ship_h = 1;
+        int y = 0, min_x = 0, max_x = 0;
 
-        do {
-                if (ship_w > ship_h && ship_w < SHIP_SIZE) {
-                        if (!advance(memory_size,
-                                     memory,
-                                     true,
-                                     &top_x, &top_y,
-                                     error))
+        while (true) {
+                y++;
+
+                for (int i = 0; i < 100; i++) {
+                        bool lit;
+
+                        if (!query_program(memory_size,
+                                           memory,
+                                           min_x + i, y,
+                                           &lit,
+                                           error))
                                 return false;
-                } else if (!advance(memory_size,
-                                    memory,
-                                    false,
-                                    &bottom_x, &bottom_y,
-                                    error)) {
-                        return false;
+
+                        if (lit) {
+                                min_x += i;
+                                break;
+                        }
                 }
 
-                ship_w = top_x - bottom_x + 1;
-                ship_h = top_y - bottom_y + 1;
+                if (max_x < min_x)
+                        max_x = min_x;
 
-                printf("%i,%i  %i,%i  %i,%i\n",
-                       top_x, top_y,
-                       bottom_x, bottom_y,
-                       ship_w, ship_h);
+                for (int i = 0; i < 100; i++) {
+                        bool lit;
 
-                if (ship_w > SHIP_SIZE || ship_h > SHIP_SIZE) {
-                        pcx_set_error(error,
-                                      &day19_error,
-                                      DAY19_ERROR_FAILED,
-                                      "Couldn’t find exact ship "
-                                      "size");
-                        return false;
+                        if (!query_program(memory_size,
+                                           memory,
+                                           max_x + i, y,
+                                           &lit,
+                                           error))
+                                return false;
+
+                        if (!lit) {
+                                max_x += i - 1;
+                                break;
+                        }
                 }
-        } while (ship_w < SHIP_SIZE || ship_h < SHIP_SIZE);
 
-        *result = bottom_x * 10000 + top_y;
+                for (int x = min_x; x + SHIP_SIZE <= max_x + 1; x++) {
+                        bool corner;
 
-        return true;
+                        if (!query_program(memory_size,
+                                           memory,
+                                           x, y + SHIP_SIZE - 1,
+                                           &corner,
+                                           error))
+                                return false;
+
+                        if (corner) {
+                                *result = x * 10000 + y;
+                                return true;
+                        }
+                }
+        }
 }
 
 int
