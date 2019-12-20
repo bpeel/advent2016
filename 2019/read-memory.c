@@ -83,3 +83,31 @@ error:
         pcx_buffer_destroy(&buf);
         return false;
 }
+
+bool
+read_memory_from_file(const char *filename,
+                      int64_t **memory_out,
+                      size_t *size_out,
+                      struct pcx_error **error)
+{
+        FILE *f = fopen(filename, "r");
+
+        if (f == NULL) {
+                pcx_set_error(error,
+                              &read_memory_error,
+                              READ_MEMORY_ERROR_IO,
+                              "%s: %s",
+                              filename,
+                              strerror(errno));
+                return false;
+        }
+
+        bool ret = read_memory(f, memory_out, size_out, error);
+
+        fclose(f);
+
+        if (!ret)
+                return false;
+
+        return true;
+}

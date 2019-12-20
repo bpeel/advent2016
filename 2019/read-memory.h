@@ -22,4 +22,10 @@ read_memory(FILE *in,
             size_t *size_out,
             struct pcx_error **error);
 
+bool
+read_memory_from_file(const char *filename,
+                      int64_t **buf_out,
+                      size_t *size_out,
+                      struct pcx_error **error);
+
 #endif /* READ_MEMORY_H */
