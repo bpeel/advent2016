@@ -23,7 +23,7 @@ load_program(const char *filename,
                 return false;
         }
 
-        bool ret = read_memory(f, memory_out, size_out);
+        bool ret = read_memory(f, memory_out, size_out, NULL);
 
         fclose(f);
 

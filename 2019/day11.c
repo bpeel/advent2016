@@ -70,7 +70,7 @@ main(int argc, char **argv)
         int64_t *memory;
         size_t memory_size;
 
-        if (!read_memory(stdin, &memory, &memory_size)) {
+        if (!read_memory(stdin, &memory, &memory_size, NULL)) {
                 fprintf(stderr, "Error reading initial memory\n");
                 return EXIT_FAILURE;
         }
