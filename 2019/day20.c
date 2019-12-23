@@ -386,6 +386,35 @@ already_visited(const struct pcx_buffer *stack,
 }
 
 static void
+dump_map(const struct map *map,
+         const struct pcx_buffer *stack,
+         int px, int py)
+{
+        for (int y = 0; y < map->height; y++) {
+                for (int x = 0; x < map->width; x++) {
+                        const struct map_square *square =
+                                map->squares + x + y * map->width;
+                        int ch;
+
+                        if (x == px && y == py)
+                                ch = '!';
+                        else if (square->wall)
+                                ch = '#';
+                        else if (already_visited(stack, x, y))
+                                ch = '~';
+                        else
+                                ch = '.';
+
+                        fputc(ch, stdout);
+                }
+
+                fputc('\n', stdout);
+        }
+
+        fputc('\n', stdout);
+}
+
+static void
 pos_push(struct pcx_buffer *stack,
          int x, int y)
 {
@@ -421,6 +450,8 @@ find_path(const struct map *map,
                         int x = entry->x;
                         int y = entry->y;
 
+                        dump_map(map, &stack, x, y);
+
                         const struct map_square *square =
                                 map->squares + x + y * map->width;
 
@@ -446,8 +477,10 @@ find_path(const struct map *map,
                         if (x == map->end_x && y == map->end_y) {
                                 int length = stack.length / sizeof *entry;
 
-                                if (length < path)
+                                if (length < path) {
+                                        printf("%i\n", length);
                                         path = length;
+                                }
                         }
 
                         entry->direction_to_try = dir + 1;
