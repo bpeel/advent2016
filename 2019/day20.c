@@ -486,8 +486,6 @@ find_path(const struct map *map,
                         int x = entry->x;
                         int y = entry->y;
 
-                        dump_map(map, &stack, x, y);
-
                         const struct map_square *square =
                                 map->squares + x + y * map->width;
 
@@ -510,6 +508,7 @@ find_path(const struct map *map,
 
                                 if (length < path) {
                                         printf("%i\n", length);
+                                        dump_map(map, &stack, x, y);
                                         path = length;
                                 }
                         }
