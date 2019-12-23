@@ -19,11 +19,14 @@ struct map_square {
         uint16_t teleport_pos;
 };
 
+struct coord {
+        int x, y, z;
+};
+
 struct map {
         unsigned width, height;
         struct map_square *squares;
-        int start_x, start_y;
-        int end_x, end_y;
+        struct coord start, end;
 };
 
 struct teleport {
@@ -47,7 +50,7 @@ enum direction {
 };
 
 struct pos_entry {
-        int x, y;
+        struct coord coord;
         enum direction direction_to_try;
 };
 
@@ -221,8 +224,9 @@ link_teleports(struct map *map,
                                 return false;
                         }
 
-                        map->start_x = teleports[i].x;
-                        map->start_y = teleports[i].y;
+                        map->start.x = teleports[i].x;
+                        map->start.y = teleports[i].y;
+                        map->start.z = 0;
 
                         block_teleport(map, teleports + i);
 
@@ -240,8 +244,9 @@ link_teleports(struct map *map,
                                 return false;
                         }
 
-                        map->end_x = teleports[i].x;
-                        map->end_y = teleports[i].y;
+                        map->end.x = teleports[i].x;
+                        map->end.y = teleports[i].y;
+                        map->end.z = 0;
 
                         block_teleport(map, teleports + i);
 
@@ -399,7 +404,7 @@ error:
 
 static void
 pos_push(struct pcx_buffer *stack,
-         int x, int y)
+         const struct coord *coord)
 {
         pcx_buffer_set_length(stack,
                               stack->length + sizeof (struct pos_entry));
@@ -407,18 +412,23 @@ pos_push(struct pcx_buffer *stack,
         struct pos_entry *entry =
                 ((struct pos_entry *) (stack->data + stack->length)) - 1;
 
-        entry->x = x;
-        entry->y = y;
+        entry->coord = *coord;
         entry->direction_to_try = 0;
+}
+
+static int
+grid_pos_for_coord(const struct map *map,
+                   const struct coord *coord)
+{
+        return coord->x + ((coord->z * map->height) + coord->y) * map->width;
 }
 
 static int
 get_best_visited(const struct map *map,
                  const struct pcx_buffer *best_visited,
-                 int x,
-                 int y)
+                 const struct coord *coord)
 {
-        int grid_pos = x + y * map->width;
+        int grid_pos = grid_pos_for_coord(map, coord);
 
         if (grid_pos * sizeof (int) >= best_visited->length)
                 return INT_MAX;
@@ -429,11 +439,10 @@ get_best_visited(const struct map *map,
 static void
 set_best_visited(const struct map *map,
                  struct pcx_buffer *best_visited,
-                 int x,
-                 int y,
+                 const struct coord *coord,
                  int value)
 {
-        int grid_pos = x + y * map->width;
+        int grid_pos = grid_pos_for_coord(map, coord);
 
         if (grid_pos * sizeof (int) >= best_visited->length) {
                 pcx_buffer_ensure_size(best_visited,
@@ -460,29 +469,29 @@ find_next_direction(const struct map *map,
         int depth = stack->length / sizeof (struct pos_entry);
 
         for (enum direction dir = entry->direction_to_try; dir < 4; dir++) {
-                int x = entry->x;
-                int y = entry->y;
+                struct coord coord = entry->coord;
 
                 const struct map_square *square =
-                        map->squares + x + y * map->width;
+                        map->squares + coord.x + coord.y * map->width;
 
                 if (square->has_teleport &&
                     square->teleport_direction == dir) {
-                        x = square->teleport_pos % map->width;
-                        y = square->teleport_pos / map->width;
+                        coord.x = square->teleport_pos % map->width;
+                        coord.y = square->teleport_pos / map->width;
                 } else {
-                        move_direction(dir, &x, &y);
+                        move_direction(dir, &coord.x, &coord.y);
                 }
 
-                if (x < 0 || x >= map->width ||
-                    y < 0 || y >= map->height ||
-                    map->squares[x + y * map->width].wall ||
-                    get_best_visited(map, best_visited, x, y) < depth)
+                if (coord.x < 0 || coord.x >= map->width ||
+                    coord.y < 0 || coord.y >= map->height ||
+                    coord.z < 0 ||
+                    map->squares[coord.x + coord.y * map->width].wall ||
+                    get_best_visited(map, best_visited, &coord) < depth)
                         continue;
 
-                set_best_visited(map, best_visited, x, y, depth);
+                set_best_visited(map, best_visited, &coord, depth);
                 entry->direction_to_try = dir + 1;
-                pos_push(stack, x, y);
+                pos_push(stack, &coord);
                 return true;
         }
 
@@ -498,7 +507,7 @@ find_path(const struct map *map,
         struct pcx_buffer stack = PCX_BUFFER_STATIC_INIT;
         struct pcx_buffer best_visited = PCX_BUFFER_STATIC_INIT;
 
-        pos_push(&stack, map->start_x, map->start_y);
+        pos_push(&stack, &map->start);
 
         while (stack.length > 0) {
                 if (find_next_direction(map, &best_visited, &stack))
@@ -512,7 +521,7 @@ find_path(const struct map *map,
                          direction_to_try >= 4);
         }
 
-        *result = get_best_visited(map, &best_visited, map->end_x, map->end_y);
+        *result = get_best_visited(map, &best_visited, &map->end);
 
         pcx_buffer_destroy(&best_visited);
         pcx_buffer_destroy(&stack);
