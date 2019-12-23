@@ -457,13 +457,54 @@ pos_push(struct pcx_buffer *stack,
         entry->direction_to_try = 0;
 }
 
+static bool
+find_next_direction(const struct map *map,
+                    int *best_visited,
+                    struct pcx_buffer *stack)
+{
+        struct pos_entry *entry =
+                ((struct pos_entry *) (stack->data + stack->length)) - 1;
+        int depth = stack->length / sizeof (struct pos_entry);
+
+        for (enum direction dir = entry->direction_to_try; dir < 4; dir++) {
+                int x = entry->x;
+                int y = entry->y;
+
+                const struct map_square *square =
+                        map->squares + x + y * map->width;
+
+                if (square->has_teleport &&
+                    square->teleport_direction == dir) {
+                        x = square->teleport_pos % map->width;
+                        y = square->teleport_pos / map->width;
+                } else {
+                        move_direction(dir, &x, &y);
+                }
+
+                int grid_pos = x + y * map->width;
+
+                if (x < 0 || x >= map->width ||
+                    y < 0 || y >= map->height ||
+                    map->squares[grid_pos].wall ||
+                    best_visited[grid_pos] < depth)
+                        continue;
+
+                best_visited[grid_pos] = depth;
+                entry->direction_to_try = dir + 1;
+                pos_push(stack, x, y);
+                return true;
+        }
+
+        return false;
+
+}
+
 static void
 find_path(const struct map *map,
           int part,
           int *result)
 {
         struct pcx_buffer stack = PCX_BUFFER_STATIC_INIT;
-        int path = INT_MAX;
         int *best_visited = pcx_alloc(map->width *
                                       map->height *
                                       sizeof *best_visited);
@@ -474,61 +515,18 @@ find_path(const struct map *map,
         pos_push(&stack, map->start_x, map->start_y);
 
         while (stack.length > 0) {
-                struct pos_entry *entry =
-                        ((struct pos_entry *) (stack.data + stack.length)) - 1;
-                int depth = stack.length / sizeof (struct pos_entry);
-
-                best_visited[entry->x + entry->y * map->width] = depth;
-
-                for (enum direction dir = entry->direction_to_try;
-                     dir < 4;
-                     dir++) {
-                        int x = entry->x;
-                        int y = entry->y;
-
-                        const struct map_square *square =
-                                map->squares + x + y * map->width;
-
-                        if (square->has_teleport &&
-                            square->teleport_direction == dir) {
-                                x = square->teleport_pos % map->width;
-                                y = square->teleport_pos / map->width;
-                        } else {
-                                move_direction(dir, &x, &y);
-                        }
-
-                        if (x < 0 || x >= map->width ||
-                            y < 0 || y >= map->height ||
-                            map->squares[x + y * map->width].wall ||
-                            best_visited[x + y * map->width] <= depth + 1)
-                                continue;
-
-                        if (x == map->end_x && y == map->end_y) {
-                                int length = stack.length / sizeof *entry;
-
-                                if (length < path) {
-                                        printf("%i\n", length);
-                                        dump_map(map, &stack, x, y);
-                                        path = length;
-                                }
-                        }
-
-                        entry->direction_to_try = dir + 1;
-                        pos_push(&stack, x, y);
-                        goto found_dir;
-                }
+                if (find_next_direction(map, best_visited, &stack))
+                        continue;
 
                 do {
                         stack.length -= sizeof (struct pos_entry);
                 } while (stack.length > 0 &&
-                         ((struct pos_entry *) (stack.data + stack.length))[-1].
+                         ((struct pos_entry *)
+                          (stack.data + stack.length))[-1].
                          direction_to_try >= 4);
-
-        found_dir:
-                continue;
         }
 
-        *result = path;
+        *result = best_visited[map->end_x + map->end_y * map->width];
 
         pcx_free(best_visited);
         pcx_buffer_destroy(&stack);
