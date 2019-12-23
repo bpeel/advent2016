@@ -45,6 +45,11 @@ enum direction {
         DIRECTION_RIGHT,
 };
 
+struct pos_entry {
+        int x, y;
+        enum direction direction_to_try;
+};
+
 static void
 free_map(struct map *map)
 {
@@ -364,6 +369,107 @@ error:
         return NULL;
 }
 
+static bool
+already_visited(const struct pcx_buffer *stack,
+                int x, int y)
+{
+        const struct pos_entry *entries =
+                (const struct pos_entry *) stack->data;
+        size_t n_entries = stack->length / sizeof *entries;
+
+        for (unsigned i = 0; i < n_entries; i++) {
+                if (entries[i].x == x && entries[i].y == y)
+                        return true;
+        }
+
+        return false;
+}
+
+static void
+pos_push(struct pcx_buffer *stack,
+         int x, int y)
+{
+        pcx_buffer_set_length(stack,
+                              stack->length + sizeof (struct pos_entry));
+
+        struct pos_entry *entry =
+                ((struct pos_entry *) (stack->data + stack->length)) - 1;
+
+        entry->x = x;
+        entry->y = y;
+        entry->direction_to_try = 0;
+}
+
+static bool
+find_path(const struct map *map,
+          int part,
+          int *result,
+          struct pcx_error **error)
+{
+        struct pcx_buffer stack = PCX_BUFFER_STATIC_INIT;
+        int path = INT_MAX;
+
+        pos_push(&stack, map->start_x, map->start_y);
+
+        while (stack.length > 0) {
+                struct pos_entry *entry =
+                        ((struct pos_entry *) (stack.data + stack.length)) - 1;
+
+                for (enum direction dir = entry->direction_to_try;
+                     dir < 4;
+                     dir++) {
+                        int x = entry->x;
+                        int y = entry->y;
+
+                        const struct map_square *square =
+                                map->squares + x + y * map->width;
+
+                        if (square->has_teleport &&
+                            square->teleport_direction == dir) {
+                                x = square->teleport_pos % map->width;
+                                y = square->teleport_pos / map->width;
+                        } else {
+                                switch (dir) {
+                                case DIRECTION_LEFT: x--; break;
+                                case DIRECTION_RIGHT: x++; break;
+                                case DIRECTION_UP: y--; break;
+                                case DIRECTION_DOWN: y++; break;
+                                }
+                        }
+
+                        if (x < 0 || x >= map->width ||
+                            y < 0 || y >= map->height ||
+                            map->squares[x + y * map->width].wall ||
+                            already_visited(&stack, x, y))
+                                continue;
+
+                        if (x == map->end_x && y == map->end_y) {
+                                int length = stack.length / sizeof *entry;
+
+                                if (length < path)
+                                        path = length;
+                        }
+
+                        entry->direction_to_try = dir + 1;
+                        pos_push(&stack, x, y);
+                        goto found_dir;
+                }
+
+                do {
+                        stack.length -= sizeof (struct pos_entry);
+                } while (stack.length > 0 &&
+                         ((struct pos_entry *) (stack.data + stack.length))[-1].
+                         direction_to_try >= 4);
+
+        found_dir:
+                continue;
+        }
+
+        *result = path;
+
+        return true;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -376,7 +482,22 @@ main(int argc, char **argv)
                 return EXIT_FAILURE;
         }
 
+        int ret = EXIT_SUCCESS;
+
+        for (int part = 1; part <= 2; part++) {
+                struct pcx_error *error = NULL;
+                int path;
+
+                if (find_path(map, part, &path, &error)) {
+                        printf("Part %i: %i\n", part, path);
+                } else {
+                        fprintf(stderr, "Part %i: %s\n", part, error->message);
+                        pcx_error_free(error);
+                        ret = EXIT_FAILURE;
+                }
+        }
+
         free_map(map);
 
-        return EXIT_SUCCESS;
+        return ret;
 }
