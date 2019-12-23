@@ -148,6 +148,7 @@ add_teleport(struct pcx_buffer *buf,
 
         teleport->x = x;
         teleport->y = y;
+        teleport->direction = direction;
         strcpy(teleport->label, label);
 }
 
@@ -192,7 +193,7 @@ link_teleports(struct map *map,
                         }
 
                         map->start_x = teleports[i].x;
-                        map->start_x = teleports[i].y;
+                        map->start_y = teleports[i].y;
 
                         found_start = true;
 
@@ -209,7 +210,7 @@ link_teleports(struct map *map,
                         }
 
                         map->end_x = teleports[i].x;
-                        map->end_x = teleports[i].y;
+                        map->end_y = teleports[i].y;
 
                         found_end = true;
 
