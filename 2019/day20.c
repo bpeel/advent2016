@@ -457,9 +457,47 @@ pos_push(struct pcx_buffer *stack,
         entry->direction_to_try = 0;
 }
 
+static int
+get_best_visited(const struct map *map,
+                 const struct pcx_buffer *best_visited,
+                 int x,
+                 int y)
+{
+        int grid_pos = x + y * map->width;
+
+        if (grid_pos * sizeof (int) >= best_visited->length)
+                return INT_MAX;
+
+        return ((int *) best_visited->data)[grid_pos];
+}
+
+static void
+set_best_visited(const struct map *map,
+                 struct pcx_buffer *best_visited,
+                 int x,
+                 int y,
+                 int value)
+{
+        int grid_pos = x + y * map->width;
+
+        if (grid_pos * sizeof (int) >= best_visited->length) {
+                pcx_buffer_ensure_size(best_visited,
+                                       (grid_pos + 1) * sizeof (int));
+                for (unsigned i = best_visited->length / sizeof (int);
+                     i <= grid_pos;
+                     i++) {
+                        ((int *) best_visited->data)[i] = INT_MAX;
+                }
+
+                best_visited->length = (grid_pos + 1) * sizeof (int);
+        }
+
+        ((int *) best_visited->data)[grid_pos] = value;
+}
+
 static bool
 find_next_direction(const struct map *map,
-                    int *best_visited,
+                    struct pcx_buffer *best_visited,
                     struct pcx_buffer *stack)
 {
         struct pos_entry *entry =
@@ -481,15 +519,13 @@ find_next_direction(const struct map *map,
                         move_direction(dir, &x, &y);
                 }
 
-                int grid_pos = x + y * map->width;
-
                 if (x < 0 || x >= map->width ||
                     y < 0 || y >= map->height ||
-                    map->squares[grid_pos].wall ||
-                    best_visited[grid_pos] < depth)
+                    map->squares[x + y * map->width].wall ||
+                    get_best_visited(map, best_visited, x, y) < depth)
                         continue;
 
-                best_visited[grid_pos] = depth;
+                set_best_visited(map, best_visited, x, y, depth);
                 entry->direction_to_try = dir + 1;
                 pos_push(stack, x, y);
                 return true;
@@ -505,17 +541,12 @@ find_path(const struct map *map,
           int *result)
 {
         struct pcx_buffer stack = PCX_BUFFER_STATIC_INIT;
-        int *best_visited = pcx_alloc(map->width *
-                                      map->height *
-                                      sizeof *best_visited);
-
-        for (int i = 0; i < map->width * map->height; i++)
-                best_visited[i] = INT_MAX;
+        struct pcx_buffer best_visited = PCX_BUFFER_STATIC_INIT;
 
         pos_push(&stack, map->start_x, map->start_y);
 
         while (stack.length > 0) {
-                if (find_next_direction(map, best_visited, &stack))
+                if (find_next_direction(map, &best_visited, &stack))
                         continue;
 
                 do {
@@ -526,9 +557,9 @@ find_path(const struct map *map,
                          direction_to_try >= 4);
         }
 
-        *result = best_visited[map->end_x + map->end_y * map->width];
+        *result = get_best_visited(map, &best_visited, map->end_x, map->end_y);
 
-        pcx_free(best_visited);
+        pcx_buffer_destroy(&best_visited);
         pcx_buffer_destroy(&stack);
 }
 
