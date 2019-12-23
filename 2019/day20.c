@@ -397,51 +397,6 @@ error:
         return NULL;
 }
 
-static bool
-already_visited(const struct pcx_buffer *stack,
-                int x, int y)
-{
-        const struct pos_entry *entries =
-                (const struct pos_entry *) stack->data;
-        size_t n_entries = stack->length / sizeof *entries;
-
-        for (unsigned i = 0; i < n_entries; i++) {
-                if (entries[i].x == x && entries[i].y == y)
-                        return true;
-        }
-
-        return false;
-}
-
-static void
-dump_map(const struct map *map,
-         const struct pcx_buffer *stack,
-         int px, int py)
-{
-        for (int y = 0; y < map->height; y++) {
-                for (int x = 0; x < map->width; x++) {
-                        const struct map_square *square =
-                                map->squares + x + y * map->width;
-                        int ch;
-
-                        if (x == px && y == py)
-                                ch = '!';
-                        else if (square->wall)
-                                ch = '#';
-                        else if (already_visited(stack, x, y))
-                                ch = '~';
-                        else
-                                ch = '.';
-
-                        fputc(ch, stdout);
-                }
-
-                fputc('\n', stdout);
-        }
-
-        fputc('\n', stdout);
-}
-
 static void
 pos_push(struct pcx_buffer *stack,
          int x, int y)
