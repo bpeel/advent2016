@@ -297,12 +297,12 @@ read_map(FILE *in,
                                             src[grid_width * 2] == '.') {
                                                 tx = x;
                                                 ty = y + 2;
-                                                direction = DIRECTION_DOWN;
+                                                direction = DIRECTION_UP;
                                         } else if (y > 0 &&
                                                    src[-grid_width] == '.') {
                                                 tx = x;
                                                 ty = y - 1;
-                                                direction = DIRECTION_UP;
+                                                direction = DIRECTION_DOWN;
                                         } else {
                                                 bad_label(label, error);
                                                 goto error;
@@ -320,11 +320,11 @@ read_map(FILE *in,
                                             src[2] == '.') {
                                                 tx = x + 2;
                                                 ty = y;
-                                                direction = DIRECTION_RIGHT;
+                                                direction = DIRECTION_LEFT;
                                         } else if (x > 0 && src[-1] == '.') {
                                                 tx = x - 1;
                                                 ty = y;
-                                                direction = DIRECTION_LEFT;
+                                                direction = DIRECTION_RIGHT;
                                         } else {
                                                 bad_label(label, error);
                                                 goto error;
