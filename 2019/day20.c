@@ -16,6 +16,7 @@ struct map_square {
         uint16_t wall : 1;
         uint16_t teleport_direction : 3;
         uint16_t has_teleport : 4;
+        uint16_t outer : 1;
         uint16_t teleport_pos;
 };
 
@@ -33,6 +34,12 @@ struct teleport {
         char label[3];
         int direction;
         int x, y;
+};
+
+struct search_params {
+        int part;
+        int max_z;
+        int max_length;
 };
 
 static struct pcx_error_domain
@@ -193,6 +200,9 @@ set_teleport(struct map *map,
         src_square->has_teleport = true;
         src_square->teleport_direction = src->direction;
         src_square->teleport_pos = dst->x + dst->y * map->width;
+        src_square->outer = (src->x <= 3 || src->y <= 3 ||
+                             src->x >= map->width - 3 ||
+                             src->y >= map->height - 3);
 }
 
 static void
@@ -461,12 +471,20 @@ set_best_visited(const struct map *map,
 
 static bool
 find_next_direction(const struct map *map,
+                    const struct search_params *params,
                     struct pcx_buffer *best_visited,
                     struct pcx_buffer *stack)
 {
+        int depth = stack->length / sizeof (struct pos_entry);
+
+        /* Stop looking if the path is already longer than the best
+         * solution.
+         */
+        if (depth > get_best_visited(map, best_visited, &map->end))
+                return false;
+
         struct pos_entry *entry =
                 ((struct pos_entry *) (stack->data + stack->length)) - 1;
-        int depth = stack->length / sizeof (struct pos_entry);
 
         for (enum direction dir = entry->direction_to_try; dir < 4; dir++) {
                 struct coord coord = entry->coord;
@@ -478,13 +496,20 @@ find_next_direction(const struct map *map,
                     square->teleport_direction == dir) {
                         coord.x = square->teleport_pos % map->width;
                         coord.y = square->teleport_pos / map->width;
+
+                        if (params->part == 2) {
+                                if (square->outer)
+                                        coord.z--;
+                                else
+                                        coord.z++;
+                        }
                 } else {
                         move_direction(dir, &coord.x, &coord.y);
                 }
 
                 if (coord.x < 0 || coord.x >= map->width ||
                     coord.y < 0 || coord.y >= map->height ||
-                    coord.z < 0 ||
+                    coord.z < 0 || coord.z > params->max_z ||
                     map->squares[coord.x + coord.y * map->width].wall ||
                     get_best_visited(map, best_visited, &coord) < depth)
                         continue;
@@ -501,7 +526,7 @@ find_next_direction(const struct map *map,
 
 static void
 find_path(const struct map *map,
-          int part,
+          const struct search_params *params,
           int *result)
 {
         struct pcx_buffer stack = PCX_BUFFER_STATIC_INIT;
@@ -509,8 +534,10 @@ find_path(const struct map *map,
 
         pos_push(&stack, &map->start);
 
+        set_best_visited(map, &best_visited, &map->end, params->max_length);
+
         while (stack.length > 0) {
-                if (find_next_direction(map, &best_visited, &stack))
+                if (find_next_direction(map, params, &best_visited, &stack))
                         continue;
 
                 do {
@@ -527,6 +554,41 @@ find_path(const struct map *map,
         pcx_buffer_destroy(&stack);
 }
 
+static void
+part1(const struct map *map)
+{
+        static const struct search_params params = {
+                .part = 1,
+                .max_z = 0,
+                .max_length = INT_MAX,
+        };
+        int path;
+
+        find_path(map, &params, &path);
+
+        printf("Part 1: %i\n", path);
+}
+
+static void
+part2(const struct map *map)
+{
+        struct search_params params = {
+                .part = 2,
+                .max_length = INT_MAX,
+        };
+
+
+        for (params.max_z = 0; params.max_length == INT_MAX; params.max_z++)
+                find_path(map, &params, &params.max_length);
+
+        /* Now find any path that is shorter than that with no depth limit */
+        int path;
+        params.max_z = INT_MAX;
+        find_path(map, &params, &path);
+
+        printf("Part 2: %i\n", path);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -539,16 +601,10 @@ main(int argc, char **argv)
                 return EXIT_FAILURE;
         }
 
-        int ret = EXIT_SUCCESS;
-
-        for (int part = 1; part <= 2; part++) {
-                int path;
-
-                find_path(map, part, &path);
-                printf("Part %i: %i\n", part, path);
-        }
+        part1(map);
+        part2(map);
 
         free_map(map);
 
-        return ret;
+        return EXIT_SUCCESS;
 }
