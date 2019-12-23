@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "pcx-util.h"
 #include "pcx-buffer.h"
@@ -168,6 +169,18 @@ compare_teleport_label(const void *ptr_a,
 }
 
 static void
+move_direction(enum direction dir,
+               int *x, int *y)
+{
+        switch (dir) {
+        case DIRECTION_LEFT: (*x)--; break;
+        case DIRECTION_RIGHT: (*x)++; break;
+        case DIRECTION_UP: (*y)--; break;
+        case DIRECTION_DOWN: (*y)++; break;
+        }
+}
+
+static void
 set_teleport(struct map *map,
              const struct teleport *src,
              const struct teleport *dst)
@@ -177,6 +190,17 @@ set_teleport(struct map *map,
         src_square->has_teleport = true;
         src_square->teleport_direction = src->direction;
         src_square->teleport_pos = dst->x + dst->y * map->width;
+}
+
+static void
+block_teleport(struct map *map,
+               const struct teleport *teleport)
+{
+        int x = teleport->x, y = teleport->y;
+        move_direction(teleport->direction, &x, &y);
+        assert(x >= 0 && x < map->width);
+        assert(y >= 0 && y < map->height);
+        map->squares[x + y * map->width].wall = true;
 }
 
 static bool
@@ -200,6 +224,8 @@ link_teleports(struct map *map,
                         map->start_x = teleports[i].x;
                         map->start_y = teleports[i].y;
 
+                        block_teleport(map, teleports + i);
+
                         found_start = true;
 
                         continue;
@@ -216,6 +242,8 @@ link_teleports(struct map *map,
 
                         map->end_x = teleports[i].x;
                         map->end_y = teleports[i].y;
+
+                        block_teleport(map, teleports + i);
 
                         found_end = true;
 
@@ -468,12 +496,7 @@ find_path(const struct map *map,
                                 x = square->teleport_pos % map->width;
                                 y = square->teleport_pos / map->width;
                         } else {
-                                switch (dir) {
-                                case DIRECTION_LEFT: x--; break;
-                                case DIRECTION_RIGHT: x++; break;
-                                case DIRECTION_UP: y--; break;
-                                case DIRECTION_DOWN: y++; break;
-                                }
+                                move_direction(dir, &x, &y);
                         }
 
                         if (x < 0 || x >= map->width ||
