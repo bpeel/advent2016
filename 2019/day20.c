@@ -530,6 +530,9 @@ find_path(const struct map *map,
         }
 
         *result = path;
+
+        pcx_free(best_visited);
+        pcx_buffer_destroy(&stack);
 }
 
 int
