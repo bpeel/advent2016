@@ -429,20 +429,28 @@ pos_push(struct pcx_buffer *stack,
         entry->direction_to_try = 0;
 }
 
-static bool
+static void
 find_path(const struct map *map,
           int part,
-          int *result,
-          struct pcx_error **error)
+          int *result)
 {
         struct pcx_buffer stack = PCX_BUFFER_STATIC_INIT;
         int path = INT_MAX;
+        int *best_visited = pcx_alloc(map->width *
+                                      map->height *
+                                      sizeof *best_visited);
+
+        for (int i = 0; i < map->width * map->height; i++)
+                best_visited[i] = INT_MAX;
 
         pos_push(&stack, map->start_x, map->start_y);
 
         while (stack.length > 0) {
                 struct pos_entry *entry =
                         ((struct pos_entry *) (stack.data + stack.length)) - 1;
+                int depth = stack.length / sizeof (struct pos_entry);
+
+                best_visited[entry->x + entry->y * map->width] = depth;
 
                 for (enum direction dir = entry->direction_to_try;
                      dir < 4;
@@ -471,7 +479,7 @@ find_path(const struct map *map,
                         if (x < 0 || x >= map->width ||
                             y < 0 || y >= map->height ||
                             map->squares[x + y * map->width].wall ||
-                            already_visited(&stack, x, y))
+                            best_visited[x + y * map->width] <= depth + 1)
                                 continue;
 
                         if (x == map->end_x && y == map->end_y) {
@@ -499,8 +507,6 @@ find_path(const struct map *map,
         }
 
         *result = path;
-
-        return true;
 }
 
 int
@@ -518,16 +524,10 @@ main(int argc, char **argv)
         int ret = EXIT_SUCCESS;
 
         for (int part = 1; part <= 2; part++) {
-                struct pcx_error *error = NULL;
                 int path;
 
-                if (find_path(map, part, &path, &error)) {
-                        printf("Part %i: %i\n", part, path);
-                } else {
-                        fprintf(stderr, "Part %i: %s\n", part, error->message);
-                        pcx_error_free(error);
-                        ret = EXIT_FAILURE;
-                }
+                find_path(map, part, &path);
+                printf("Part %i: %i\n", part, path);
         }
 
         free_map(map);
