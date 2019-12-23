@@ -112,3 +112,12 @@ day19_src = [
 ]
 
 executable('day19', day19_src)
+
+day20_src = [
+        'pcx-util.c',
+        'pcx-buffer.c',
+        'pcx-error.c',
+        'day20.c'
+]
+
+executable('day20', day20_src)
