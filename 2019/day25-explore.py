@@ -63,6 +63,12 @@ prog = subprocess.Popen(["./build/day25", "day25-input.txt"],
 room = read_room(prog.stdout)
 rooms = {room.name : room}
 stack = [(room, 0)]
+bad_items = set(["molten lava",
+                 "infinite loop",
+                 "escape pod",
+                 "photons",
+                 "giant electromagnet"])
+items = []
 
 opposite_dir = {
     "north": "south",
@@ -73,6 +79,16 @@ opposite_dir = {
 
 while True:
     room, dir_to_try = stack.pop()
+
+    for item in room.items:
+        if item in bad_items or item in items:
+            continue
+        send(prog, "take {}".format(item))
+        for line in prog.stdout:
+            print(line)
+            if line.startswith("Command?"):
+                break
+        items.append(item)
 
     for d in range(dir_to_try, len(room.exits)):
         send(prog, room.exits[d])
@@ -98,3 +114,4 @@ while True:
         assert(bt_room.name == parent_room.name)
 
 print(list(rooms.values()))
+print(items)
