@@ -8,7 +8,7 @@ def parse_map(infile):
 
 def get_map():
     if len(sys.argv) > 1:
-        proc = subprocess.Popen(["./build/day25", sys.argv[1]],
+        proc = subprocess.Popen(["./build/runner", "-a", sys.argv[1]],
                                 stdout=subprocess.PIPE,
                                 text=True,
                                 encoding="utf-8")

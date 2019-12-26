@@ -83,7 +83,7 @@ def try_all_combos(prog, items):
         if room.name != "Security Checkpoint":
             return
 
-prog = subprocess.Popen(["./build/day25", "day25-input.txt"],
+prog = subprocess.Popen(["./build/runner", "-a", "day25-input.txt"],
                         stdin=subprocess.PIPE,
                         stdout=subprocess.PIPE,
                         bufsize=1,
