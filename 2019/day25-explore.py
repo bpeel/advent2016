@@ -53,6 +53,32 @@ def send(prog, command):
     print("<< {}".format(command))
     print(command, file=prog.stdin)
 
+def wait_command(prog):
+    for line in prog.stdout:
+        print(line)
+        if line.startswith("Command?"):
+            break
+
+def try_all_combos(prog, items):
+    for mask in range(1 << len(items)):
+        for i in range(len(items)):
+            if (mask & (1 << i)) == 0:
+                send(prog, "drop {}".format(items[i]))
+                wait_command(prog)
+
+        send(prog, "inv")
+        wait_command(prog)
+        send(prog, "north")
+
+        room = read_room(prog.stdout)
+        if room.name != "Security Checkpoint":
+            return
+
+        for i in range(len(items)):
+            if (mask & (1 << i)) == 0:
+                send(prog, "take {}".format(items[i]))
+                wait_command(prog)
+
 prog = subprocess.Popen(["./build/day25", "day25-input.txt"],
                         stdin=subprocess.PIPE,
                         stdout=subprocess.PIPE,
@@ -88,10 +114,7 @@ while True:
         if item in bad_items or item in items:
             continue
         send(prog, "take {}".format(item))
-        for line in prog.stdout:
-            print(line)
-            if line.startswith("Command?"):
-                break
+        wait_command(prog)
         items.append(item)
 
     for d in range(dir_to_try, len(room.exits)):
@@ -125,3 +148,5 @@ for d in route:
     room = read_room(prog.stdout)
 
 assert(room.name == "Security Checkpoint")
+
+try_all_combos(prog, items)
