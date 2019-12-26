@@ -11,6 +11,8 @@ output_cb(void *user_data,
           int64_t value)
 {
         fputc(value, stdout);
+        if (value == '\n')
+                fflush(stdout);
         return true;
 }
 
