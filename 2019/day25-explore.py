@@ -62,7 +62,7 @@ def wait_command(prog):
 def try_all_combos(prog, items):
     last_state = (1 << len(items)) - 1
 
-    for mask in range(1 << len(items)):
+    for mask in range(last_state, -1, -1):
         diff = last_state ^ mask
         for i in range(len(items)):
             if (diff & (1 << i)) > 0:
