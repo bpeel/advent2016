@@ -15,7 +15,7 @@ def read_room(fin):
     state = None
 
     for line in fin:
-        print(line)
+        print(line.rstrip())
         md = re.match(r'^== (.*) ==$', line)
         if md:
             room_name = md.group(1)
@@ -55,7 +55,7 @@ def send(prog, command):
 
 def wait_command(prog):
     for line in prog.stdout:
-        print(line)
+        print(line.rstrip())
         if line.startswith("Command?"):
             break
 
