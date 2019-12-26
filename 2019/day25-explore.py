@@ -69,6 +69,7 @@ bad_items = set(["molten lava",
                  "photons",
                  "giant electromagnet"])
 items = []
+route = None
 
 opposite_dir = {
     "north": "south",
@@ -79,6 +80,9 @@ opposite_dir = {
 
 while True:
     room, dir_to_try = stack.pop()
+
+    if room.name == "Security Checkpoint":
+        route = [r[0].exits[r[1] - 1] for r in stack]
 
     for item in room.items:
         if item in bad_items or item in items:
@@ -115,3 +119,9 @@ while True:
 
 print(list(rooms.values()))
 print(items)
+
+for d in route:
+    send(prog, d)
+    room = read_room(prog.stdout)
+
+assert(room.name == "Security Checkpoint")
