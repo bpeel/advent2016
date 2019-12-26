@@ -60,11 +60,20 @@ def wait_command(prog):
             break
 
 def try_all_combos(prog, items):
+    last_state = (1 << len(items)) - 1
+
     for mask in range(1 << len(items)):
+        diff = last_state ^ mask
         for i in range(len(items)):
-            if (mask & (1 << i)) == 0:
-                send(prog, "drop {}".format(items[i]))
+            if (diff & (1 << i)) > 0:
+                if last_state & (1 << i) == 0:
+                    command = "take"
+                else:
+                    command = "drop"
+                send(prog, "{} {}".format(command, items[i]))
                 wait_command(prog)
+
+        last_state = mask
 
         send(prog, "inv")
         wait_command(prog)
@@ -73,11 +82,6 @@ def try_all_combos(prog, items):
         room = read_room(prog.stdout)
         if room.name != "Security Checkpoint":
             return
-
-        for i in range(len(items)):
-            if (mask & (1 << i)) == 0:
-                send(prog, "take {}".format(items[i]))
-                wait_command(prog)
 
 prog = subprocess.Popen(["./build/day25", "day25-input.txt"],
                         stdin=subprocess.PIPE,
