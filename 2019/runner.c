@@ -36,17 +36,22 @@ int
 main(int argc, char **argv)
 {
         const char *program_file = NULL;
-        bool ascii = false;
+        bool ascii_input = false;
+        bool ascii_output = false;
         bool override = false;
         int64_t override_value = -1;
 
         while (true) {
-                switch (getopt(argc, argv, "-ao:")) {
+                switch (getopt(argc, argv, "-aAo:")) {
                 case 1:
                         program_file = optarg;
                         break;
                 case 'a':
-                        ascii = true;
+                        ascii_input = true;
+                        ascii_output = true;
+                        break;
+                case 'A':
+                        ascii_input = true;
                         break;
                 case 'o': {
                         char *tail;
@@ -103,10 +108,10 @@ finished_args: (void) 0;
 
         pcx_free(memory);
 
-        if (ascii) {
+        if (ascii_input)
                 intcode_set_input_function(machine, ascii_input_cb, NULL);
+        if (ascii_output)
                 intcode_set_output_function(machine, ascii_output_cb, NULL);
-        }
 
         int ret = EXIT_SUCCESS;
 
