@@ -155,8 +155,6 @@ def get_visited_count(stack, node):
     return count
 
 def get_routes(graph, start, start_dir):
-    max_length = len(graph) * 2
-
     stack = [(start, 0, 0)]
     all_branches = get_all_branches(graph)
 
@@ -170,11 +168,11 @@ def get_routes(graph, start, start_dir):
 
         stack.pop()
 
-        if len(stack) + 2 > max_length:
-            continue
-
         for d in range(dir_to_try, 4):
             if node.connections[d] is None:
+                continue
+
+            if (visited_mask & (1 << (node.num * 4 + d))) != 0:
                 continue
 
             new_node = node.connections[d][0]
