@@ -208,18 +208,22 @@ def count_copies_in_chunk(chunk, token):
     return count
 
 def count_copies(chunks, token):
-    return sum(count_copies_in_chunk(chunk, token) for chunk in chunks)
+    return sum(count_copies_in_chunk(chunk, token)
+               for chunk in chunks
+               if not isinstance(chunk, int))
 
 def compress_route(route):
     parts = []
-    order = []
     chunks = [route]
 
-    while len(chunks) > 0:
+    while True:
         best = None
 
         # Find the chunk that gets the biggest compression
         for chunk in chunks:
+            if isinstance(chunk, int):
+                continue
+
             for start in range(len(chunk)):
                 for length in range(1, len(chunk) - start + 1):
                     token = chunk[start : start + length]
@@ -227,6 +231,9 @@ def compress_route(route):
                     compression = length * n_copies - length - n_copies
                     if best is None or best[1] < compression:
                         best = (token, compression)
+
+        if best is None:
+            break
 
         best_token = best[0]
 
@@ -239,6 +246,10 @@ def compress_route(route):
         nchunks = []
 
         for chunk in chunks:
+            if isinstance(chunk, int):
+                nchunks.append(chunk)
+                continue
+
             last_pos = 0
 
             i = 0
@@ -251,7 +262,7 @@ def compress_route(route):
                     if i > last_pos:
                         nchunks.append(chunk[last_pos:i])
 
-                    order.append(part_num)
+                    nchunks.append(part_num)
                     i += len(best_token)
                     last_pos = i
 
@@ -260,7 +271,7 @@ def compress_route(route):
 
         chunks = nchunks
 
-    return parts, order
+    return parts, chunks
 
 scaf_map = get_map()
 
@@ -284,7 +295,12 @@ for fork in graph:
     print()
 
 for route in get_routes(graph, start, start_dir):
-    print(",".join(str(x) for x in route))
     parts, order = compress_route(route)
-    print(parts)
-    print(order)
+
+    if len(parts) > 3:
+        continue
+
+    print("===")
+    print(",".join(chr(ord("A") + i) for i in order))
+    for part in parts:
+        print(",".join(str(x) for x in part))
