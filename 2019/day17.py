@@ -3,6 +3,7 @@
 import sys
 import subprocess
 import collections
+import time
 
 Fork = collections.namedtuple('Fork', ['pos', 'connections', 'num'])
 
@@ -283,24 +284,22 @@ start_pos = (start_data[0], start_data[1])
 start_dir = start_data[2]
 start = next(x for x in graph if x.pos == start_pos)
 
-for fork in graph:
-    print(fork.pos, ": ", end='')
-    for connection in fork.connections:
-        if connection is None:
-            print("none", end='')
-        else:
-            print(connection[0].pos, ",", connection[1], end='')
+start_time = time.monotonic()
 
-        print(" ", end='')
-    print()
+for num, route in enumerate(get_routes(graph, start, start_dir)):
+    print("\x1b[K  {}".format(num), end='')
+    now_time = time.monotonic()
+    if now_time > start_time + 1.0:
+        print(" {}".format(num / (now_time - start_time)), end='')
+    print("\r", end='')
+    sys.stdout.flush()
 
-for route in get_routes(graph, start, start_dir):
     parts, order = compress_route(route)
 
     if len(parts) > 3:
         continue
 
-    print("===")
+    print("\x1b[K===")
     print(",".join(chr(ord("A") + i) for i in order))
     for part in parts:
         print(",".join(str(x) for x in part))
