@@ -140,7 +140,14 @@ def convert_route(graph, stack, last_dir):
         final_dir = connection[2]
 
         add_rotation(route, last_dir, new_dir)
-        route.extend(new_route)
+
+        for part in new_route:
+            if (len(route) > 0 and
+                isinstance(route[-1], int) and
+                isinstance(part, int)):
+                route[-1] += part
+            else:
+                route.append(part)
 
         last_dir = final_dir
 
