@@ -193,62 +193,72 @@ def get_routes(graph, start, start_dir):
             stack.append((new_node, 0, visited_mask))
             break
 
-def count_copies(route, start, length):
+def count_copies_in_chunk(chunk, token):
     i = 0
     count = 0
-    while i + length <= len(route):
-        for j in range(length):
-            if route[i + j] != route[start + j]:
+    while i + len(token) <= len(chunk):
+        for j in range(len(token)):
+            if chunk[i + j] != token[j]:
                 i += 1
                 break
         else:
             count += 1
-            i += length
+            i += len(token)
 
     return count
+
+def count_copies(chunks, token):
+    return sum(count_copies_in_chunk(chunk, token) for chunk in chunks)
 
 def compress_route(route):
     parts = []
     order = []
+    chunks = [route]
 
-    def compress_internal(route):
+    while len(chunks) > 0:
         best = None
 
         # Find the chunk that gets the biggest compression
-        for start in range(len(route)):
-            for length in range(1, len(route) - start + 1):
-                n_copies = count_copies(route, start, length)
-                compression = length * n_copies - length - n_copies
-                if best is None or best[2] < compression:
-                    best = (start, length, compression)
+        for chunk in chunks:
+            for start in range(len(chunk)):
+                for length in range(1, len(chunk) - start + 1):
+                    token = chunk[start : start + length]
+                    n_copies = count_copies(chunks, token)
+                    compression = length * n_copies - length - n_copies
+                    if best is None or best[1] < compression:
+                        best = (token, compression)
 
-        best_chunk = route[best[0]:best[0]+best[1]]
+        best_token = best[0]
 
         try:
-            part_num = parts.index(best_chunk)
+            part_num = parts.index(best_token)
         except ValueError:
             part_num = len(parts)
-            parts.append(best_chunk)
+            parts.append(best_token)
 
-        last_pos = 0
+        nchunks = []
 
-        i = 0
-        while i + len(best_chunk) <= len(route):
-            for j in range(len(best_chunk)):
-                if route[i + j] != best_chunk[j]:
-                    i += 1
-                    break
-            else:
-                if i > last_pos:
-                    compress_internal(route[last_pos:i])
-                order.append(part_num)
-                i += len(best_chunk)
-                last_pos = i
+        for chunk in chunks:
+            last_pos = 0
 
-        if last_pos < len(route):
-            compress_internal(route[last_pos:])
+            i = 0
+            while i + len(best_token) <= len(chunk):
+                for j in range(len(best_token)):
+                    if chunk[i + j] != best_token[j]:
+                        i += 1
+                        break
+                else:
+                    if i > last_pos:
+                        nchunks.append(chunk[last_pos:i])
 
-    compress_internal(route)
+                    order.append(part_num)
+                    i += len(best_token)
+                    last_pos = i
+
+            if last_pos < len(chunk):
+                nchunks.append(chunk[last_pos:])
+
+        chunks = nchunks
 
     return parts, order
 
