@@ -140,3 +140,16 @@ day22_src = [
 ]
 
 executable('day22', day22_src)
+
+day23_src = [
+        'intcode.c',
+        'pcx-util.c',
+        'pcx-error.c',
+        'pcx-buffer.c',
+        'read-memory.c',
+        'deque.c',
+        'day23.c'
+]
+
+executable('day23', day23_src, link_args : '-pthread')
+
