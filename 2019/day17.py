@@ -4,7 +4,7 @@ import sys
 import subprocess
 import collections
 
-Fork = collections.namedtuple('Fork', ['pos', 'connections'])
+Fork = collections.namedtuple('Fork', ['pos', 'connections', 'num'])
 
 def parse_map(infile):
     return [line.rstrip() for line in infile if len(line) >= 2]
@@ -87,8 +87,8 @@ def get_connection(scaf_map, forks, pos, last_dir):
 def get_graph(scaf_map):
     forks = {}
 
-    for intersection in get_intersections(scaf_map, True):
-        forks[intersection] = Fork(intersection, [None] * 4)
+    for num, intersection in enumerate(get_intersections(scaf_map, True)):
+        forks[intersection] = Fork(intersection, [None] * 4, num)
 
     for fork in forks.values():
         for d in range(4):
@@ -101,6 +101,17 @@ def get_graph(scaf_map):
                 fork.connections[d] = connection
 
     return list(forks.values())
+
+def get_all_branches(graph):
+    branches = 0
+
+    for fork in graph:
+        for i, connection in enumerate(fork.connections):
+            if connection is None:
+                continue
+            branches |= 1 << (fork.num * 4 + i)
+
+    return branches
 
 def get_start(scaf_map):
     dirs = '^v<>'
@@ -119,21 +130,14 @@ def add_rotation(route, dir_a, dir_b):
         route.append("R")
 
 def convert_route(graph, stack, last_dir):
-    print([x[0].pos for x in stack])
     route = []
 
     for i in range(1, len(stack)):
         last_node = stack[i - 1][0]
-        new_node = stack[i][0]
-        for d, connection in enumerate(last_node.connections):
-            if connection is None:
-                continue
-
-            if connection[0] == new_node:
-                new_dir = d
-                new_route = connection[1]
-                final_dir = connection[2]
-                break
+        new_dir = stack[i - 1][1] - 1
+        connection = last_node.connections[new_dir]
+        new_route = connection[1]
+        final_dir = connection[2]
 
         add_rotation(route, last_dir, new_dir)
         route.extend(new_route)
@@ -154,12 +158,12 @@ def get_routes(graph, start, start_dir):
     max_length = len(graph) * 2
 
     stack = [(start, 0, 0)]
+    all_branches = get_all_branches(graph)
 
     while len(stack) > 0:
-        node, dir_to_try, n_visited = stack[-1]
-        print(node.pos, n_visited, len(graph), len(stack))
+        node, dir_to_try, visited_mask = stack[-1]
 
-        if n_visited >= len(graph):
+        if visited_mask == all_branches:
             yield convert_route(graph, stack, start_dir)
             stack.pop()
             continue
@@ -175,15 +179,13 @@ def get_routes(graph, start, start_dir):
 
             new_node = node.connections[d][0]
 
-            visited_count = get_visited_count(stack, new_node)
-            if visited_count >= 2:
-                continue
+            stack.append((node, d + 1, visited_mask))
 
-            stack.append((node, d + 1, n_visited))
+            visited_mask |= 1 << (node.num * 4 + d)
+            final_d = node.connections[d][2]
+            visited_mask |= 1 << (new_node.num * 4 + (final_d ^ 1))
 
-            if visited_count == 0:
-                n_visited += 1
-            stack.append((new_node, 0, n_visited))
+            stack.append((new_node, 0, visited_mask))
             break
 
 scaf_map = get_map()
