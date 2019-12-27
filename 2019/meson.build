@@ -132,3 +132,10 @@ runner_src = [
 ]
 
 executable('runner', runner_src)
+
+day22_src = [
+        'pcx-util.c',
+        'day22.c'
+]
+
+executable('day22', day22_src)
