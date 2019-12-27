@@ -8,11 +8,23 @@
 #include <limits.h>
 
 #include "pcx-util.h"
+#include "pcx-buffer.h"
 
 struct deck {
         size_t n_cards;
         int *cards;
         int *buf;
+};
+
+enum command_type {
+        COMMAND_TYPE_CUT,
+        COMMAND_TYPE_DEAL_WITH_INCREMENT,
+        COMMAND_TYPE_REVERSE,
+};
+
+struct command {
+        enum command_type command;
+        int value;
 };
 
 static struct deck *
@@ -74,6 +86,28 @@ deal_with_increment(struct deck *deck,
         memcpy(deck->cards, deck->buf, deck->n_cards * sizeof deck->cards[0]);
 }
 
+static void
+run_commands(struct deck *deck,
+             size_t n_commands,
+             const struct command *commands)
+{
+        for (unsigned i = 0; i < n_commands; i++) {
+                const struct command *command = commands + i;
+
+                switch (command->command) {
+                case COMMAND_TYPE_REVERSE:
+                        reverse_deck(deck);
+                        break;
+                case COMMAND_TYPE_CUT:
+                        cut_deck(deck, command->value);
+                        break;
+                case COMMAND_TYPE_DEAL_WITH_INCREMENT:
+                        deal_with_increment(deck, command->value);
+                        break;
+                }
+        }
+}
+
 static bool
 is_string_with_integer(const char *str,
                        const char *line,
@@ -125,34 +159,47 @@ is_string(const char *str,
 }
 
 static bool
-process_commands(struct deck *deck,
-                 FILE *in)
+parse_commands(FILE *in,
+               size_t *n_commands_out,
+               struct command **commands_out)
 {
         char line[512];
         int line_num = 1;
+        struct pcx_buffer buf = PCX_BUFFER_STATIC_INIT;
 
         while (fgets(line, sizeof line, in)) {
-                int value;
+                pcx_buffer_set_length(&buf,
+                                      buf.length + sizeof (struct command));
+
+                struct command *command =
+                        ((struct command *) (buf.data + buf.length)) - 1;
 
                 if (is_string_with_integer("deal with increment ",
                                            line,
-                                           &value)) {
-                        deal_with_increment(deck, value);
+                                           &command->value)) {
+                        command->command = COMMAND_TYPE_DEAL_WITH_INCREMENT;
                 } else if (is_string_with_integer("cut ",
                                                   line,
-                                                  &value)) {
-                        cut_deck(deck, value);
+                                                  &command->value)) {
+                        command->command = COMMAND_TYPE_CUT;
                 } else if (is_string("deal into new stack", line)) {
-                        reverse_deck(deck);
+                        command->command = COMMAND_TYPE_REVERSE;
                 } else {
                         fprintf(stderr, "Invalid line number %i", line_num);
-                        return false;
+                        goto error;
                 }
 
                 line_num++;
         }
 
+        *n_commands_out = buf.length / sizeof (struct command);
+        *commands_out = (struct command *) buf.data;
+
         return true;
+
+error:
+        pcx_buffer_destroy(&buf);
+        return false;
 }
 
 int
@@ -168,11 +215,15 @@ main(int argc, char **argv)
                 }
         }
 
-        struct deck *deck = create_deck(deck_size);
-        int ret = EXIT_SUCCESS;
+        size_t n_commands;
+        struct command *commands;
 
-        if (!process_commands(deck, stdin))
-                ret = EXIT_FAILURE;
+        if (!parse_commands(stdin, &n_commands, &commands))
+                return EXIT_FAILURE;
+
+        struct deck *deck = create_deck(deck_size);
+
+        run_commands(deck, n_commands, commands);
 
         for (unsigned i = 0; i < deck->n_cards; i++) {
                 if (deck->cards[i] == 2019) {
@@ -182,9 +233,11 @@ main(int argc, char **argv)
         }
 
         printf("Part 1: no card found\n");
+
 found_card:
 
         free_deck(deck);
+        pcx_free(commands);
 
-        return ret;
+        return EXIT_SUCCESS;
 }
