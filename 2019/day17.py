@@ -7,6 +7,8 @@ import time
 
 Fork = collections.namedtuple('Fork', ['pos', 'connections', 'num'])
 
+N_PROGS = 3
+
 def parse_map(infile):
     return [line.rstrip() for line in infile if len(line) >= 2]
 
@@ -213,38 +215,20 @@ def count_copies(chunks, token):
                for chunk in chunks
                if not isinstance(chunk, int))
 
-def compress_route(route):
-    parts = []
-    chunks = [route]
+def compress_route_part(chunks, depth):
+    try:
+        chunk_num = next(i for i in range(len(chunks))
+                         if not isinstance(chunks[i], int))
+    except StopIteration:
+        return ([[]] * (N_PROGS - depth), chunks)
 
-    while True:
-        best = None
+    first_chunk = chunks[chunk_num]
 
-        # Find the chunk that gets the biggest compression
-        for chunk in chunks:
-            if isinstance(chunk, int):
-                continue
-
-            for start in range(len(chunk)):
-                for length in range(1, len(chunk) - start + 1):
-                    token = chunk[start : start + length]
-                    n_copies = count_copies(chunks, token)
-                    compression = length * n_copies - length - n_copies
-                    if best is None or best[1] < compression:
-                        best = (token, compression)
-
-        if best is None:
-            break
-
-        best_token = best[0]
-
-        try:
-            part_num = parts.index(best_token)
-        except ValueError:
-            part_num = len(parts)
-            parts.append(best_token)
+    for length in range(1, min(len(first_chunk), 10) + 1):
+        token = first_chunk[0:length]
 
         nchunks = []
+        had_uncompressed = False
 
         for chunk in chunks:
             if isinstance(chunk, int):
@@ -254,25 +238,35 @@ def compress_route(route):
             last_pos = 0
 
             i = 0
-            while i + len(best_token) <= len(chunk):
-                for j in range(len(best_token)):
-                    if chunk[i + j] != best_token[j]:
+            while i + len(token) <= len(chunk):
+                for j in range(len(token)):
+                    if chunk[i + j] != token[j]:
                         i += 1
                         break
                 else:
                     if i > last_pos:
                         nchunks.append(chunk[last_pos:i])
+                        had_uncompressed = True
 
-                    nchunks.append(part_num)
-                    i += len(best_token)
+                    nchunks.append(depth)
+                    i += len(token)
                     last_pos = i
 
             if last_pos < len(chunk):
                 nchunks.append(chunk[last_pos:])
+                had_uncompressed = True
 
-        chunks = nchunks
+        if depth + 1 < N_PROGS:
+            sub = compress_route_part(nchunks, depth + 1)
+            if sub is not None:
+                return ([token] + sub[0], sub[1])
+        elif not had_uncompressed:
+            return ([token], nchunks)
+                
+    return None
 
-    return parts, chunks
+def compress_route(route):
+    return compress_route_part([route], 0)
 
 scaf_map = get_map()
 
@@ -294,10 +288,11 @@ for num, route in enumerate(get_routes(graph, start, start_dir)):
     print("\r", end='')
     sys.stdout.flush()
 
-    parts, order = compress_route(route)
-
-    if len(parts) > 3:
+    compression = compress_route(route)
+    if compression is None:
         continue
+
+    parts, order = compression
 
     print("\x1b[K===")
     print(",".join(chr(ord("A") + i) for i in order))
