@@ -193,6 +193,65 @@ def get_routes(graph, start, start_dir):
             stack.append((new_node, 0, visited_mask))
             break
 
+def count_copies(route, start, length):
+    i = 0
+    count = 0
+    while i + length <= len(route):
+        for j in range(length):
+            if route[i + j] != route[start + j]:
+                i += 1
+                break
+        else:
+            count += 1
+            i += length
+
+    return count
+
+def compress_route(route):
+    parts = []
+    order = []
+
+    def compress_internal(route):
+        best = None
+
+        # Find the chunk that gets the biggest compression
+        for start in range(len(route)):
+            for length in range(1, len(route) - start + 1):
+                n_copies = count_copies(route, start, length)
+                compression = length * n_copies - length - n_copies
+                if best is None or best[2] < compression:
+                    best = (start, length, compression)
+
+        best_chunk = route[best[0]:best[0]+best[1]]
+
+        try:
+            part_num = parts.index(best_chunk)
+        except ValueError:
+            part_num = len(parts)
+            parts.append(best_chunk)
+
+        last_pos = 0
+
+        i = 0
+        while i + len(best_chunk) <= len(route):
+            for j in range(len(best_chunk)):
+                if route[i + j] != best_chunk[j]:
+                    i += 1
+                    break
+            else:
+                if i > last_pos:
+                    compress_internal(route[last_pos:i])
+                order.append(part_num)
+                i += len(best_chunk)
+                last_pos = i
+
+        if last_pos < len(route):
+            compress_internal(route[last_pos:])
+
+    compress_internal(route)
+
+    return parts, order
+
 scaf_map = get_map()
 
 print("Part 1: ", sum(a * b for a, b in get_intersections(scaf_map)))
@@ -215,5 +274,7 @@ for fork in graph:
     print()
 
 for route in get_routes(graph, start, start_dir):
-    print(route)
-
+    print(",".join(str(x) for x in route))
+    parts, order = compress_route(route)
+    print(parts)
+    print(order)
