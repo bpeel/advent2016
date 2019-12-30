@@ -204,17 +204,72 @@ error:
 }
 
 static int64_t
+modular_pow(int64_t base, int64_t exponent, int64_t modulus)
+{
+        if (modulus == 1)
+                return 0;
+
+        int64_t result = 1;
+
+        while (exponent > 0) {
+                if ((exponent & 1))
+                        result = (result * base) % modulus;
+                exponent >>= 1;
+
+                base = (base * base) % modulus;
+        }
+
+        return result;
+}
+
+static int64_t
+get_mod_inverse(int64_t a, int64_t m)
+{
+        int64_t m0 = m;
+        int64_t y = 0, x = 1;
+
+        if (m == 1)
+                return 0;
+
+        while (a > 1) {
+                // q is quotient
+                int64_t q = a / m;
+                int64_t t = m;
+
+                // m is remainder now, process same as
+                // Euclid's algo
+                m = a % m, a = t;
+                t = y;
+
+                // Update y and x
+                y = x - q * y;
+                x = t;
+        }
+
+        // Make x positive
+        if (x < 0)
+                x += m0;
+
+        return x;
+}
+
+static int64_t
 part2(size_t n_commands,
       const struct command *commands,
-      int64_t pos,
-      int64_t n_cards)
+      int64_t repeat,
+      int64_t n_cards,
+      int64_t pos)
 {
-        for (unsigned i = 0; i < n_commands; i++) {
+        int64_t mult = 1, add = 0;
+
+        for (int i = n_commands - 1; i >= 0; i--) {
                 const struct command *command = commands + i;
 
                 switch (command->command) {
                 case COMMAND_TYPE_REVERSE:
-                        pos = n_cards - 1 - pos;
+                        mult *= n_cards - 1;
+                        add *= n_cards - 1;
+                        add += n_cards - 1;
                         break;
                 case COMMAND_TYPE_CUT: {
                         int64_t amount = command->value;
@@ -222,17 +277,22 @@ part2(size_t n_commands,
                         if (amount < 0)
                                 amount += n_cards;
 
-                        pos = (pos + amount) % n_cards;
+                        add += amount;
                         break;
                 }
                 case COMMAND_TYPE_DEAL_WITH_INCREMENT: {
-                        pos = (pos * command->value) % n_cards;
+                        int64_t inv = get_mod_inverse(command->value, n_cards);
+                        mult *= inv;
+                        add *= inv;
                         break;
                 }
                 }
         }
 
-        return pos;
+        mult = modular_pow(mult, repeat, n_cards);
+        add *= repeat;
+
+        return (pos * mult + add) % n_cards;
 }
 
 int
@@ -282,14 +342,13 @@ main(int argc, char **argv)
 
         printf("Part 1: no card found\n");
 
-found_card: (void) 0;
+found_card:
 
-        for (int64_t i = 0; i < repeats; i++) {
-                pos = part2(n_commands,
-                            commands,
-                            pos,
-                            deck2_size);
-        }
+        pos = part2(n_commands,
+                    commands,
+                    repeats,
+                    deck2_size,
+                    pos);
 
         printf("Part 2: %" PRIi64 "\n", pos);
 
