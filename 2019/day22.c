@@ -313,7 +313,7 @@ main(int argc, char **argv)
 
                 if (argc > 2) {
                         pos = strtol(argv[2], NULL, 10);
-                        if (pos < 1 || pos >= deck2_size) {
+                        if (pos < 0 || pos >= deck2_size) {
                                 fprintf(stderr, "Invalid pos\n");
                                 return EXIT_FAILURE;
                         }
