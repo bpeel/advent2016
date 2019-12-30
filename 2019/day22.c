@@ -254,6 +254,34 @@ get_mod_inverse(int64_t a, int64_t m)
 }
 
 static int64_t
+two_part_mult(int64_t a, int64_t b, int64_t m)
+{
+        /* Split a * b into two parts in case it overflows an int64
+         * before getting the modulus
+         */
+        int64_t lower_a = (a & ((INT64_C(1) << 32) - 1));
+        int64_t lower_b = (b & ((INT64_C(1) << 32) - 1));
+        int64_t upper_a = a >> 32;
+        int64_t upper_b = b >> 32;
+
+        int64_t part[3] = { lower_a * lower_b % m,
+                            lower_a * upper_b % m,
+                            upper_a * upper_b % m };
+
+        int64_t to_upper = (INT64_C(1) << 32) % m;
+        part[1] = part[1] * to_upper % m;
+        part[2] = part[2] * to_upper % m;
+        part[2] = part[2] * to_upper % m;
+
+        int64_t sum = part[0];
+
+        for (int i = 1; i < PCX_N_ELEMENTS(part); i++)
+                sum = (sum + part[i]) % m;
+
+        return sum;
+}
+
+static int64_t
 part2(size_t n_commands,
       const struct command *commands,
       int64_t repeat,
@@ -267,7 +295,7 @@ part2(size_t n_commands,
 
                 switch (command->command) {
                 case COMMAND_TYPE_REVERSE:
-                        mult *= n_cards - 1;
+                        mult = two_part_mult(n_cards - 1, mult, n_cards);
                         add *= n_cards - 1;
                         add += n_cards - 1;
                         break;
@@ -282,7 +310,7 @@ part2(size_t n_commands,
                 }
                 case COMMAND_TYPE_DEAL_WITH_INCREMENT: {
                         int64_t inv = get_mod_inverse(command->value, n_cards);
-                        mult *= inv;
+                        mult = two_part_mult(mult, inv, n_cards);
                         add *= inv;
                         break;
                 }
