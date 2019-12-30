@@ -186,7 +186,7 @@ parse_commands(FILE *in,
                 } else if (is_string("deal into new stack", line)) {
                         command->command = COMMAND_TYPE_REVERSE;
                 } else {
-                        fprintf(stderr, "Invalid line number %i", line_num);
+                        fprintf(stderr, "Invalid line number %i\n", line_num);
                         goto error;
                 }
 
