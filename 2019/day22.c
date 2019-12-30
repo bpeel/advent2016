@@ -6,6 +6,7 @@
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
+#include <inttypes.h>
 
 #include "pcx-util.h"
 #include "pcx-buffer.h"
@@ -202,16 +203,63 @@ error:
         return false;
 }
 
+static int64_t
+part2(size_t n_commands,
+      const struct command *commands,
+      int64_t pos,
+      int64_t n_cards)
+{
+        for (unsigned i = 0; i < n_commands; i++) {
+                const struct command *command = commands + i;
+
+                switch (command->command) {
+                case COMMAND_TYPE_REVERSE:
+                        pos = n_cards - 1 - pos;
+                        break;
+                case COMMAND_TYPE_CUT: {
+                        int64_t amount = command->value;
+
+                        if (amount < 0)
+                                amount += n_cards;
+
+                        pos = (pos + amount) % n_cards;
+                        break;
+                }
+                case COMMAND_TYPE_DEAL_WITH_INCREMENT: {
+                        pos = (pos * command->value) % n_cards;
+                        break;
+                }
+                }
+        }
+
+        return pos;
+}
+
 int
 main(int argc, char **argv)
 {
-        int deck_size = 10007;
+        int deck1_size = 10007;
+        int64_t deck2_size = INT64_C(119315717514047);
+        int64_t pos = 2020;
+        int64_t repeats = INT64_C(101741582076661);
 
         if (argc > 1) {
-                deck_size = strtol(argv[1], NULL, 10);
-                if (deck_size < 1) {
+                deck1_size = strtol(argv[1], NULL, 10);
+                if (deck1_size < 1) {
                         fprintf(stderr, "Invalid deck size\n");
                         return EXIT_FAILURE;
+                }
+                deck2_size = deck1_size;
+
+                if (argc > 2) {
+                        pos = strtol(argv[2], NULL, 10);
+                        if (pos < 1 || pos >= deck2_size) {
+                                fprintf(stderr, "Invalid pos\n");
+                                return EXIT_FAILURE;
+                        }
+
+                        if (argc > 3)
+                                repeats = strtol(argv[3], NULL, 10);
                 }
         }
 
@@ -221,7 +269,7 @@ main(int argc, char **argv)
         if (!parse_commands(stdin, &n_commands, &commands))
                 return EXIT_FAILURE;
 
-        struct deck *deck = create_deck(deck_size);
+        struct deck *deck = create_deck(deck1_size);
 
         run_commands(deck, n_commands, commands);
 
@@ -234,7 +282,16 @@ main(int argc, char **argv)
 
         printf("Part 1: no card found\n");
 
-found_card:
+found_card: (void) 0;
+
+        for (int64_t i = 0; i < repeats; i++) {
+                pos = part2(n_commands,
+                            commands,
+                            pos,
+                            deck2_size);
+        }
+
+        printf("Part 2: %" PRIi64 "\n", pos);
 
         free_deck(deck);
         pcx_free(commands);
