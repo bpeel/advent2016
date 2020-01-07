@@ -28,6 +28,11 @@ struct command {
         int value;
 };
 
+struct formula {
+        int64_t mult;
+        int64_t add;
+};
+
 static struct deck *
 create_deck(size_t n_cards)
 {
@@ -253,6 +258,38 @@ get_mod_inverse(int64_t a, int64_t m)
         return x;
 }
 
+static void
+formula_mult(struct formula *formula,
+             int64_t mult)
+{
+        formula->mult *= mult;
+        formula->add *= mult;
+}
+
+static void
+formula_add(struct formula *formula,
+            int64_t add)
+{
+        formula->add += add;
+}
+
+static void
+formula_repeat(struct formula *formula,
+               int64_t repeat,
+               int64_t modulus)
+{
+        formula->mult = modular_pow(formula->mult, repeat, modulus);
+        formula->add *= repeat;
+}
+
+static int64_t
+formula_apply(const struct formula *formula,
+              int64_t value,
+              int64_t modulus)
+{
+        return (value * formula->mult + formula->add) % modulus;
+}
+
 static int64_t
 part2(size_t n_commands,
       const struct command *commands,
@@ -260,16 +297,18 @@ part2(size_t n_commands,
       int64_t n_cards,
       int64_t pos)
 {
-        int64_t mult = 1, add = 0;
+        struct formula formula = {
+                .mult = 1,
+                .add = 0,
+        };
 
         for (int i = n_commands - 1; i >= 0; i--) {
                 const struct command *command = commands + i;
 
                 switch (command->command) {
                 case COMMAND_TYPE_REVERSE:
-                        mult *= n_cards - 1;
-                        add *= n_cards - 1;
-                        add += n_cards - 1;
+                        formula_mult(&formula, n_cards - 1);
+                        formula_add(&formula, n_cards - 1);
                         break;
                 case COMMAND_TYPE_CUT: {
                         int64_t amount = command->value;
@@ -277,22 +316,20 @@ part2(size_t n_commands,
                         if (amount < 0)
                                 amount += n_cards;
 
-                        add += amount;
+                        formula_add(&formula, amount);
                         break;
                 }
                 case COMMAND_TYPE_DEAL_WITH_INCREMENT: {
                         int64_t inv = get_mod_inverse(command->value, n_cards);
-                        mult *= inv;
-                        add *= inv;
+                        formula_mult(&formula, inv);
                         break;
                 }
                 }
         }
 
-        mult = modular_pow(mult, repeat, n_cards);
-        add *= repeat;
+        formula_repeat(&formula, repeat, n_cards);
 
-        return (pos * mult + add) % n_cards;
+        return formula_apply(&formula, pos, n_cards);
 }
 
 int
