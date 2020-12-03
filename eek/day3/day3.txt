@@ -1,0 +1,68 @@
+10progsize%=300
+20DIM prog% progsize%
+25datasize%=323*4
+26DIM data% datasize%
+30FOR O%=0 TO 3 STEP 3
+40P%=prog%
+60PRO.prog
+70IF P%-prog% > progsize% THEN ERROR 255, "Prog too big " + STR$(P%-prog%)
+75NEXT
+80CALL prog%
+90END
+100DEF PRO.prog
+120[OPT O%
+130LDA #&40 \ open file for input
+140LDX #filename AND &FF
+150LDY #filename DIV 256
+160JSR &FFCE \ OSFIND
+170ORA #0
+180BNE gotfile
+190BRK
+200EQUB &FF
+210EQUS "Error opening file"
+220EQUB 13
+230.gotfile
+235TAY
+240LDA #data% AND &FF
+250STA &70
+260LDA #data% DIV 256
+270STA &71
+272LDX #0
+273.startbyte
+274LDA #0
+275STA (&70, X)
+280LDA #1 \ bit
+290STA &72
+295.byteloop
+300JSR &FFD7 \ OSBGET
+305JSR &FFEE \ OSWRCH
+310CMP #&FE
+320BCS enddata
+330CMP #10
+340BEQ endbyte
+350CMP #ASC("#")
+360BNE nottree
+370LDA (&70, X)
+380ORA &72
+385STA (&70, X)
+390.nottree
+400ASL &72
+410BNE byteloop
+420.endbyte
+430CLC
+440LDA &70
+450ADC #1
+460STA &70
+470LDA &71
+480ADC #0
+490STA &71
+500JMP startbyte
+510.enddata
+520LDA #0 \ close file
+530JSR &FFCE \ OSFIND
+540RTS
+990.filename
+1000EQUS "data"
+1010EQUB 13
+2000]
+2010ENDPROC
