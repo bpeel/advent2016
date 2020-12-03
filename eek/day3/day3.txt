@@ -8,6 +8,7 @@
 1410IF P%-prog% > progsize% THEN ERROR 255, "Prog too big " + STR$(P%-prog%)
 1610NEXT
 1810CALL prog%
+1820PRINT "Part 1", !&74 AND &FFFF
 2010END
 2210DEF PRO.prog
 2410[OPT O%
