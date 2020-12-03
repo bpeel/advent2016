@@ -8,9 +8,22 @@
 1410IF P%-prog% > progsize% THEN ERROR 255, "Prog too big " + STR$(P%-prog%)
 1610NEXT
 1805CALL loaddata
-1810X%=3:Y%=1:CALL counttrees
-1820PRINT "Part 1", !&74 AND &FFFF
+1810 answer%=FNtrees_for_path(3,1)
+1820PRINT "Part 1", answer%
+1830answer%=answer%*FNtrees_for_path(1,1)
+1840answer%=answer%*FNtrees_for_path(5,1)
+1850answer%=answer%*FNtrees_for_path(7,1)
+1860answer%=answer%*FNtrees_for_path(1,2)
+1870PRINT "Part 2", answer%
 2010END
+2020DEF FNtrees_for_path(xstep%,ystep%)
+2030X%=xstep%
+2040Y%=ystep%
+2050CALL counttrees
+2060 LOCAL trees%
+2061trees%=!&74 AND &FFFF
+2070PRINT STR$(xstep%);",";STR$(ystep%);" trees=";STR$(trees%)
+2080=trees%
 2210DEF PRO.prog
 2410[OPT O%
 2510.loaddata
