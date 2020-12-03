@@ -1,177 +1,177 @@
 10progsize%=300
-210DIM prog% progsize%
-410datasize%=323*4
-610DIM data% datasize%
-810FOR O%=0 TO 3 STEP 3
-1010P%=prog%
-1210PRO.prog
-1410IF P%-prog% > progsize% THEN ERROR 255, "Prog too big " + STR$(P%-prog%)
-1610NEXT
-1805CALL loaddata
-1810 answer%=FNtrees_for_path(3,1)
-1820PRINT "Part 1", answer%
-1830answer%=answer%*FNtrees_for_path(1,1)
-1840answer%=answer%*FNtrees_for_path(5,1)
-1850answer%=answer%*FNtrees_for_path(7,1)
-1860answer%=answer%*FNtrees_for_path(1,2)
-1870PRINT "Part 2", answer%
-2010END
-2020DEF FNtrees_for_path(xstep%,ystep%)
-2030X%=xstep%
-2040Y%=ystep%
-2050CALL counttrees
-2060 LOCAL trees%
-2061trees%=!&74 AND &FFFF
-2070PRINT STR$(xstep%);",";STR$(ystep%);" trees=";STR$(trees%)
-2080=trees%
-2210DEF PRO.prog
-2410[OPT O%
-2510.loaddata
-2610LDA #&40 \ open file for input
-2810LDX #filename AND &FF
-3010LDY #filename DIV 256
-3210JSR &FFCE \ OSFIND
-3410ORA #0
-3610BNE gotfile
-3810BRK
-4010EQUB &FF
-4210EQUS "Error opening file"
-4410EQUB 13
-4610.gotfile
-4810TAY
-5010LDA #data% AND &FF
-5210STA &70
-5410LDA #data% DIV 256
-5610STA &71
-5810LDX #0
-6010.startbyte
-6210LDA #0
-6410STA (&70, X)
-6610LDA #1 \ bit
-6810STA &72
-7010.byteloop
-7210JSR &FFD7 \ OSBGET
-7610CMP #&FE
-7810BCS enddata
-7820JSR &FFEE \ OSWRCH
-8010CMP #10
-8020BNE notendline
-8030LDA #13
-8040JSR &FFEE \ OSWRCH
-8050JMP endbyte
-8060.notendline
-8410CMP #ASC("#")
-8610BNE nottree
-8810LDA (&70, X)
-9010ORA &72
-9210STA (&70, X)
-9410.nottree
-9610ASL &72
-9810BNE byteloop
-10010.endbyte
-10210CLC
-10410LDA &70
-10610ADC #1
-10810STA &70
-11010LDA &71
-11210ADC #0
-11410STA &71
-11610JMP startbyte
-11810.enddata
-12010LDA #0 \ close file
-12210JMP &FFCE \ OSFIND
-12215.counttrees
-12410\ set &70 to %data
-12610LDA #data% AND &FF
-12810STA &70
-13010LDA #data% DIV 256
-13210STA &71
-13410\ &72 will be the x-offset
-13810STX &72
-13820\ &76 will be the y-offset to add in bytes
-13830TYA
-13840ASL A:ASL A
-13850STA &76
-14010\ &73 is the bit to test
-14210LDA #1
-14410STA &73
-14610\ Y is the byte offset in the row
-14810LDY #0
-15010\ &74,5 is the count of trees
-15210STY &74
-15410STY &75
-15610.loop
-15810\ move to the next line in the data
-16010LDA &70
-16210CLC
-16410ADC &76
-16610STA &70
-16810LDA &71
-17010ADC #0
-17210STA &71
-17410\ check if we've reached the end
-17610CMP #(data% + datasize%) DIV 256
-17810BCC notdataend
-18010LDA &70
-18210CMP #(data% + datasize%) AND &FF
-18410BCS printresults
-18610.notdataend
-18810\ add horizontal offset
-19010LDA &72
-19020LSR A:LSR A:LSR A
-19030STY &80
-19040CLC
-19050ADC &80
-19060TAY
-19070LDA &72
-19080AND #7
-19085TAX
-19210.shiftloop
-19410ASL &73
-19610BNE notnextbyte
-19810LDA #1
-20010STA &73
-20210INY
-20410.notnextbyte
-20610DEX
-20810BNE shiftloop
-21010\ check if we've gone off the end of the line
-21210CPY #3
-21410BCC notlineend
-21610 BNE lineend
-21810LDA &73
-22010BPL notlineend \ line end when bit 7 set
-22210.lineend
-22410\ subtract 31 from the x-pos
-22610DEY:DEY:DEY
-22810LDX #7
-23010 .subloop
-23210LSR (&73)
-23410BNE notsubbyte
-23610DEY
-23810LDA #&80
-24010STA &73
-24210.notsubbyte
-24410DEX
-24610BNE subloop
-24615.notlineend
-24620\ test whether there's a tree
-24630LDA (&70), Y
-24640AND &73
-24650BEQ loop
-24660\ add to the tree count
-24670CLC
-24680LDA &74
-24690ADC #1
-24700STA &74
-24710LDA &75
-24720ADC #0
-24730STA &75
-24740JMP loop
-24750.printresults
-24760RTS
-24810.filename
-25010EQUS "data"
-25210EQUB 13
-25410]
-25610ENDPROC
+20DIM prog% progsize%
+30datasize%=323*4
+40DIM data% datasize%
+50FOR O%=0 TO 3 STEP 3
+60P%=prog%
+70PRO.prog
+80IF P%-prog% > progsize% THEN ERROR 255, "Prog too big " + STR$(P%-prog%)
+90NEXT
+100CALL loaddata
+110 answer%=FNtrees_for_path(3,1)
+120PRINT "Part 1", answer%
+130answer%=answer%*FNtrees_for_path(1,1)
+140answer%=answer%*FNtrees_for_path(5,1)
+150answer%=answer%*FNtrees_for_path(7,1)
+160answer%=answer%*FNtrees_for_path(1,2)
+170PRINT "Part 2", answer%
+180END
+190DEF FNtrees_for_path(xstep%,ystep%)
+200X%=xstep%
+210Y%=ystep%
+220CALL counttrees
+230 LOCAL trees%
+240trees%=!&74 AND &FFFF
+250PRINT STR$(xstep%);",";STR$(ystep%);" trees=";STR$(trees%)
+260=trees%
+270DEF PRO.prog
+280[OPT O%
+290.loaddata
+300LDA #&40 \ open file for input
+310LDX #filename AND &FF
+320LDY #filename DIV 256
+330JSR &FFCE \ OSFIND
+340ORA #0
+350BNE gotfile
+360BRK
+370EQUB &FF
+380EQUS "Error opening file"
+390EQUB 13
+400.gotfile
+410TAY
+420LDA #data% AND &FF
+430STA &70
+440LDA #data% DIV 256
+450STA &71
+460LDX #0
+470.startbyte
+480LDA #0
+490STA (&70, X)
+500LDA #1 \ bit
+510STA &72
+520.byteloop
+530JSR &FFD7 \ OSBGET
+540CMP #&FE
+550BCS enddata
+560JSR &FFEE \ OSWRCH
+570CMP #10
+580BNE notendline
+590LDA #13
+600JSR &FFEE \ OSWRCH
+610JMP endbyte
+620.notendline
+630CMP #ASC("#")
+640BNE nottree
+650LDA (&70, X)
+660ORA &72
+670STA (&70, X)
+680.nottree
+690ASL &72
+700BNE byteloop
+710.endbyte
+720CLC
+730LDA &70
+740ADC #1
+750STA &70
+760LDA &71
+770ADC #0
+780STA &71
+790JMP startbyte
+800.enddata
+810LDA #0 \ close file
+820JMP &FFCE \ OSFIND
+830.counttrees
+840\ set &70 to %data
+850LDA #data% AND &FF
+860STA &70
+870LDA #data% DIV 256
+880STA &71
+890\ &72 will be the x-offset
+900STX &72
+910\ &76 will be the y-offset to add in bytes
+920TYA
+930ASL A:ASL A
+940STA &76
+950\ &73 is the bit to test
+960LDA #1
+970STA &73
+980\ Y is the byte offset in the row
+990LDY #0
+1000\ &74,5 is the count of trees
+1010STY &74
+1020STY &75
+1030.loop
+1040\ move to the next line in the data
+1050LDA &70
+1060CLC
+1070ADC &76
+1080STA &70
+1090LDA &71
+1100ADC #0
+1110STA &71
+1120\ check if we've reached the end
+1130CMP #(data% + datasize%) DIV 256
+1140BCC notdataend
+1150LDA &70
+1160CMP #(data% + datasize%) AND &FF
+1170BCS printresults
+1180.notdataend
+1190\ add horizontal offset
+1200LDA &72
+1210LSR A:LSR A:LSR A
+1220STY &80
+1230CLC
+1240ADC &80
+1250TAY
+1260LDA &72
+1270AND #7
+1280TAX
+1290.shiftloop
+1300ASL &73
+1310BNE notnextbyte
+1320LDA #1
+1330STA &73
+1340INY
+1350.notnextbyte
+1360DEX
+1370BNE shiftloop
+1380\ check if we've gone off the end of the line
+1390CPY #3
+1400BCC notlineend
+1410 BNE lineend
+1420LDA &73
+1430BPL notlineend \ line end when bit 7 set
+1440.lineend
+1450\ subtract 31 from the x-pos
+1460DEY:DEY:DEY
+1470LDX #7
+1480 .subloop
+1490LSR (&73)
+1500BNE notsubbyte
+1510DEY
+1520LDA #&80
+1530STA &73
+1540.notsubbyte
+1550DEX
+1560BNE subloop
+1570.notlineend
+1580\ test whether there's a tree
+1590LDA (&70), Y
+1600AND &73
+1610BEQ loop
+1620\ add to the tree count
+1630CLC
+1640LDA &74
+1650ADC #1
+1660STA &74
+1670LDA &75
+1680ADC #0
+1690STA &75
+1700JMP loop
+1710.printresults
+1720RTS
+1730.filename
+1740EQUS "data"
+1750EQUB 13
+1760]
+1770ENDPROC
