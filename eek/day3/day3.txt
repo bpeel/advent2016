@@ -8,22 +8,25 @@
 80IF P%-prog% > progsize% THEN ERROR 255, "Prog too big " + STR$(P%-prog%)
 90NEXT
 100CALL loaddata
-110 answer%=FNtrees_for_path(3,1)
-120PRINT "Part 1", answer%
-130answer%=answer%*FNtrees_for_path(1,1)
-140answer%=answer%*FNtrees_for_path(5,1)
-150answer%=answer%*FNtrees_for_path(7,1)
-160answer%=answer%*FNtrees_for_path(1,2)
+105!&81 = 1
+106?&85 = 0
+110 PRO.run_path(3,1)
+120PRINT "Part 1", !&81
+130PRO.run_path(1,1)
+140PRO.run_path(5,1)
+150PRO.run_path(7,1)
+160PRO.run_path(1,2)
 170PRINT "Part 2", answer%
 180END
-190DEF FNtrees_for_path(xstep%,ystep%)
+190DEF PRO.run_path(xstep%,ystep%)
 200X%=xstep%
 210Y%=ystep%
 220CALL counttrees
 230 LOCAL trees%
 240trees%=!&74 AND &FFFF
 250PRINT STR$(xstep%);",";STR$(ystep%);" trees=";STR$(trees%)
-260=trees%
+260CALL mult
+265ENDPROC
 270DEF PRO.prog
 280[OPT O%
 290.loaddata
@@ -173,5 +176,39 @@
 1730.filename
 1740EQUS "data"
 1750EQUB 13
-1760]
-1770ENDPROC
+1770\ routine to multiply a 5-byte integer in &81 by an 8-bit number in &74 and store the result in &81
+1780.mult
+1790 \ number to add in &86, clear result in &81
+1800 LDX #4
+1810.copyloop
+1820LDA &81, X
+1830STA &86, X
+1831 LDA #0
+1832 STA &81
+1840DEX
+1850BPL copyloop
+1860 .multloop
+1890LSR &74
+1900\ add value if bit was set
+1910BCC nomultadd
+1920CLC
+1930 LDX #&80 - 5
+1940.multaddloop
+1950 LDA &86 + 5 - &80, X
+1960 ADC &81 + 5 - &80, X
+1970 STA &81 + 5 - &80, X
+1980 INX
+1990BPL multaddloop
+2000.nomultadd
+2010\ multiply the number to add by 2
+2020ASL &86
+2030ROL &87
+2040ROL &88
+2050ROL &89
+2060ROL &8A
+2070\ check if the multiplier is zero
+2080LDA &74
+2090BNE multloop
+2100RTS
+2110]
+2120ENDPROC
