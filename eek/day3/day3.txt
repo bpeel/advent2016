@@ -7,11 +7,13 @@
 1210PRO.prog
 1410IF P%-prog% > progsize% THEN ERROR 255, "Prog too big " + STR$(P%-prog%)
 1610NEXT
-1810CALL prog%
+1805CALL loaddata
+1810X%=3:Y%=1:CALL counttrees
 1820PRINT "Part 1", !&74 AND &FFFF
 2010END
 2210DEF PRO.prog
 2410[OPT O%
+2510.loaddata
 2610LDA #&40 \ open file for input
 2810LDX #filename AND &FF
 3010LDY #filename DIV 256
@@ -67,15 +69,19 @@
 11610JMP startbyte
 11810.enddata
 12010LDA #0 \ close file
-12210JSR &FFCE \ OSFIND
+12210JMP &FFCE \ OSFIND
+12215.counttrees
 12410\ set &70 to %data
 12610LDA #data% AND &FF
 12810STA &70
 13010LDA #data% DIV 256
 13210STA &71
-13410\ &72 will be the offset
-13610LDA #3
-13810STA &72
+13410\ &72 will be the x-offset
+13810STX &72
+13820\ &76 will be the y-offset to add in bytes
+13830TYA
+13840ASL A:ASL A
+13850STA &76
 14010\ &73 is the bit to test
 14210LDA #1
 14410STA &73
@@ -88,7 +94,7 @@
 15810\ move to the next line in the data
 16010LDA &70
 16210CLC
-16410ADC #4
+16410ADC &76
 16610STA &70
 16810LDA &71
 17010ADC #0
