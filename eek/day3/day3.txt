@@ -1,68 +1,145 @@
 10progsize%=300
-20DIM prog% progsize%
-25datasize%=323*4
-26DIM data% datasize%
-30FOR O%=0 TO 3 STEP 3
-40P%=prog%
-60PRO.prog
-70IF P%-prog% > progsize% THEN ERROR 255, "Prog too big " + STR$(P%-prog%)
-75NEXT
-80CALL prog%
-90END
-100DEF PRO.prog
-120[OPT O%
-130LDA #&40 \ open file for input
-140LDX #filename AND &FF
-150LDY #filename DIV 256
-160JSR &FFCE \ OSFIND
-170ORA #0
-180BNE gotfile
-190BRK
-200EQUB &FF
-210EQUS "Error opening file"
-220EQUB 13
-230.gotfile
-235TAY
-240LDA #data% AND &FF
-250STA &70
-260LDA #data% DIV 256
-270STA &71
-272LDX #0
-273.startbyte
-274LDA #0
-275STA (&70, X)
-280LDA #1 \ bit
-290STA &72
-295.byteloop
-300JSR &FFD7 \ OSBGET
-305JSR &FFEE \ OSWRCH
-310CMP #&FE
-320BCS enddata
-330CMP #10
-340BEQ endbyte
-350CMP #ASC("#")
-360BNE nottree
-370LDA (&70, X)
-380ORA &72
-385STA (&70, X)
-390.nottree
-400ASL &72
-410BNE byteloop
-420.endbyte
-430CLC
-440LDA &70
-450ADC #1
-460STA &70
-470LDA &71
-480ADC #0
-490STA &71
-500JMP startbyte
-510.enddata
-520LDA #0 \ close file
-530JSR &FFCE \ OSFIND
-540RTS
-990.filename
-1000EQUS "data"
-1010EQUB 13
-2000]
-2010ENDPROC
+210DIM prog% progsize%
+410datasize%=323*4
+610DIM data% datasize%
+810FOR O%=0 TO 3 STEP 3
+1010P%=prog%
+1210PRO.prog
+1410IF P%-prog% > progsize% THEN ERROR 255, "Prog too big " + STR$(P%-prog%)
+1610NEXT
+1810CALL prog%
+2010END
+2210DEF PRO.prog
+2410[OPT O%
+2610LDA #&40 \ open file for input
+2810LDX #filename AND &FF
+3010LDY #filename DIV 256
+3210JSR &FFCE \ OSFIND
+3410ORA #0
+3610BNE gotfile
+3810BRK
+4010EQUB &FF
+4210EQUS "Error opening file"
+4410EQUB 13
+4610.gotfile
+4810TAY
+5010LDA #data% AND &FF
+5210STA &70
+5410LDA #data% DIV 256
+5610STA &71
+5810LDX #0
+6010.startbyte
+6210LDA #0
+6410STA (&70, X)
+6610LDA #1 \ bit
+6810STA &72
+7010.byteloop
+7210JSR &FFD7 \ OSBGET
+7410JSR &FFEE \ OSWRCH
+7610CMP #&FE
+7810BCS enddata
+8010CMP #10
+8210BEQ endbyte
+8410CMP #ASC("#")
+8610BNE nottree
+8810LDA (&70, X)
+9010ORA &72
+9210STA (&70, X)
+9410.nottree
+9610ASL &72
+9810BNE byteloop
+10010.endbyte
+10210CLC
+10410LDA &70
+10610ADC #1
+10810STA &70
+11010LDA &71
+11210ADC #0
+11410STA &71
+11610JMP startbyte
+11810.enddata
+12010LDA #0 \ close file
+12210JSR &FFCE \ OSFIND
+12410\ set &70 to %data
+12610LDA #data% AND &FF
+12810STA &70
+13010LDA #data% DIV 256
+13210STA &71
+13410\ &72 will be the offset
+13610LDA #3
+13810STA &72
+14010\ &73 is the bit to test
+14210LDA #1
+14410STA &73
+14610\ Y is the byte offset in the row
+14810LDY #0
+15010\ &74,5 is the count of trees
+15210STY &74
+15410STY &75
+15610.loop
+15810\ move to the next line in the data
+16010LDA &70
+16210CLC
+16410ADC #4
+16610STA &70
+16810LDA &71
+17010ADC #0
+17210STA &71
+17410\ check if we've reached the end
+17610CMP #(data% + datasize%) DIV 256
+17810BCC notdataend
+18010LDA &70
+18210CMP #(data% + datasize%) AND &FF
+18410BCS printresults
+18610.notdataend
+18810\ add horizontal offset
+19010LDX #3
+19210.shiftloop
+19410ASL &73
+19610BNE notnextbyte
+19810LDA #1
+20010STA &73
+20210INY
+20410.notnextbyte
+20610DEX
+20810BNE shiftloop
+21010\ check if we've gone off the end of the line
+21210CPY #3
+21410BCC notlineend
+21610 BNE lineend
+21810LDA &73
+22010BPL notlineend \ line end when bit 7 set
+22210.lineend
+22410\ subtract 31 from the x-pos
+22610DEY:DEY:DEY
+22810LDX #7
+23010 .subloop
+23210LSR (&73)
+23410BNE notsubbyte
+23610DEY
+23810LDA #&80
+24010STA &73
+24210.notsubbyte
+24410DEX
+24610BNE subloop
+24615.notlineend
+24620\ test whether there's a tree
+24630LDA (&70), Y
+24640AND &73
+24650BEQ loop
+24660\ add to the tree count
+24670CLC
+24680LDA &74
+24690ADC #1
+24700STA &74
+24710LDA &75
+24720ADC #0
+24730STA &75
+24740JMP loop
+24750.printresults
+24760RTS
+24810.filename
+25010EQUS "data"
+25210EQUB 13
+25410]
+25610ENDPROC
