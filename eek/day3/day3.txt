@@ -1,4 +1,4 @@
-10progsize%=300
+10progsize%=350
 20DIM prog% progsize%
 30datasize%=323*4
 40DIM data% datasize%
@@ -210,5 +210,24 @@
 2080LDA &74
 2090BNE multloop
 2100RTS
-2110]
-2120ENDPROC
+2110\ routine to divide 5-byte number in &81 by 10
+2115 .divforty
+2120LDX #40 \ 40 bits
+2130LDA #0
+2140.divloop
+2150ASL &81
+2160ROL &82
+2170ROL &83
+2180ROL &84
+2190ROL &85
+2200ROL A
+2210CMP #10
+2220BCC divnobit
+2230SBC #10
+2240INC &81
+2250.divnobit
+2260DEX
+2270BNE divloop
+2280RTS
+2290]
+2300ENDPROC
