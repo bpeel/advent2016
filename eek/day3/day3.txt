@@ -4,23 +4,23 @@
 40DIM data% datasize%
 50FOR O%=0 TO 3 STEP 3
 60P%=prog%
-70PRO.prog
+70PROCprog
 80IF P%-prog% > progsize% THEN ERROR 255, "Prog too big " + STR$(P%-prog%)
 90NEXT
 100CALL loaddata
 105!&81 = 1
 106?&85 = 0
-110 PRO.run_path(3,1)
+110 PROCrun_path(3,1)
 120PRINT "Part 1: "; !&81
-130PRO.run_path(1,1)
-140PRO.run_path(5,1)
-150PRO.run_path(7,1)
-160PRO.run_path(1,2)
+130PROCrun_path(1,1)
+140PROCrun_path(5,1)
+150PROCrun_path(7,1)
+160PROCrun_path(1,2)
 170PRINT "Part 2: ";
 175CALL printforty
 178PRINT
 180END
-190DEF PRO.run_path(xstep%,ystep%)
+190DEF PROCrun_path(xstep%,ystep%)
 200X%=xstep%
 210Y%=ystep%
 220CALL counttrees
@@ -29,7 +29,7 @@
 250PRINT STR$(xstep%);",";STR$(ystep%);" trees=";STR$(trees%)
 260CALL mult
 265ENDPROC
-270DEF PRO.prog
+270DEF PROCprog
 280[OPT O%
 290.loaddata
 300LDA #&40 \ open file for input
