@@ -1,4 +1,4 @@
-10progsize%=350
+10progsize%=400
 20DIM prog% progsize%
 30datasize%=323*4
 40DIM data% datasize%
@@ -11,12 +11,14 @@
 105!&81 = 1
 106?&85 = 0
 110 PRO.run_path(3,1)
-120PRINT "Part 1", !&81
+120PRINT "Part 1: "; !&81
 130PRO.run_path(1,1)
 140PRO.run_path(5,1)
 150PRO.run_path(7,1)
 160PRO.run_path(1,2)
-170PRINT "Part 2", answer%
+170PRINT "Part 2: ";
+175CALL printforty
+178PRINT
 180END
 190DEF PRO.run_path(xstep%,ystep%)
 200X%=xstep%
@@ -229,5 +231,34 @@
 2260DEX
 2270BNE divloop
 2280RTS
-2290]
-2300ENDPROC
+2290\ routine to print 5-byte number in &81. Uses &70-&7e as scratch space
+2300\ corrupts number in &81
+2310.printforty
+2320\ generate 13 digits
+2330 LDY #12
+2335 .pfortyloop
+2340 JSR divforty
+2350\ remainder in a
+2360CLC
+2370ADC #ASC("0")
+2380STA &70, Y
+2390DEY
+2400BPL pfortyloop
+2410INY
+2420.skiploop \ skip leading zeros
+2430LDA &70, Y
+2440CMP #ASC("0")
+2450BNE doneskip
+2460INY
+2470CPY #12 \ leave at least one digit
+2480BCC skiploop
+2485.doneskip
+2490.pdigitloop
+2500LDA &70, Y
+2510JSR &FFEE
+2520INY
+2530CPY #13
+2540BCC pdigitloop
+2550RTS
+2560]
+2570ENDPROC
