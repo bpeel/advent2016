@@ -1,0 +1,43 @@
+10 state%=1
+20REM states:
+30REM 1: reading field name
+40REM 2: ignoring field data
+50REM 3: had one eol, checking for blank line
+60field$="": REM field so far
+70file%=OPENIN "data"
+75fields%=0: REM bitmask of fields fount so far
+77valid%=0: REM count of valid records
+78count%=0: REM total records seen
+80REPEAT
+90ch%=BGET#(file%)
+100ON state% GOSUB 1000,2000,3000
+120UNTIL EOF#(file%)
+130CLOSE# file%
+135PROChandle_record : REM last record not terminated with \n\n
+140PRINT "Part 1: ";valid%
+150END
+1000IF ch%=ASC(":") THEN PROChandle_field ELSE field$=field$+CHR$(ch%)
+1010RETURN
+2000IF ch%=ASC(" ") THEN state%=1
+2010IF ch%=10 THEN state%=3
+2020RETURN
+3000IF ch%=10 THEN PROChandle_record ELSE state%=1:GOSUB 1000
+3010RETURN
+4000DEF PROChandle_field
+4010IF field$="byr" THEN fields%=fields% OR 1
+4020IF field$="iyr" THEN fields%=fields% OR 2
+4030IF field$="eyr" THEN fields%=fields% OR 4
+4040IF field$="hgt" THEN fields%=fields% OR 8
+4050IF field$="hcl" THEN fields%=fields% OR 16
+4060IF field$="ecl" THEN fields%=fields% OR 32
+4070IF field$="pid" THEN fields%=fields% OR 64
+4080state%=2
+4090field$=""
+4100ENDPROC
+5000DEF PROChandle_record
+5010IF fields%>=127 THEN valid%=valid%+1
+5020fields%=0
+5030state%=1
+5040count%=count%+1
+5050PRINT "Total records: ";count%;" valid: ";valid%
+5060ENDPROC
