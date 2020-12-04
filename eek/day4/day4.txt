@@ -7,8 +7,10 @@
 65value$="": REM value of field so far
 70file%=OPENIN "data"
 75fields%=0: REM bitmask of fields fount so far
+76fields2%=0: REM bitmask of valid part 2 fields so far
 77valid%=0: REM count of valid records
 78count%=0: REM total records seen
+79valid2%=0: REM count of valid records for part 2
 80REPEAT
 90ch%=BGET#(file%)
 100ON state% GOSUB 1000,2000,3000
@@ -16,6 +18,7 @@
 130CLOSE# file%
 135PROChandle_record : REM last record not terminated with \n\n
 140PRINT "Part 1: ";valid%
+145PRINT "Part 2: ";valid2%
 150END
 1000IF ch%=ASC(":") THEN state%=2 ELSE field$=field$+CHR$(ch%)
 1010RETURN
@@ -26,23 +29,71 @@
 3000IF ch%=10 THEN PROChandle_record ELSE state%=1:GOSUB 1000
 3010RETURN
 4000DEF PROChandle_field
+4002 LOCAL bit%,v%
 4005bit%=0
-4010IF field$="byr" THEN bit%=1
-4020IF field$="iyr" THEN bit%=2
-4030IF field$="eyr" THEN bit%=4
-4040IF field$="hgt" THEN bit%=8
-4050IF field$="hcl" THEN bit%=16
-4060IF field$="ecl" THEN bit%=32
-4070IF field$="pid" THEN bit%=64
+4010IF field$="byr" THEN bit%=1:v%=FNbyr
+4020IF field$="iyr" THEN bit%=2:v%=FNiyr
+4030IF field$="eyr" THEN bit%=4:v%=FNeyr
+4040IF field$="hgt" THEN bit%=8:v%=FNhgt
+4050IF field$="hcl" THEN bit%=16:v%=FNhcl
+4060IF field$="ecl" THEN bit%=32:v%=FNecl
+4070IF field$="pid" THEN bit%=64:v%=FNpid
 4075fields%=fields% OR bit%
+4078IF v% THEN fields2%=fields2% OR bit%
 4080state%=2
 4090field$=""
 4095value$=""
 4100ENDPROC
 5000DEF PROChandle_record
+5005IF fields2%>=127 THEN valid2%=valid2%+1
 5010IF fields%>=127 THEN valid%=valid%+1
 5020fields%=0
+5025fields2%=0
 5030state%=1
 5040count%=count%+1
-5050PRINT "Total records: ";count%;" valid: ";valid%
+5050PRINT "Total records: ";count%;" valid: ";valid%;" valid2: ";valid2%
 5060ENDPROC
+6000DEF FNnumber(len%,min%,max%)
+6010 LOCAL v%,c%,n%
+6015v%=len% < 0 OR LEN(value$)=len%
+6020FOR I%=1 TO LEN(value$)
+6030c%=ASC(MID$(value$,I%,1))
+6040IF c%<ASC("0") OR c%>ASC("9") THEN v%=FALSE
+6050NEXT
+6060IF v% THEN n%=EVAL(value$)
+6070IF v% AND (n%<min% OR n%>max%) THEN v%=FALSE
+6080=v%
+6090DEF FNbyr
+6100=FNnumber(4, 1920, 2002)
+6110DEF FNiyr
+6120=FNnumber(4, 2010, 2020)
+6130DEF FNeyr
+6140=FNnumber(4, 2020, 2030)
+6150DEF FNpid
+6160=FNnumber(9, 0, 999999999)
+6170DEF FNhgt
+6180IF LEN(value$) < 3 THEN =FALSE
+6190 LOCAL unit$
+6200unit$=MID$(value$, LEN(value$)-1, 2)
+6210value$=MID$(value$, 1, LEN(value$)-2)
+6220IF unit$="cm" THEN =FNnumber(-1, 150, 193)
+6230IF unit$="in" THEN =FNnumber(-1, 59, 76)
+6240=FALSE
+6250DEF FNecl
+6260IF value$="amb" THEN =TRUE
+6270IF value$="blu" THEN =TRUE
+6280IF value$="brn" THEN =TRUE
+6290IF value$="gry" THEN =TRUE
+6300IF value$="grn" THEN =TRUE
+6310IF value$="hzl" THEN =TRUE
+6320IF value$="oth" THEN =TRUE
+6330=FALSE
+6340DEF FNhcl
+6350 LOCAL v%,c%
+6355 v%=TRUE
+6360IF LEN(value$)<>7 OR MID$(value$, 1, 1)<>"#" THEN =FALSE
+6370FOR I%=2 TO 7
+6380c%=ASC(MID$(value$, I%, 1))
+6390IF (c%<ASC("0") OR c%>ASC("9")) AND (c%<ASC("a") OR c%>ASC("f")) THEN v%=FALSE
+6400NEXT
+6410=v%
