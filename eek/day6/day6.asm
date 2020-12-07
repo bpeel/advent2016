@@ -124,6 +124,8 @@ loop:   rol
 
         bcc inputloop           ; continue input
 done:
+        lda #0
+        jsr OSFIND              ; close the file
         jsr printsum
         lda #13
         jmp OSASCI
