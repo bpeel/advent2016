@@ -1,55 +1,68 @@
-5opsize%=30
-10DIM prog% 650*opsize%
-11P%=prog%
-20f%=OPENIN("data")
-40IF EOF#(f%) THEN GOTO 1000
-50op$=CHR$(BGET#(f%))+CHR$(BGET#(f%))+CHR$(BGET#(f%))
-60space%=BGET#(f%)
-70sign%=BGET#(f%)
-75num%=0
-80REPEAT
-90digit%=BGET#(f%)
-100IF digit%>=ASC("0") THEN num%=num%*10+digit%-ASC("0")
-110UNTIL digit%<32
-120IF sign%=ASC("-") THEN num%=-num%
-125!&80=num%
-134[LDA #0
-135STA P%-2
-136]
-140IF op$="acc" THEN PROCacc
-150IF op$="nop" THEN PROCnop
-160IF op$="jmp" THEN PROCjmp
-170GOTO 40
-1000!&70=0
-1001ON ERROR GOTO 1010
-1002CALL prog%
-1010PRINT "Part 1: ";!&70
-1020END
-2000DEF PROCacc
-2010[
-2015CLC
-2020LDA &70
-2030ADC #num% AND 255
-2040STA &70
-2050LDA &71
-2060ADC #?&81
-2070STA &71
-2080LDA &72
-2090ADC #?&82
-2100STA &72
-2110LDA &73
-2120ADC #?&83
-2130STA &73
-2140]
-2150ENDPROC
-2999 DEF PROCjmp
-3000[JMP P%-5+num%*opsize%:]
-3010FOR I%=1 TO opsize%-8
-3020[NOP:]
-3030NEXT
-3040ENDPROC
-4000DEF PROCnop
-4010FOR I%=1 TO opsize%-5
-4020[NOP:]
-4030NEXT
-4040ENDPROC
+10opsize%=30
+20DIM prog% 650*opsize%
+30REM Install a BRK handler to fix the error message
+40oldbrk%=!&202 AND &FFFF
+50DIM newbrk% 16
+52DIM msg% 16
+54P%=msg%
+56[EQUB 255:EQUS "Done":EQUB 0:]
+60?&202=newbrk% AND 255
+70?&203=newbrk% DIV 256
+80P%=newbrk%
+90[LDA #msg% AND 255:STA &FD:LDA #msg% DIV 256:STA &FE:JMP oldbrk%:]
+100P%=prog%
+110f%=OPENIN("data")
+120IF EOF#(f%) THEN GOTO 300
+130op$=CHR$(BGET#(f%))+CHR$(BGET#(f%))+CHR$(BGET#(f%))
+140space%=BGET#(f%)
+150sign%=BGET#(f%)
+160num%=0
+170REPEAT
+180digit%=BGET#(f%)
+190IF digit%>=ASC("0") THEN num%=num%*10+digit%-ASC("0")
+200UNTIL digit%<32
+210IF sign%=ASC("-") THEN num%=-num%
+220!&80=num%
+230[LDA #0
+240STA P%-2
+250]
+260IF op$="acc" THEN PROCacc
+270IF op$="nop" THEN PROCnop
+280IF op$="jmp" THEN PROCjmp
+290GOTO 120
+300!&70=0
+310ON ERROR GOTO 330
+320CALL prog%
+330?&202=oldbrk% AND &FF
+331?&203=oldbrk% DIV 256
+333ON ERROR OFF
+334PRINT "Part 1: ";!&70
+340END
+350DEF PROCacc
+360[
+370CLC
+380LDA &70
+390ADC #num% AND 255
+400STA &70
+410LDA &71
+420ADC #?&81
+430STA &71
+440LDA &72
+450ADC #?&82
+460STA &72
+470LDA &73
+480ADC #?&83
+490STA &73
+500]
+510ENDPROC
+520 DEF PROCjmp
+530[JMP P%-5+num%*opsize%:]
+540FOR I%=1 TO opsize%-8
+550[NOP:]
+560NEXT
+570ENDPROC
+580DEF PROCnop
+590FOR I%=1 TO opsize%-5
+600[NOP:]
+610NEXT
+620ENDPROC
