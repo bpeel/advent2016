@@ -1,68 +1,84 @@
-10opsize%=30
+10opsize%=24
 20DIM prog% 650*opsize%
 30REM Install a BRK handler to fix the error message
 40oldbrk%=!&202 AND &FFFF
-50DIM newbrk% 16
-52DIM msg% 16
-54P%=msg%
-56[EQUB 255:EQUS "Done":EQUB 0:]
-60?&202=newbrk% AND 255
-70?&203=newbrk% DIV 256
-80P%=newbrk%
-90[LDA #msg% AND 255:STA &FD:LDA #msg% DIV 256:STA &FE:JMP oldbrk%:]
-100P%=prog%
-110f%=OPENIN("data")
-120IF EOF#(f%) THEN GOTO 300
-130op$=CHR$(BGET#(f%))+CHR$(BGET#(f%))+CHR$(BGET#(f%))
-140space%=BGET#(f%)
-150sign%=BGET#(f%)
-160num%=0
-170REPEAT
-180digit%=BGET#(f%)
-190IF digit%>=ASC("0") THEN num%=num%*10+digit%-ASC("0")
-200UNTIL digit%<32
-210IF sign%=ASC("-") THEN num%=-num%
-220!&80=num%
-230[LDA #0
-240STA P%-2
-250]
-260IF op$="acc" THEN PROCacc
-270IF op$="nop" THEN PROCnop
-280IF op$="jmp" THEN PROCjmp
-290GOTO 120
-300!&70=0
-310ON ERROR GOTO 330
-320CALL prog%
-330?&202=oldbrk% AND &FF
-331?&203=oldbrk% DIV 256
-333ON ERROR OFF
-334PRINT "Part 1: ";!&70
-340END
-350DEF PROCacc
-360[
-370CLC
-380LDA &70
-390ADC #num% AND 255
-400STA &70
-410LDA &71
-420ADC #?&81
-430STA &71
-440LDA &72
-450ADC #?&82
-460STA &72
-470LDA &73
-480ADC #?&83
-490STA &73
-500]
-510ENDPROC
-520 DEF PROCjmp
-530[JMP P%-5+num%*opsize%:]
-540FOR I%=1 TO opsize%-8
-550[NOP:]
-560NEXT
-570ENDPROC
-580DEF PROCnop
-590FOR I%=1 TO opsize%-5
-600[NOP:]
-610NEXT
-620ENDPROC
+50DIM newbrk% 32
+60DIM msg% 16
+70P%=msg%
+80[EQUB 255:EQUS "Done":EQUB 0:]
+90P%=newbrk%
+210[\ Change the msg address and continue to the old BRK vec
+220LDA #msg% AND 255:STA &FD:LDA #msg% DIV 256:STA &FE:JMP oldbrk%:]
+225nops%=0
+230P%=prog%
+240f%=OPENIN("data")
+250IF EOF#(f%) THEN GOTO 430
+260op$=CHR$(BGET#(f%))+CHR$(BGET#(f%))+CHR$(BGET#(f%))
+270space%=BGET#(f%)
+280sign%=BGET#(f%)
+290num%=0
+300REPEAT
+310digit%=BGET#(f%)
+320IF digit%>=ASC("0") THEN num%=num%*10+digit%-ASC("0")
+330UNTIL digit%<32
+340IF sign%=ASC("-") THEN num%=-num%
+360[LDA #0
+370STA P%-2
+380]
+390IF op$="acc" THEN PROCacc
+400IF op$="nop" THEN PROCjmpnop(6)
+410IF op$="jmp" THEN PROCjmpnop(3)
+415nops%=nops%+1
+420GOTO 250
+430[RTS:]
+440addr%=-opsize%
+450found%=FALSE
+460!&70=0
+470ON ERROR GOTO 520
+480?&202=newbrk% AND 255
+490?&203=newbrk% DIV 256
+500CALL prog%
+510found%=TRUE
+520?&202=oldbrk% AND &FF
+530?&203=oldbrk% DIV 256
+540ON ERROR OFF
+550IF addr%<0 THEN PRINT "Part 1: ";!&70
+555IF found% THEN PRINT "Part 2: ";!&70:END
+560IF addr%>=0 PROCflipjmpnop(addr%+prog%)
+561FOR I%=0 TO nops%-1
+562prog%?(I%*opsize%)=&A9
+563NEXT
+570REPEAT
+580addr%=addr%+opsize%
+585IF (addr%-prog%) DIV opsize% >= nops% THEN PRINT "Not found":END
+590UNTIL prog%?(addr%+5)=&4C
+600PROCflipjmpnop(addr%+prog%)
+610GOTO 460
+630DEF PROCacc
+640[
+650CLC
+660LDX #&FC
+670LDA &70 + 4, X
+680ADC P%+10-&FC, X
+690STA &70 + 4, X
+700INX
+720BNE P%-8
+725BEQ P%+6
+730EQUD num%
+780]
+785!P%=num%
+790ENDPROC
+800DEF PROCjmpnop(offset%)
+810[JMP P%+offset%:]
+820[JMP P%-8+num%*opsize%:]
+830FOR I%=1 TO opsize%-11
+840[NOP:]
+850NEXT
+860ENDPROC
+870DEF PROCflipjmpnop(addr%)
+880LOCAL oaddr%
+890oaddr%=!(addr%+6) AND &FFFF
+900IF oaddr%=addr%+8 THEN oaddr%=addr%+11 ELSE oaddr%=addr%+8
+910addr%?6 = oaddr% AND &FF
+920addr%?7 = oaddr% DIV 256
+930ENDPROC
