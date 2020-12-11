@@ -9,6 +9,10 @@
         HEIGHT = $76
         CHANGED = $77           ; has anything changed when we flip buffer?
         SEAT_COUNT = $78
+        XDIR = $7A              ; what to add to XPOS when looking for a seat
+        YDIR = $7B              ; what to add to YPOS when looking for a seat
+        TOO_MANY_SEATS = $7C    ; number of seats visible for someone to
+                                ; change seat
         TEMP = $80
 
         SCREEN_START = $3000
@@ -113,6 +117,8 @@ finish_data:
 
         .)
 
+        lda #4
+        sta TOO_MANY_SEATS
         lda #<count_neighbours_part1
         sta count_neighbours_vec
         lda #>count_neighbours_part1
@@ -121,9 +127,11 @@ finish_data:
 
         jsr reset_simulation
 
-        lda #<count_neighbours_part1
+        lda #5
+        sta TOO_MANY_SEATS
+        lda #<count_neighbours_part2
         sta count_neighbours_vec
-        lda #>count_neighbours_part1
+        lda #>count_neighbours_part2
         sta count_neighbours_vec + 1
         jmp run_simulation
 
@@ -307,6 +315,108 @@ not:    .)
         rts
         .)
 
+is_coord_valid:
+        .(
+        lda XPOS
+        bmi invalid
+        cmp WIDTH
+        bcs invalid
+
+        lda YPOS
+        bmi invalid
+        cmp HEIGHT
+        bcs invalid
+
+        sec
+        rts
+
+invalid:
+        clc
+        rts
+        .)
+
+is_seat_visible:
+        .(
+loop:   clc
+        lda XPOS
+        adc XDIR
+        sta XPOS
+
+        clc
+        lda YPOS
+        adc YDIR
+        sta YPOS
+
+        jsr is_coord_valid
+        bcs valid
+        rts
+
+valid:  jsr get_grid_value
+        tax
+        and #4                  ; is there a seat?
+        beq loop                ; keep looping
+
+        txa
+        ror                     ; put the occupiedness in the carry
+        rts
+        .)        
+
+count_neighbours_part2:
+        ;; count the neighbours visible from XPOS,YPOS.
+        ;; corrupts TEMP+[0,3] and X
+        ;; returns value in a
+        .(
+        OLDX = TEMP + 1
+        OLDY = TEMP + 2
+        RESULT = TEMP + 3
+
+        lda #0
+        sta RESULT
+
+        lda XPOS
+        sta OLDX
+        lda YPOS
+        sta OLDY
+
+        lda #$ff
+        sta XDIR
+	sta YDIR
+
+loop:
+        ;; skip direction 0,0
+        lda XDIR
+        ora YDIR
+        beq skip
+        
+        jsr is_seat_visible
+        bcc not
+        inc RESULT
+not:            
+
+        lda OLDX
+        sta XPOS
+        lda OLDY
+        sta YPOS
+
+skip:   
+
+        inc XDIR
+        lda XDIR
+        cmp #2
+        bcc loop
+
+        lda #$ff
+        sta XDIR
+
+        inc YDIR
+        lda YDIR
+        cmp #2
+        bcc loop
+
+        lda RESULT
+        rts
+        .)
+
 step_simulation:
         .(
         lda #0
@@ -324,7 +434,7 @@ loop:
         beq unoccupied
 
         jsr count_neighbours
-        cmp #4
+        cmp TOO_MANY_SEATS
         bcc fill_seat
         ldy #$40
         bne set_value
@@ -559,5 +669,5 @@ filename:
 vdu_init:
         .byt VDUMODE, 2
         .byt 23, 1, 0, 0, 0, 0, 0, 0, 0, 0 // Disable cursor
-        .byt 31, 0, 29 // move cursor to bottom of screen
+        .byt 31, 0, 28 // move cursor to bottom of screen
         vdu_init_length = * - vdu_init
