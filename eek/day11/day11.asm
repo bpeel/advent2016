@@ -598,17 +598,29 @@ iloop:  lda palette_vdu, y
         iny
         cpy #6
         bne iloop
-        ldy #0
+        
         inx
         stx palette_vdu + 1
+
         txa
         and #3
+        tay
+        lda colours, y
         sta palette_vdu + 2
+
+        ldy #0
+
         cpx #16
         bne iloop
         rts
+        
 palette_vdu:
         .byt VDUPALETTE, 0, 0, 0, 0, 0
+colours:
+        .byt 0 ; no seat – black
+        .byt 6 ; occupied floor space (shouldn’t happen) – cyan
+        .byt 2 ; empty seat – green
+        .byt 4 ; occupied seat – red
         .)
 
         ;; routine to print 2-byte number in SEAT_COUNT. uses TEMP as
