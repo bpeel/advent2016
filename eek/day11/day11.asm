@@ -79,7 +79,6 @@ loop:
         bcc evenpos
 
         rol XPOS
-        asl
         ora (GRID_POS, x)
         sta (GRID_POS, x)
         inc XPOS
@@ -92,6 +91,7 @@ loop:
 
 evenpos:
         asl XPOS
+        asl
         sta (GRID_POS, x)
         inc XPOS
         bne loop                ; always jump to loop
@@ -186,9 +186,9 @@ get_grid_value:
         bit XPOS
         beq even
         lda (GRID_POS, x)
-        ror
         rts
 even:   lda (GRID_POS, x)
+        ror
         rts
         .)
 
@@ -321,9 +321,9 @@ set_value:
         lda XPOS
         ror
         tya
-        bcc even
+        bcs odd
         asl
-even:   ora (GRID_POS, x)
+odd:    ora (GRID_POS, x)
         sta (GRID_POS, x)        
 
 done_pos:
