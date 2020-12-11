@@ -117,6 +117,9 @@ finish_data:
 
         .)
 
+        lda #1
+        jsr print_part
+
         lda #4
         sta TOO_MANY_SEATS
         lda #<count_neighbours_part1
@@ -126,6 +129,9 @@ finish_data:
         jsr run_simulation
 
         jsr reset_simulation
+
+        lda #2
+        jsr print_part
 
         lda #5
         sta TOO_MANY_SEATS
@@ -621,6 +627,32 @@ colours:
         .byt 6 ; occupied floor space (shouldn’t happen) – cyan
         .byt 2 ; empty seat – green
         .byt 4 ; occupied seat – red
+        .)
+
+print_part:
+        .(
+        tax
+        ldy #0
+
+loop:   lda string, y
+        beq done
+        jsr OSWRCH
+        iny
+        jmp loop
+
+done:   txa
+        clc
+        adc #"0"
+        jsr OSWRCH
+
+        lda #":"
+        jsr OSWRCH
+        lda #" "
+        jsr OSWRCH
+        
+        rts
+
+string: .byt "Part ", 0
         .)
 
         ;; routine to print 2-byte number in SEAT_COUNT. uses TEMP as
