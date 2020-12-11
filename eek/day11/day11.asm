@@ -19,12 +19,15 @@
         ;; 10 - Unoccupied chair
         ;; 11 - Occupied chair
 
-        ;; set mode 1. This will also clear the grid (in the screen memory)
-        ;; to zero.
-        lda #VDUMODE
+        ;; initialise the display with VDU codes
+        .(
+        ldx #0
+loop:   lda vdu_init, x
         jsr OSWRCH
-        lda #2
-        jsr OSWRCH
+        inx
+        cpx #vdu_init_length
+        bcc loop
+        .)
 
         ldx #<filename
         ldy #>filename
@@ -145,3 +148,8 @@ get_grid_y:
         
 filename:
         .byt "data", 13
+
+vdu_init:
+        .byt VDUMODE, 2
+        .byt 23, 1, 0, 0, 0, 0, 0, 0, 0, 0
+        vdu_init_length = * - vdu_init
