@@ -28,6 +28,8 @@ loop:   lda vdu_init, x
         bcc loop
         .)
 
+        jsr set_palette
+
         ldx #<filename
         ldy #>filename
         lda #$40                ; open
@@ -107,7 +109,13 @@ finish_data:
         lda #0
         jsr OSFIND              ; close the file
 
-        rts
+        .)
+
+        .(
+loop:   
+        jsr step_simulation
+        jsr flip_buffer
+        jmp loop
         .)
 
 get_grid_y:
@@ -142,11 +150,240 @@ get_grid_y:
         sta GRID_POS
         rts
         .)
-        
+
+get_grid_pos:
+        .(
+        ;; sets X to 0, corrupts TEMP
+        jsr get_grid_y
+        lda #0
+        sta TEMP
+        lda XPOS
+        and #$fe
+        asl
+        rol TEMP
+        asl
+        rol TEMP
+        adc GRID_POS
+        sta GRID_POS
+        lda GRID_POS + 1
+        adc TEMP
+        sta GRID_POS + 1
+
+        ldx #0
+        rts
+        .)
+
+get_grid_value:
+        .(
+        ;; Sets bit 0 and 2 of the accumulator to the value of the
+	;; grid at XPOS,YPOS
+        jsr get_grid_pos
+        lda #1
+        bit XPOS
+        beq even
+        lda (GRID_POS, x)
+        ror
+        rts
+even:   lda (GRID_POS, x)
+        rts
+        .)
+
+is_occupied:
+        .(
+        ;; Is the position at XPOS,YPOS occupied
+        ;; sets X to 0, corrupts TEMP
+        ;; returns value in carry flag
+        lda XPOS
+        bmi invalid
+        lda YPOS
+        bmi invalid
+        jsr get_grid_value
+        ror
+        rts
+invalid:
+        clc
+        rts
+        .)
+
+count_neighbours:
+        ;; count the neighbours around XPOS,YPOS.
+        ;; sets X to 0. corrupts TEMP and TEMP+1
+        ;; returns value in a
+        .(
+        lda #0
+        sta TEMP+1
+        dec XPOS
+        dec YPOS
+
+        .(
+        jsr is_occupied
+        bcc not
+        inc TEMP+1
+not:    .)
+
+        .(
+        inc XPOS
+        jsr is_occupied
+        bcc not
+        inc TEMP+1
+not:    .)
+
+        .(
+        inc XPOS
+        jsr is_occupied
+        bcc not
+        inc TEMP+1
+not:    .)
+
+        .(
+        dec XPOS
+        dec XPOS
+        inc YPOS
+        jsr is_occupied
+        bcc not
+        inc TEMP+1
+not:    .)
+
+        .(
+        inc XPOS
+        inc XPOS
+        jsr is_occupied
+        bcc not
+        inc TEMP+1
+not:    .)
+
+        .(
+        dec XPOS
+        dec XPOS
+        inc YPOS
+        jsr is_occupied
+        bcc not
+        inc TEMP+1
+not:    .)
+
+        .(
+        inc XPOS
+        jsr is_occupied
+        bcc not
+        inc TEMP+1
+not:    .)
+
+        .(
+        inc XPOS
+        jsr is_occupied
+        bcc not
+        inc TEMP+1
+not:    .)
+
+        dec XPOS
+        dec YPOS
+        lda TEMP+1
+        rts
+        .)
+
+step_simulation:
+        .(
+        lda #0
+        sta XPOS
+        sta YPOS
+
+loop:
+        jsr get_grid_value
+        tax
+        and #4                  ; is there a chair?
+        beq done_pos
+
+        txa
+        and #1
+        beq unoccupied
+
+        jsr count_neighbours
+        cmp #4
+        bcc fill_seat
+        ldy #$40
+        bne set_value
+
+unoccupied:
+        jsr count_neighbours
+        cmp #0
+        beq fill_seat
+        ldy #$40
+        bne set_value
+
+fill_seat:
+        ldy #$50
+set_value:
+        jsr get_grid_pos
+        lda XPOS
+        ror
+        tya
+        bcc even
+        asl
+even:   ora (GRID_POS, x)
+        sta (GRID_POS, x)        
+
+done_pos:
+        inc XPOS
+        lda XPOS
+        cmp WIDTH
+        bcc loop
+
+        lda #0
+        sta XPOS
+        inc YPOS
+        lda YPOS
+        cmp HEIGHT
+        bcc loop
+
+        rts
+        .)
+
+flip_buffer:
+        .(
+        lda #<SCREEN_START
+        sta GRID_POS
+        lda #>SCREEN_START
+        sta GRID_POS + 1
+        ldy #0
+loop:   lda (GRID_POS), y
+        lsr
+        lsr
+        lsr
+        lsr
+        sta (GRID_POS), y
+        iny
+        bne loop
+        inc GRID_POS + 1
+        bpl loop
+        rts
+        .)
+
+set_palette:
+        .(
+        ldx #0
+        ldy #0
+iloop:  lda palette_vdu, y
+        jsr OSWRCH
+        iny
+        cpy #6
+        bne iloop
+        ldy #0
+        inx
+        stx palette_vdu + 1
+        txa
+        and #3
+        sta palette_vdu + 2
+        cpx #16
+        bne iloop
+        rts
+palette_vdu:
+        .byt VDUPALETTE, 0, 0, 0, 0, 0
+        .)
+
 filename:
         .byt "data", 13
 
 vdu_init:
         .byt VDUMODE, 2
-        .byt 23, 1, 0, 0, 0, 0, 0, 0, 0, 0
+        .byt 23, 1, 0, 0, 0, 0, 0, 0, 0, 0 // Disable cursor
         vdu_init_length = * - vdu_init
