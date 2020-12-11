@@ -5,7 +5,6 @@
         GRID_POS = $70          ; address of byte we’re looking at in the grid
         XPOS = $72
         YPOS = $73
-        FILENO = $74
         WIDTH = $75             ; size of the grid in the data
         HEIGHT = $76
         TEMP = $80
@@ -44,8 +43,6 @@ gotfile:
 
         ;; store the file descriptor in Y so we can use it for OS calls
         tay
-        ;; also store it for later in case we need to use Y for something
-        sty FILENO
 
         ;; load the data
         .(
