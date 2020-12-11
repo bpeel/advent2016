@@ -12,6 +12,13 @@
 
         SCREEN_START = $3000
 
+        ;; The screen memory is used directly to store the grid of seats.
+        ;; The colours are:
+        ;; 00 - No chair
+        ;; 01 - (Not used)
+        ;; 10 - Unoccupied chair
+        ;; 11 - Occupied chair
+
         ;; set mode 1. This will also clear the grid (in the screen memory)
         ;; to zero.
         lda #VDUMODE
