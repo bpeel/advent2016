@@ -7,6 +7,8 @@
         YPOS = $73
         WIDTH = $75             ; size of the grid in the data
         HEIGHT = $76
+        CHANGED = $77           ; has anything changed when we flip buffer?
+        SEAT_COUNT = $78
         TEMP = $80
 
         SCREEN_START = $3000
@@ -115,7 +117,9 @@ finish_data:
 loop:   
         jsr step_simulation
         jsr flip_buffer
-        jmp loop
+        lda CHANGED
+        bne loop
+        jmp count_seats
         .)
 
 get_grid_y:
@@ -340,6 +344,8 @@ done_pos:
 
 flip_buffer:
         .(
+        lda #0
+        sta CHANGED
         lda #<SCREEN_START
         sta GRID_POS
         lda #>SCREEN_START
@@ -350,7 +356,54 @@ loop:   lda (GRID_POS), y
         lsr
         lsr
         lsr
+        tax
+        eor (GRID_POS), y
+        and #$f
+        beq nochange
+        lda #1
+        sta CHANGED
+        txa
         sta (GRID_POS), y
+nochange:       
+        iny
+        bne loop
+        inc GRID_POS + 1
+        bpl loop
+        rts
+        .)
+
+count_seats:
+        .(
+        lda #0
+        sta SEAT_COUNT
+        sta SEAT_COUNT + 1
+        lda #<SCREEN_START
+        sta GRID_POS
+        lda #>SCREEN_START
+        sta GRID_POS + 1
+        ldy #0
+
+loop:   lda (GRID_POS), y
+
+        ldx #0
+        .(
+        lsr
+        bcc notbit
+        inx
+notbit: .)
+        .(
+        lsr
+        bcc notbit
+        inx
+notbit: .)
+        txa
+        clc
+        adc SEAT_COUNT
+        sta SEAT_COUNT
+        lda SEAT_COUNT + 1
+        adc #0
+        sta SEAT_COUNT + 1
+
         iny
         bne loop
         inc GRID_POS + 1
@@ -386,4 +439,5 @@ filename:
 vdu_init:
         .byt VDUMODE, 2
         .byt 23, 1, 0, 0, 0, 0, 0, 0, 0, 0 // Disable cursor
+        .byt 31, 0, 31 // move cursor to bottom of screen
         vdu_init_length = * - vdu_init
