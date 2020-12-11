@@ -6,6 +6,8 @@
         XPOS = $72
         YPOS = $73
         FILENO = $74
+        WIDTH = $75             ; size of the grid in the data
+        HEIGHT = $76
         TEMP = $80
 
         SCREEN_START = $3000
@@ -84,6 +86,8 @@ evenpos:
         bne loop                ; always jump to loop
 
 eol:
+        lda XPOS
+        sta WIDTH
         lda #0
         sta XPOS
         inc YPOS
@@ -91,6 +95,8 @@ eol:
         jmp loop
 
 finish_data:
+        lda YPOS
+        sta HEIGHT
         lda #0
         jsr OSFIND              ; close the file
 
