@@ -113,8 +113,23 @@ finish_data:
 
         .)
 
+        lda #<count_neighbours_part1
+        sta count_neighbours_vec
+        lda #>count_neighbours_part1
+        sta count_neighbours_vec + 1
+        jsr run_simulation
+
+        jsr reset_simulation
+
+        lda #<count_neighbours_part1
+        sta count_neighbours_vec
+        lda #>count_neighbours_part1
+        sta count_neighbours_vec + 1
+        jmp run_simulation
+
+run_simulation: 
         .(
-loop:   
+loop:
         jsr step_simulation
         jsr flip_buffer
         lda CHANGED
@@ -212,6 +227,11 @@ invalid:
         .)
 
 count_neighbours:
+        .byt $4c                ; JMP absolute
+count_neighbours_vec:   
+        .byt 0, 0
+
+count_neighbours_part1:
         ;; count the neighbours around XPOS,YPOS.
         ;; sets X to 0. corrupts TEMP and TEMP+1
         ;; returns value in a
@@ -344,8 +364,24 @@ done_pos:
         rts
         .)
 
+get_high_end:
+        .(
+        ;; get the high byte of the position of the end of the grid
+        lda HEIGHT
+        clc
+        adc #7
+        and #$f8
+        sta YPOS
+        jsr get_grid_y
+        lda GRID_POS + 1
+        sta TEMP
+        rts
+        .)
+
 flip_buffer:
         .(
+        jsr get_high_end
+
         lda #0
         sta CHANGED
         lda #<SCREEN_START
@@ -370,12 +406,16 @@ nochange:
         iny
         bne loop
         inc GRID_POS + 1
-        bpl loop
+        lda GRID_POS + 1
+        cmp TEMP
+        bcc loop
         rts
         .)
 
 count_seats:
         .(
+        jsr get_high_end
+
         lda #0
         sta SEAT_COUNT
         sta SEAT_COUNT + 1
@@ -409,7 +449,33 @@ notbit: .)
         iny
         bne loop
         inc GRID_POS + 1
-        bpl loop
+        lda GRID_POS + 1
+        cmp TEMP
+        bcc loop
+        rts
+        .)
+
+reset_simulation:
+        .(
+        jsr get_high_end
+
+        lda #<SCREEN_START
+        sta GRID_POS
+        lda #>SCREEN_START
+        sta GRID_POS + 1
+        ldy #0
+
+loop:   lda (GRID_POS), y
+        and #$c0
+        sta (GRID_POS), y
+
+        iny
+        bne loop
+        inc GRID_POS + 1
+        lda GRID_POS + 1
+        cmp TEMP
+        bcc loop
+
         rts
         .)
 
@@ -493,5 +559,5 @@ filename:
 vdu_init:
         .byt VDUMODE, 2
         .byt 23, 1, 0, 0, 0, 0, 0, 0, 0, 0 // Disable cursor
-        .byt 31, 0, 30 // move cursor to bottom of screen
+        .byt 31, 0, 29 // move cursor to bottom of screen
         vdu_init_length = * - vdu_init
