@@ -119,7 +119,9 @@ loop:
         jsr flip_buffer
         lda CHANGED
         bne loop
-        jmp count_seats
+        jsr count_seats
+        jsr printsum
+        jmp OSNEWL
         .)
 
 get_grid_y:
@@ -433,11 +435,63 @@ palette_vdu:
         .byt VDUPALETTE, 0, 0, 0, 0, 0
         .)
 
+        ;; routine to print 2-byte number in SEAT_COUNT. uses TEMP as
+        ;; scratch space. corrupts number in SEAT_COUNT
+printsum:  
+        .(
+        ;; generate 5 digits
+        ldy #4
+loop:   jsr div_by_ten
+        ;; remainder in a
+        clc
+        adc #"0"
+        sta TEMP, y
+        dey
+        bpl loop
+        .)
+        .(
+        iny
+        ;; skip leading zeros
+loop:   lda TEMP, y
+        cmp #"0"
+        bne done
+        iny
+        cpy #4 ; leave at least one digit
+        bcc loop
+done:
+        .)
+        .(
+loop:   lda TEMP, y
+        jsr OSWRCH
+        iny
+        cpy #10
+        bcc loop
+        .)
+        rts
+
+        ;; routine to divide 4-byte number in SEAT_COUNT by 10
+div_by_ten:     
+        .( 
+        ldx #16                 ; 16 bits
+        lda #0
+loop:   asl SEAT_COUNT + 0
+        rol SEAT_COUNT + 1
+        rol
+        cmp #10
+        bcc nobit
+        sbc #10
+        inc SEAT_COUNT
+nobit:  
+        dex
+        bne loop
+        rts
+        .)
+        
 filename:
         .byt "data", 13
 
 vdu_init:
         .byt VDUMODE, 2
         .byt 23, 1, 0, 0, 0, 0, 0, 0, 0, 0 // Disable cursor
-        .byt 31, 0, 31 // move cursor to bottom of screen
+        .byt 31, 0, 30 // move cursor to bottom of screen
         vdu_init_length = * - vdu_init
