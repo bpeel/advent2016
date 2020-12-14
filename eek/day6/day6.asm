@@ -3,16 +3,17 @@
         * = $1910
 
         ;; 4-byte bitmask of questions that the current group has
-        ;; asked so far
-        FLAGS = $70
-        ;; 4-byte counter of all question we found so far
-        FLAG_SUM = $74
-        ;; 1 bit to mark whether the last character was \n
-        HAD_EOL = $78
+        ;; potentially asked so far
+        GROUP_ALL_ASKED = $70
+        ;; 4-byte bitmask of questions that the current person has
+        ;; asked so far.
+        PERSON_ASKED = $74
+        ;; 4-byte counter for the answer
+        RESULT = $78
         ;; temporary store for the question number
-        QUESTION = $79
+        QUESTION = $7C
         ;; bit mask to check for this question
-        QUESTION_BIT = $7A
+        QUESTION_BIT = $7D
         ;; scratch space for printing a number
         SCRATCH = $80
 
@@ -32,50 +33,122 @@ gotfile:
         ;; store the file descriptor in Y so we can use it for OS calls
         tay
 
-        ;; reset all variables to zero
-        .(
-        ldx #8
-        lda #0
-loop:   sta $70, x
-        dex
-        bpl loop
-        .)
-
-inputloop:
-        .(
-        jsr OSBGET              ; get next byte of input
-        cmp #$fe                ; is it EOF?
-        bcs done
-
-        cmp #10                 ; is it end of line?
-        bne noteol
-
-        lda HAD_EOL             ; is this the second EOL?
-        beq notendgroup
-
-        ;; reset FLAGS to zero
+        ;; reset the RESULT
         .(
         ldx #3
         lda #0
-loop:   sta FLAGS, x
+loop:   sta RESULT, x
         dex
         bpl loop
         .)
 
-notendgroup:
-        lda #1                  ; mark that we had an EOL
-        sta HAD_EOL
-        bne inputloop           ; continue reading
+        ;; check for EOF
+        .(
+inputloop:      
+        tya
+        tax
+        lda #$7f
+        jsr OSBYTE
+        cpx #0
+        bne done
 
-noteol:
-        ldx #0                  ; clear HAD_EOL
-        stx HAD_EOL
+        jsr readgroup
+
+        ldx #3
+        .(
+loop:   lda GROUP_ALL_ASKED, x
+bitloop:
+        lsr
+        bcc noinc
+
+        pha
+        lda RESULT
+        adc #0
+        sta RESULT
+        lda RESULT + 1
+        adc #0
+        sta RESULT + 1
+        lda RESULT + 2
+        adc #0
+        sta RESULT + 2
+        lda RESULT + 3
+        adc #0
+        sta RESULT + 3
+        pla
+noinc:  bne bitloop
+        
+        dex
+        bpl loop
+        .)
+
+        jmp inputloop
+
+done:   
+        lda #0
+        jsr OSFIND              ; close the file
+        jsr printsum
+        lda #13
+        jmp OSASCI
+        .)
+
+readgroup:
+        .(
+        ;; All questions have potentially been asked so far
+        lda #$FF
+        ldx #3
+        .(
+loop:   sta GROUP_ALL_ASKED, x
+        dex
+        bpl loop
+        .)
+
+personloop:
+        jsr readperson
+
+        ;; if the person asked no questions, then it’s either a blank line or
+        ;; the end of the file. Either way it’s the end of the group
+        lda PERSON_ASKED
+        ora PERSON_ASKED + 1
+        ora PERSON_ASKED + 2
+        ora PERSON_ASKED + 3
+        bne notend
+        rts
+notend: 
+
+        ldx #3
+        .(
+loop:   lda GROUP_ALL_ASKED, x
+        and PERSON_ASKED, x
+        sta GROUP_ALL_ASKED, x
+        dex
+        bpl loop
+        .)
+
+        jmp personloop
+        .)
+
+readperson:
+        .(
+        ;; No questions have been asked so far
+        lda #0
+        ldx #3
+        .(
+loop:   sta PERSON_ASKED, x
+        dex
+        bpl loop
+        .)
+
+loop:   jsr OSBGET
+        cmp #$fe                ; is it EOF?
+        bcs done
+        cmp #10
+        beq done
 
         sec
         sbc #"a"                ; calculate question number
-        bcc inputloop           ; ignore invalid question numbers
+        bcc loop                ; ignore invalid question numbers
         cmp #32
-        bcs inputloop
+        bcs loop
 
         sta QUESTION
 
@@ -83,11 +156,12 @@ noteol:
         .(
         and #7
         tax
-        sec
         lda #0
-loop:   rol
+        sec
+bitloop:
+        rol
         dex
-        bpl loop
+        bpl bitloop
         sta QUESTION_BIT
         .)
 
@@ -98,41 +172,17 @@ loop:   rol
         lsr
         tax
 
-        ;; has the question already been asked?
-        lda FLAGS, x
-        bit QUESTION_BIT
-        bne inputloop
-
-        ;; mark the question as asked
+        ;; set the question
+        lda PERSON_ASKED, x
         ora QUESTION_BIT
-        sta FLAGS, x
+        sta PERSON_ASKED, x
+        jmp loop
 
-        ;; increment the question count
-        sec
-        lda FLAG_SUM
-        adc #0
-        sta FLAG_SUM
-        lda FLAG_SUM + 1
-        adc #0
-        sta FLAG_SUM + 1
-        lda FLAG_SUM + 2
-        adc #0
-        sta FLAG_SUM + 2
-        lda FLAG_SUM + 3
-        adc #0
-        sta FLAG_SUM + 3
-
-        bcc inputloop           ; continue input
-done:
-        lda #0
-        jsr OSFIND              ; close the file
-        jsr printsum
-        lda #13
-        jmp OSASCI
+done:   rts
         .)
 
-        ;; routine to print 4-byte number in FLAG_SUM. uses SCRATCH as
-        ;; scratch space. corrupts number in FLAG_SUM
+        ;; routine to print 4-byte number in RESULT. uses SCRATCH as
+        ;; scratch space. corrupts number in RESULT
 printsum:  
         .(
         ;; generate 10 digits
@@ -165,20 +215,20 @@ loop:   lda SCRATCH, y
         .)
         rts
 
-        ;; routine to divide 4-byte number in FLAG_SUM by 10
+        ;; routine to divide 4-byte number in RESULT by 10
 div_by_ten:     
         .( 
         ldx #32                 ; 32 bits
         lda #0
-loop:   asl FLAG_SUM + 0
-        rol FLAG_SUM + 1
-        rol FLAG_SUM + 2
-        rol FLAG_SUM + 3
+loop:   asl RESULT + 0
+        rol RESULT + 1
+        rol RESULT + 2
+        rol RESULT + 3
         rol
         cmp #10
         bcc nobit
         sbc #10
-        inc FLAG_SUM
+        inc RESULT
 nobit:  
         dex
         bne loop
