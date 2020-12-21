@@ -48,7 +48,7 @@ for allergen, ingredients in allergens.items():
     if len(ingredients) != 1:
         raise Exception("Didn’t find single ingredient for {}".format(allergen))
 
-    bad_ingredients[ingredients.pop()] = allergen
+    bad_ingredients[next(iter(ingredients))] = allergen
 
 # Now sum up any ingredients in foods that aren’t in that list
 part1 = 0
@@ -58,4 +58,9 @@ for ingredients, _ in foods:
             part1 += 1
         
 print("Part 1: {}".format(part1))
+
+part2 = ','.join(next(iter(allergens[allergen]))
+                 for allergen in sorted(allergens.keys()))
+
+print("Part 2: {}".format(part2))
 
