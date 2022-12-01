@@ -13,13 +13,16 @@
 (defun day18-read-expr (&optional part2)
   (interactive "P")
 
-  (let ((res (day18-read-operand part2)))
+  (let ((res (day18-read-operand part2))
+        last-op)
     (while (looking-at " *\\([*+]\\)")
       (let* ((op (intern (match-string 1)))
              (b (progn (goto-char (match-end 0))
-                       (if (and part2 (eq op '*))
-                           (day18-read-expr part2)
-                         (day18-read-operand part2)))))
+                       (day18-read-operand part2))))
+        (cond ((eq last-op op)
+               (setq res (cons op (cons b (cdr res)))))
+              ((or (not part2) (eq op '*))
+               (setq res (cons op (
         (setq res (list op res b))))
 
     res))

@@ -5,17 +5,18 @@
         ;; 4-byte bitmask of questions that the current group has
         ;; potentially asked so far
         GROUP_ALL_ASKED = $70
+        GROUP_ANY_ASKED = $74
         ;; 4-byte bitmask of questions that the current person has
         ;; asked so far.
-        PERSON_ASKED = $74
+        PERSON_ASKED = $78
         ;; 4-byte counter for the answer
-        RESULT = $78
+        RESULT = $7C
         ;; temporary store for the question number
-        QUESTION = $7C
+        QUESTION = $80
         ;; bit mask to check for this question
-        QUESTION_BIT = $7D
+        QUESTION_BIT = $81
         ;; scratch space for printing a number
-        SCRATCH = $80
+        SCRATCH = $82
 
         ldx #<filename
         ldy #>filename
@@ -101,6 +102,13 @@ loop:   sta GROUP_ALL_ASKED, x
         dex
         bpl loop
         .)
+        lda #$00
+        ldx #3
+        .(
+loop:   sta GROUP_ANY_ASKED, x
+        dex
+        bpl loop
+        .)
 
 personloop:
         jsr readperson
@@ -120,6 +128,9 @@ notend:
 loop:   lda GROUP_ALL_ASKED, x
         and PERSON_ASKED, x
         sta GROUP_ALL_ASKED, x
+        lda GROUP_ANY_ASKED, x
+        ora PERSON_ASKED, x
+        sta GROUP_ANY_ASKED, x
         dex
         bpl loop
         .)
