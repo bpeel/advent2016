@@ -62,6 +62,31 @@ fn read_elves(f: &mut impl io::BufRead) -> Result<Vec<Elf>, ElfLoadError> {
     }
 }
 
+fn part1(elves: &Vec<Elf>) {
+    match elves.iter().map(|elf| elf.total_carrying()).max() {
+        None => eprintln!("Empty list of elves"),
+        Some(max_weight) => {
+            println!("part1: {}", max_weight);
+        }
+    }
+}
+
+fn part2(elves: &Vec<Elf>) {
+    print!("part2: ");
+
+    if elves.len() < 3 {
+        println!("need at least 3 elves for part 2");
+        return;
+    }
+
+    let mut weights =
+        Vec::from_iter(elves.iter().map(|elf| elf.total_carrying()));
+
+    weights.sort_unstable();
+
+    println!("{}", weights[weights.len() - 3..].iter().sum::<u32>())
+}
+
 fn main() {
     match read_elves(&mut io::stdin().lock()) {
         Err(ElfLoadError::BadInteger) => {
@@ -74,12 +99,8 @@ fn main() {
         },
 
         Ok(elves) => {
-            match elves.iter().map(|elf| elf.total_carrying()).max() {
-                None => eprintln!("Empty list of elves"),
-                Some(max_weight) => {
-                    println!("Max weight {}", max_weight);
-                }
-            }
+            part1(&elves);
+            part2(&elves);
         }
     }
 }
