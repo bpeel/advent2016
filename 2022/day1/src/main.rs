@@ -20,16 +20,16 @@ impl Elf {
         let mut foods = Vec::<u32>::new();
         let mut s = String::new();
 
-        loop {
+        let load_result = loop {
             s.clear();
 
             match f.read_line(&mut s) {
-                Ok(0) => return Ok((ElfLoadResult::EndOfFile, Elf { foods })),
+                Ok(0) => break ElfLoadResult::EndOfFile,
                 Ok(_) => {
                     let line = s.trim_end();
 
                     if line.is_empty() {
-                        return Ok((ElfLoadResult::EndOfElf, Elf { foods }));
+                        break ElfLoadResult::EndOfElf;
                     }
 
                     match line.parse::<u32>() {
@@ -39,7 +39,9 @@ impl Elf {
                 },
                 Err(..) => return Err(ElfLoadError::IOError)
             }
-        }
+        };
+
+        Ok((load_result, Elf { foods }))
     }
 
     fn total_carrying(&self) -> u32 {
