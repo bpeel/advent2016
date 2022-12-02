@@ -14,6 +14,15 @@ impl Hand {
         }
     }
 
+    fn from_index(index: u32) -> Hand {
+        match index {
+            0 => Hand::Rock,
+            1 => Hand::Paper,
+            2 => Hand::Scissors,
+            _ => unreachable!(),
+        }
+    }
+
     fn score(&self) -> u32 {
         self.index_value() + 1
     }
@@ -38,12 +47,8 @@ impl std::str::FromStr for Hand {
         }
 
         match ch {
-            'A' => Ok(Hand::Rock),
-            'B' => Ok(Hand::Paper),
-            'C' => Ok(Hand::Scissors),
-            'X' => Ok(Hand::Rock),
-            'Y' => Ok(Hand::Paper),
-            'Z' => Ok(Hand::Scissors),
+            'A'..='C' => Ok(Hand::from_index(ch as u32 - 'A' as u32)),
+            'X'..='Z' => Ok(Hand::from_index(ch as u32 - 'X' as u32)),
             _ => Err(HandParseError {}),
         }
     }
