@@ -60,6 +60,9 @@ struct Round {
     yours: Hand,
 }
 
+struct RoundParseError {
+}
+
 impl Round {
     fn new(theirs: Hand, yours: Hand) -> Round {
         Round { theirs, yours }
@@ -78,9 +81,39 @@ impl Round {
     fn score(self) -> u32 {
         self.yours.score() + self.score_result()
     }
-}
 
-struct RoundParseError {
+    fn parse_part2(line: &str) -> Result<Round, RoundParseError> {
+        let mut chars = line.chars();
+
+        let theirs = match chars.next() {
+            None => return Err(RoundParseError {}),
+            Some(ch) => match line[0..ch.len_utf8()].parse::<Hand>() {
+                Err(..) => return Err(RoundParseError {}),
+                Ok(hand) => hand,
+            }
+        };
+
+        match chars.next() {
+            Some(' ') => (),
+            _ => return Err(RoundParseError {}),
+        }
+
+        let yours = match chars.next() {
+            Some(ch @ 'X'..='Z') =>
+            // X = lose = +2
+            // Y = draw = +0
+            // Z = win = +1
+                Hand::from_index((theirs.index_value() +
+                                  (ch as u32 + 3 - 'Y' as u32)) % 3),
+            _ => return Err(RoundParseError {}),
+        };
+
+        if chars.next() != Option::None {
+            return Err(RoundParseError {});
+        }
+
+        Ok(Round::new(theirs, yours))
+    }
 }
 
 impl std::str::FromStr for Round {
@@ -127,6 +160,18 @@ fn main() {
     }).sum();
 
     println!("part 1: {}", part1);
+
+    let part2: u32 = lines.iter().enumerate().map(|(line_num, line)| {
+        match Round::parse_part2(line) {
+            Err(..) => {
+                eprintln!("Invalid round on line {}", line_num + 1);
+                std::process::exit(1);
+            }
+            Ok(round) => round.score(),
+        }
+    }).sum();
+
+    println!("part 2: {}", part2);
 }
 
 #[cfg(test)]
