@@ -1,6 +1,7 @@
 struct Position {
     horizontal: i32,
     depth: i32,
+    aim: i32,
 }
 
 enum CommandKeyword {
@@ -41,7 +42,7 @@ impl std::str::FromStr for Command {
 
 impl Position {
     fn new() -> Position {
-        Position { horizontal: 0, depth: 0 }
+        Position { horizontal: 0, depth: 0, aim: 0 }
     }
 
     fn run_command(&mut self, command: &Command) {
@@ -51,10 +52,22 @@ impl Position {
             CommandKeyword::Up => self.depth -= command.amount,
         }
     }
+
+    fn run_command2(&mut self, command: &Command) {
+        match command.keyword {
+            CommandKeyword::Forward => {
+                self.horizontal += command.amount;
+                self.depth += command.amount * self.aim;
+            },
+            CommandKeyword::Down => self.aim += command.amount,
+            CommandKeyword::Up => self.aim -= command.amount,
+        }
+    }
 }
 
 fn main() {
     let mut pos = Position::new();
+    let mut pos2 = Position::new();
 
     for (line_num, result) in std::io::stdin().lines().enumerate() {
         let line = match result {
@@ -74,8 +87,16 @@ fn main() {
         };
 
         pos.run_command(&command);
+        pos2.run_command2(&command);
     }
 
+    println!("part 1");
     println!("Horizontal position = {}, Depth = {}", pos.horizontal, pos.depth);
     println!("Result = {}", pos.horizontal * pos.depth);
+    println!("");
+    println!("part 2");
+    println!("Horizontal position = {}, Depth = {}",
+             pos2.horizontal,
+             pos2.depth);
+    println!("Result = {}", pos2.horizontal * pos2.depth);
 }
