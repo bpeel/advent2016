@@ -10,19 +10,16 @@ fn part1(nums: &[u32]) {
 }
 
 fn part2(nums: &[u32]) {
-    let (a, b, c) = (nums[0], nums[1], nums[2]);
+    let prev_sum = nums[0..3].iter().sum();
 
-    fn fold((a, b, c, count): (u32, u32, u32, u32), &next: &u32)
-            -> (u32, u32, u32, u32) {
-        let part_sum = b + c;
-        let prev_sum = a + part_sum;
-        let next_sum = part_sum + next;
+    let fold = |(prev_sum, count), (i, &next)| {
+        let next_sum = prev_sum - nums[i - 3] + next;
 
-        (b, c, next, count + (next_sum > prev_sum) as u32)
-    }
+        (next_sum, count + (next_sum > prev_sum) as u32)
+    };
 
-    let (_, _, _, part2): (u32, u32, u32, u32) =
-        nums.iter().skip(3).fold((a, b, c, 0), fold);
+    let (_, part2): (u32, u32) =
+        nums.iter().enumerate().skip(3).fold((prev_sum, 0), fold);
 
     println!("part 2: {}", part2);
 }
