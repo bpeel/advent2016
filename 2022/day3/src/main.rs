@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 fn parse_compartment(desc: &[u8]) -> u64 {
     let mut mask: u64 = 0;
 
@@ -44,4 +46,15 @@ fn main() {
     }).sum();
 
     println!("part1: {}", part1);
+
+    let elves = lines.iter().map(|line| parse_compartment(line.as_bytes()));
+
+    let part2: u32 = elves.chunks(3).into_iter().map(|group_elves| {
+        match group_elves.fold(u64::MAX, |a, b| a & b).trailing_zeros() {
+            64 => 0,
+            zeros => zeros + 1,
+        }
+    }).sum();
+
+    println!("part2: {}", part2);
 }
