@@ -15,6 +15,11 @@ impl ElfPair {
         range_contains(&self.a, &self.b) ||
             range_contains(&self.b, &self.a)
     }
+
+    fn overlaps(&self) -> bool {
+        self.a.end() >= self.b.start() &&
+            self.a.start() <= self.b.end()
+    }
 }
 
 fn parse_range(s: &str) -> Result<SectionRange, String> {
@@ -87,4 +92,8 @@ fn main() {
     let part1 = pairs.iter().filter(|pair| pair.is_redundant()).count();
 
     println!("part 1: {}", part1);
+
+    let part2 = pairs.iter().filter(|pair| pair.overlaps()).count();
+
+    println!("part 2: {}", part2);
 }
