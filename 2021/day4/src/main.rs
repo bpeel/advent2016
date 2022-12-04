@@ -21,20 +21,17 @@ impl Marks {
         self.bits[y] |= 1u8 << x;
     }
 
-    fn row_wins(&self, board: &Board) -> Option<u32> {
-        for (row, &row_bits) in self.bits.iter().enumerate() {
+    fn row_wins(&self) -> bool {
+        for &row_bits in self.bits.iter() {
             if row_bits == (1u8 << BOARD_SIZE) - 1 {
-                return Some(board.nums[row * BOARD_SIZE..(row + 1) * BOARD_SIZE]
-                            .iter()
-                            .map(|&val| val as u32)
-                            .sum())
+                return true;
             }
         }
 
-        None
+        false
     }
 
-    fn column_wins(&self, board: &Board) -> Option<u32> {
+    fn column_wins(&self) -> bool {
         'column: for column in 0..BOARD_SIZE {
             let column_bit = 1u8 << column;
 
@@ -44,24 +41,14 @@ impl Marks {
                 }
             }
 
-            return Some((0..BOARD_SIZE)
-                        .map(|row| board.nums[row * BOARD_SIZE + column] as u32)
-                        .sum());
+            return true;
         }
 
-        None
+        false
     }
 
-    fn wins(&self, board: &Board) -> Option<u32> {
-        if let Some(score) = self.row_wins(board) {
-            return Some(score);
-        }
-
-        if let Some(score) = self.column_wins(board) {
-            return Some(score);
-        }
-
-        None
+    fn wins(&self) -> bool {
+        self.row_wins() || self.column_wins()
     }
 }
 
@@ -93,6 +80,28 @@ fn read_boards<I>(mut lines: I) -> Vec<Board>
     boards
 }
 
+fn get_unmarked_sum(board: &Board, marks: &Marks) -> u32 {
+    let mut sum = 0;
+
+    for (row, &(mut row_bits)) in marks.bits.iter().enumerate() {
+        row_bits = row_bits ^ ((1u8 << BOARD_SIZE) - 1);
+
+        loop {
+            let column = row_bits.trailing_zeros();
+
+            if column >= BOARD_SIZE as u32 {
+                break;
+            }
+
+            sum += board.nums[row * BOARD_SIZE + column as usize] as u32;
+
+            row_bits &= !(1u8 << column);
+        }
+    }
+
+    sum
+}
+
 fn part1(nums: &[u8], boards: &[Board]) {
     let mut marks: Vec<Marks> =
         (0..boards.len()).map(|_| Marks::new()).collect();
@@ -103,8 +112,11 @@ fn part1(nums: &[u8], boards: &[Board]) {
                 marks[board_num].set(index % BOARD_SIZE,
                                      index / BOARD_SIZE);
 
-                if let Some(score) = marks[board_num].wins(board) {
-                    println!("part 1: {}", score);
+                if marks[board_num].wins() {
+                    let unmarked_sum =
+                        get_unmarked_sum(board, &marks[board_num]);
+                    println!("score = {}, num = {}", unmarked_sum, num);
+                    println!("part 1: {}", unmarked_sum * num as u32);
                     return;
                 }
             }
