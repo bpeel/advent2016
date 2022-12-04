@@ -124,6 +124,37 @@ fn part1(nums: &[u8], boards: &[Board]) {
     }
 }
 
+fn part2(nums: &[u8], boards: &[Board]) {
+    let mut marks: Vec<Marks> =
+        (0..boards.len()).map(|_| Marks::new()).collect();
+
+    let mut winner_count = 0;
+
+    for &num in nums.iter() {
+        for (board_num, board) in boards.iter().enumerate() {
+            if let Some(index) = board.nums.iter().position(|&n| n == num) {
+                let was_losing = !marks[board_num].wins();
+
+                marks[board_num].set(index % BOARD_SIZE,
+                                     index / BOARD_SIZE);
+
+                if was_losing && marks[board_num].wins() {
+                    winner_count += 1;
+
+                    if winner_count == boards.len() {
+                        let unmarked_sum =
+                            get_unmarked_sum(&boards[board_num],
+                                             &marks[board_num]);
+                        println!("score = {}, num = {}", unmarked_sum, num);
+                        println!("part 2: {}", unmarked_sum * num as u32);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn main() {
     let mut lines = std::io::stdin().lines();
 
@@ -140,4 +171,5 @@ fn main() {
     let boards = read_boards(lines);
 
     part1(&nums, &boards);
+    part2(&nums, &boards);
 }
