@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::cmp::{min,max};
 
 #[derive(Debug, Clone)]
 struct Point {
@@ -54,32 +53,36 @@ fn read_lines<I>(text_lines: &mut I) -> Result<Vec<Line>, String>
     Ok(lines)
 }
 
-fn draw_lines(lines: &[Line]) -> HashMap<(i32, i32), u32> {
+fn draw_lines(lines: &[Line], draw_diagonals: bool) ->
+    HashMap<(i32, i32), u32>
+{
     let mut map = HashMap::new();
 
     for line in lines {
-        if line.start.x == line.end.x {
-            let start = min(line.start.y, line.end.y);
-            let end = max(line.start.y, line.end.y);
+        let x_step = (line.end.x - line.start.x).signum();
+        let y_step = (line.end.y - line.start.y).signum();
+        let count = if x_step == 0 {
+            (line.end.y - line.start.y).abs() + 1
+        } else if !draw_diagonals && y_step != 0 {
+            continue;
+        } else {
+            (line.end.x - line.start.x).abs() + 1
+        };
 
-            for y in start..=end {
-                map.entry((line.start.x, y))
-                    .and_modify(|count| *count += 1)
-                    .or_insert(1);
-            }
-        } else if line.start.y == line.end.y {
-            let start = min(line.start.x, line.end.x);
-            let end = max(line.start.x, line.end.x);
-
-            for x in start..=end {
-                map.entry((x, line.start.y))
-                    .and_modify(|count| *count += 1)
-                    .or_insert(1);
-            }
+        for i in 0..count {
+            let index = (line.start.x + i * x_step,
+                         line.start.y + i * y_step);
+            map.entry(index).and_modify(|count| *count += 1).or_insert(1);
         }
     }
 
     map
+}
+
+fn run_part(lines: &[Line], draw_diagonals: bool) -> usize {
+    let map = draw_lines(&lines, draw_diagonals);
+
+    map.values().filter(|&&count| count > 1).count()
 }
 
 fn main() {
@@ -92,9 +95,6 @@ fn main() {
         },
     };
 
-    let map = draw_lines(&lines);
-
-    let part1 = map.values().filter(|&&count| count > 1).count();
-
-    println!("part 1: {}", part1);
+    println!("part 1: {}", run_part(&lines, false));
+    println!("part 2: {}", run_part(&lines, true));
 }
