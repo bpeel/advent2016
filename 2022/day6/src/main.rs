@@ -1,26 +1,65 @@
+const N_INTS_IN_BYTE_SET: usize = (u8::MAX as usize + 1) / u32::BITS as usize;
+
+#[derive(Debug, Clone)]
+struct ByteSet {
+    bits: [u32; N_INTS_IN_BYTE_SET],
+}
+
+impl ByteSet {
+    fn new() -> ByteSet {
+        ByteSet { bits: [0; N_INTS_IN_BYTE_SET] }
+    }
+
+    fn get_index(byte: u8) -> (usize, u32) {
+        ((byte as u32 / u32::BITS) as usize,
+         1u32 << (byte as u32 % u32::BITS))
+    }
+
+    fn insert(&mut self, byte: u8) {
+        let (byte, mask) = ByteSet::get_index(byte);
+
+        self.bits[byte] |= mask;
+    }
+
+    fn remove(&mut self, byte: u8) {
+        let (byte, mask) = ByteSet::get_index(byte);
+
+        self.bits[byte] &= !mask;
+    }
+
+    fn contains(&self, byte: u8) -> bool {
+        let (byte, mask) = ByteSet::get_index(byte);
+
+        self.bits[byte] & mask != 0
+    }
+}
+
 fn find_marker(data: &str, marker_length: usize) -> Option<usize> {
     let bytes = data.as_bytes();
-    let mut counts = [0u8; u8::MAX as usize + 1];
-    let mut n_counts = 0;
+    let mut set = ByteSet::new();
+    let mut start = 0;
+
+    // I changed this after I posted it to Reddit and Mastodon in
+    // order to copy the idea from /u/FattThor of keeping track of the
+    // starting point of a sequence of characters without repeats.
+    // Therefore the set represents the characters that are in this
+    // working sequence. Whenever we encounter a character that is
+    // already in the set then we remove characters until that
+    // duplicate is removed and we advance the start point. We know
+    // that the start point of the marker will have to be after that
+    // duplicate letter.
+    //
+    // https://www.reddit.com/r/adventofcode/comments/zdw0u6/comment/iz44uix/
 
     for (i, &byte) in bytes.iter().enumerate() {
-        if counts[byte as usize] == 0 {
-            n_counts += 1;
+        while set.contains(byte) {
+            set.remove(bytes[start]);
+            start += 1;
         }
 
-        counts[byte as usize] += 1;
+        set.insert(byte);
 
-        if i >= marker_length {
-            let old_byte = bytes[i - marker_length];
-
-            if counts[old_byte as usize] <= 1 {
-                n_counts -= 1;
-            }
-
-            counts[old_byte as usize] -= 1;
-        }
-
-        if n_counts >= marker_length {
+        if i - start + 1 >= marker_length {
             return Some(i + 1);
         }
     }
