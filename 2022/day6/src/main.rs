@@ -48,3 +48,46 @@ fn main() {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_part_one() {
+        assert_eq!(find_marker("mjqjpqmgbljsphdztnvjfqwrcgsmlb", 4),
+                   Some(7));
+        assert_eq!(find_marker("bvwbjplbgvbhsrlpgdmjqwftvncz", 4),
+                   Some(5));
+        assert_eq!(find_marker("nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg", 4),
+                   Some(10));
+        assert_eq!(find_marker("zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw", 4),
+                   Some(11));
+    }
+    #[test]
+    fn test_part_two() {
+        assert_eq!(find_marker("mjqjpqmgbljsphdztnvjfqwrcgsmlb", 14),
+                   Some(19));
+        assert_eq!(find_marker("bvwbjplbgvbhsrlpgdmjqwftvncz", 14),
+                   Some(23));
+        assert_eq!(find_marker("nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg", 14),
+                   Some(29));
+        assert_eq!(find_marker("zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw", 14),
+                   Some(26));
+    }
+    #[test]
+    fn test_extremes() {
+        // Beginning of string
+        assert_eq!(find_marker("abcde", 4), Some(4));
+        // End of string
+        assert_eq!(find_marker("aabcd", 4), Some(5));
+        // Not found at all
+        assert_eq!(find_marker("aabbccddeeffgghhiijj", 4), None);
+        // String too short
+        assert_eq!(find_marker("abc", 4), None);
+        // Entire string
+        assert_eq!(find_marker("abcd", 4), Some(4));
+        // Empty string
+        assert_eq!(find_marker("", 4), None);
+    }
+}
