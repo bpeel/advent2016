@@ -1,13 +1,13 @@
-const N_INTS_IN_BYTE_SET: usize = (u8::MAX as usize + 1) / u32::BITS as usize;
-
 #[derive(Debug, Clone)]
 struct ByteSet {
-    bits: [u32; N_INTS_IN_BYTE_SET],
+    bits: [u32; ByteSet::N_INTS],
 }
 
 impl ByteSet {
+    const N_INTS: usize = (u8::MAX as usize + 1) / u32::BITS as usize;
+
     fn new() -> ByteSet {
-        ByteSet { bits: [0; N_INTS_IN_BYTE_SET] }
+        ByteSet { bits: [0; ByteSet::N_INTS] }
     }
 
     fn get_index(byte: u8) -> (usize, u32) {
