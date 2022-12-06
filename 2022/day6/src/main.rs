@@ -1,18 +1,25 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 fn find_marker(data: &str, marker_length: usize) -> Option<usize> {
-    if data.len() < marker_length {
-        return None;
-    }
+    let bytes = data.as_bytes();
+    let mut counts = HashMap::<u8, u32>::new();
 
-    let mut set = HashSet::<u8>::new();
+    for (i, &byte) in bytes.iter().enumerate() {
+        counts.entry(byte).and_modify(|count| *count += 1).or_insert(1);
 
-    for i in 0..=data.len() - marker_length {
-        set.clear();
-        set.extend(&data.as_bytes()[i..i + marker_length]);
+        if i >= marker_length {
+            let old_byte = bytes[i - marker_length];
+            let old_count = counts.get_mut(&old_byte).unwrap();
 
-        if set.len() >= marker_length {
-            return Some(i + marker_length);
+            if *old_count <= 1 {
+                counts.remove(&old_byte);
+            } else {
+                *old_count -= 1;
+            }
+        }
+
+        if counts.len() >= marker_length {
+            return Some(i + 1);
         }
     }
 
