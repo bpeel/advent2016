@@ -258,6 +258,7 @@ impl IntoIterator for Shell {
 
 fn main() -> std::process::ExitCode {
     let mut shell = Shell::new();
+    let mut exit_code = std::process::ExitCode::SUCCESS;
 
     for (line_num, result) in std::io::stdin().lines().enumerate() {
         let line = match result {
@@ -270,6 +271,7 @@ fn main() -> std::process::ExitCode {
 
         if let Err(e) = shell.run_command(&line) {
             eprintln!("line {}: {}", line_num + 1, e);
+            exit_code = std::process::ExitCode::FAILURE;
         }
     }
 
@@ -313,5 +315,5 @@ fn main() -> std::process::ExitCode {
 
     println!("part 2: {}", part2);
 
-    std::process::ExitCode::SUCCESS
+    exit_code
 }
