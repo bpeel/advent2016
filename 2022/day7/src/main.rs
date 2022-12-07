@@ -273,9 +273,19 @@ fn main() -> std::process::ExitCode {
         }
     }
 
-    for (size, entry) in shell {
-        println!("{} {}", size, entry.borrow().name);
-    }
+    let part1: usize = shell
+        .iter()
+        .filter_map(|(size, entry)|
+                    if (matches!(entry.borrow().data,
+                                 EntryData::Directory { .. }) &&
+                        size <= 100_000) {
+                        Some(size)
+                    } else {
+                        None
+                    })
+        .sum();
+
+    println!("part 1: {}", part1);
 
     std::process::ExitCode::SUCCESS
 }
