@@ -287,5 +287,31 @@ fn main() -> std::process::ExitCode {
 
     println!("part 1: {}", part1);
 
+    const SPACE_NEEDED: usize = 30_000_000;
+    const DISK_SIZE: usize = 70_000_000;
+
+    // The iterator will report the root directory last and that will
+    // have the total size
+    let total_used = shell.iter().last().unwrap().0;
+
+    let space_free = DISK_SIZE - total_used;
+
+    let part2 = shell
+        .iter()
+        .filter_map(|(size, entry)|
+                    if (matches!(entry.borrow().data,
+                                 EntryData::Directory { .. }) &&
+                        space_free + size >= SPACE_NEEDED) {
+                        Some(size)
+                    } else {
+                        None
+                    })
+        // This should never be None because at worst it will just
+        // pick the / directory which is guaranteed to reduce the
+        // space used to 0
+        .min().unwrap();
+
+    println!("part 2: {}", part2);
+
     std::process::ExitCode::SUCCESS
 }
