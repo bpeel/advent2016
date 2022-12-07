@@ -6,6 +6,7 @@ use std::cell::RefCell;
 #[derive(Debug, Clone)]
 struct Entry {
     name: String,
+    sibling: Option<Rc<RefCell<Entry>>>,
     parent: Option<Weak<RefCell<Entry>>>,
     data: EntryData,
 }
@@ -13,7 +14,7 @@ struct Entry {
 #[derive(Debug, Clone)]
 enum EntryData {
     File { size: usize },
-    Directory { children: Vec<Rc<RefCell<Entry>>> },
+    Directory { child: Option<Rc<RefCell<Entry>>> },
 }
 
 #[derive(Debug, Clone)]
@@ -29,11 +30,7 @@ struct Shell {
 #[derive(Debug)]
 struct StackEntry {
     dir: Rc<RefCell<Entry>>,
-    // It would be really nice to able to do this by storing a real
-    // iterator, but it doesn’t look like there’s a way to get the
-    // borrow checker to allow it because we also need to modify the
-    // stack while the entries still have the iterators.
-    child_pos: usize,
+    next_child: Option<Rc<RefCell<Entry>>>,
     size: usize,
 }
 
@@ -46,8 +43,12 @@ impl DirIter {
         let mut stack = Vec::<StackEntry>::new();
 
         stack.push(StackEntry {
-            dir,
-            child_pos: 0,
+            dir: dir.clone(),
+            next_child: match dir.borrow().data {
+                EntryData::Directory { child: ref next_child } =>
+                    next_child.clone(),
+                EntryData::File { .. } => panic!("Tried to iterate a file"),
+            },
             size: 0,
         });
 
@@ -65,44 +66,35 @@ impl Iterator for DirIter {
                 None => break None,
             };
 
-            let dir = top.dir.borrow();
+            match top.next_child {
+                None => {
+                    let size = top.size;
+                    let dir = top.dir.clone();
+                    self.stack.pop();
 
-            let children = match dir.data {
-                EntryData::Directory { ref children } => children,
-                EntryData::File { .. } =>
-                    panic!("Iterator stack has a file entry in it"),
-            };
+                    if let Some(top) = self.stack.last_mut() {
+                        top.size += size;
+                    }
 
-            if top.child_pos >= children.len() {
-                drop(dir);
-                let size = top.size;
-                let dir = top.dir.clone();
-                self.stack.pop();
-
-                if let Some(top) = self.stack.last_mut() {
-                    top.size += size;
-                }
-
-                break Some((size, dir));
-            }
-
-            let entry = children[top.child_pos].clone();
-
-            drop(dir);
-
-            top.child_pos += 1;
-
-            match entry.borrow().data {
-                EntryData::Directory { .. } => {
-                    self.stack.push(StackEntry {
-                        dir: entry.clone(),
-                        child_pos: 0,
-                        size: 0,
-                    });
+                    break Some((size, dir));
                 },
-                EntryData::File { size } => {
-                    top.size += size;
-                    break Some((size, entry.clone()));
+                Some(ref entry) => {
+                    let entry = entry.clone();
+                    top.next_child = entry.borrow().sibling.clone();
+
+                    match entry.borrow().data {
+                        EntryData::Directory { ref child } => {
+                            self.stack.push(StackEntry {
+                                dir: entry.clone(),
+                                next_child: child.clone(),
+                                size: 0,
+                            });
+                        },
+                        EntryData::File { size } => {
+                            top.size += size;
+                            break Some((size, entry.clone()));
+                        },
+                    };
                 },
             };
         }
@@ -114,8 +106,9 @@ impl Entry {
         Entry {
             name,
             parent: None,
+            sibling: None,
             data: EntryData::Directory {
-                children: Vec::new(),
+                child: None,
             },
         }
     }
@@ -124,6 +117,7 @@ impl Entry {
         Entry {
             name,
             parent: None,
+            sibling: None,
             data: EntryData::File {
                 size,
             },
@@ -170,12 +164,14 @@ impl Shell {
     fn cd_to_child(&mut self, child_name: &str) -> Result<(), String> {
         let cwd_rc = self.cwd.clone();
         let cwd_ref = cwd_rc.borrow();
-        let children = match cwd_ref.data {
-            EntryData::Directory { ref children } => children.iter(),
+        let mut next_child = match cwd_ref.data {
+            EntryData::Directory { ref child } => child.clone(),
             _ => panic!("cwd is not a directory!"),
         };
 
-        for child in children {
+        while let Some(ref child) = next_child {
+            let child = child.clone();
+
             if child.borrow().name.eq(child_name) {
                 return match child.borrow().data {
                     EntryData::Directory { .. } => {
@@ -186,6 +182,8 @@ impl Shell {
                              .to_string()),
                 };
             }
+
+            next_child = child.borrow().sibling.clone();
         }
 
         Err("Tried to change directory into a file that doesn’t exist"
@@ -199,13 +197,14 @@ impl Shell {
 
         let mut parent = self.cwd.borrow_mut();
 
-        let children = match parent.data {
-            EntryData::Directory { ref mut children } => children,
+        match parent.data {
+            EntryData::Directory { ref mut child } => {
+                child_mut.sibling = child.clone();
+                *child = Some(Rc::new(RefCell::new(child_mut)));
+            },
             EntryData::File { .. } =>
                 panic!("Tried to add a child entry to a file entry"),
         };
-
-        children.push(Rc::new(RefCell::new(child_mut)));
     }
 
     fn add_file(&mut self, name: String, size: usize) {
@@ -271,9 +270,9 @@ impl Drop for Shell {
             // The iterator is depth first so whenever we encounter a
             // directory all of its child directories will already
             // have been destroyed
-            if let EntryData::Directory { ref mut children } =
+            if let EntryData::Directory { ref mut child } =
                 entry.borrow_mut().data {
-                children.clear();
+                *child = None;
             }
         }
     }
