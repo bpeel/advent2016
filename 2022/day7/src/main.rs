@@ -26,6 +26,89 @@ struct Shell {
     cd_re: Regex,
 }
 
+#[derive(Debug)]
+struct StackEntry {
+    dir: Rc<RefCell<Entry>>,
+    // It would be really nice to able to do this by storing a real
+    // iterator, but it doesn’t look like there’s a way to get the
+    // borrow checker to allow it because we also need to modify the
+    // stack while the entries still have the iterators.
+    child_pos: usize,
+    size: usize,
+}
+
+struct DirIter {
+    stack: Vec<StackEntry>,
+}
+
+impl DirIter {
+    fn new(dir: Rc<RefCell<Entry>>) -> DirIter {
+        let mut stack = Vec::<StackEntry>::new();
+
+        stack.push(StackEntry {
+            dir,
+            child_pos: 0,
+            size: 0,
+        });
+
+        DirIter { stack }
+    }
+}
+
+impl Iterator for DirIter {
+    type Item = (usize, Rc<RefCell<Entry>>);
+
+    fn next(&mut self) -> Option<(usize, Rc<RefCell<Entry>>)> {
+        loop {
+            let top = match self.stack.last_mut() {
+                Some(e) => e,
+                None => break None,
+            };
+
+            let dir = top.dir.borrow();
+
+            let children = match dir.data {
+                EntryData::Directory { ref children } => children,
+                EntryData::File { .. } =>
+                    panic!("Iterator stack has a file entry in it"),
+            };
+
+            if top.child_pos >= children.len() {
+                drop(dir);
+                let size = top.size;
+                let dir = top.dir.clone();
+                self.stack.pop();
+
+                if let Some(top) = self.stack.last_mut() {
+                    top.size += size;
+                }
+
+                break Some((size, dir));
+            }
+
+            let entry = children[top.child_pos].clone();
+
+            drop(dir);
+
+            top.child_pos += 1;
+
+            match entry.borrow().data {
+                EntryData::Directory { .. } => {
+                    self.stack.push(StackEntry {
+                        dir: entry.clone(),
+                        child_pos: 0,
+                        size: 0,
+                    });
+                },
+                EntryData::File { size } => {
+                    top.size += size;
+                    break Some((size, entry.clone()));
+                },
+            };
+        }
+    }
+}
+
 impl Entry {
     fn new_directory(name: String) -> Entry {
         Entry {
@@ -160,6 +243,17 @@ impl Shell {
             Err(format!("Invalid command: {}", command))
         }
     }
+
+    fn iter(&self) -> DirIter {
+        DirIter::new(self.root_dir.clone())
+    }
+}
+
+impl IntoIterator for Shell {
+    type Item = <DirIter as Iterator>::Item;
+    type IntoIter = DirIter;
+
+    fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
 
 fn main() -> std::process::ExitCode {
@@ -177,6 +271,10 @@ fn main() -> std::process::ExitCode {
         if let Err(e) = shell.run_command(&line) {
             eprintln!("line {}: {}", line_num + 1, e);
         }
+    }
+
+    for (size, entry) in shell {
+        println!("{} {}", size, entry.borrow().name);
     }
 
     std::process::ExitCode::SUCCESS
