@@ -256,6 +256,29 @@ impl IntoIterator for Shell {
     fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
 
+impl Drop for Shell {
+    fn drop(&mut self) {
+        // Use an iterator to destroy the entries instead of letting
+        // rust do it. This is important if the tree is really deep
+        // because otherwise rust will just do it with a recursive
+        // method and this can blow the stack.
+        //
+        // This obviously doesn’t matter for the actual problem but it
+        // is needed for example with this data:
+        //
+        // https://www.reddit.com/r/adventofcode/comments/zeuba6/comment/iz9sncz
+        for (_, entry) in DirIter::new(self.root_dir.clone()) {
+            // The iterator is depth first so whenever we encounter a
+            // directory all of its child directories will already
+            // have been destroyed
+            if let EntryData::Directory { ref mut children } =
+                entry.borrow_mut().data {
+                children.clear();
+            }
+        }
+    }
+}
+
 fn main() -> std::process::ExitCode {
     let mut shell = Shell::new();
     let mut exit_code = std::process::ExitCode::SUCCESS;
