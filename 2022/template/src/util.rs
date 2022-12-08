@@ -93,7 +93,7 @@ impl std::fmt::Display for Grid {
             for x in 0..self.width {
                 let b = self.values[y * self.width + x];
 
-                let c = if b > b' ' && b < 127u8 {
+                let c = if b >= b' ' && b < 127u8 {
                     b as char
                 } else {
                     '□'
@@ -143,9 +143,9 @@ mod tests {
         assert_eq!(grid.values.len(), 0);
 
         // Non-displayable ASCII characters and bytes >= 127
-        let mut test_input: &[u8] = b"\x00\x01\xff\n\x7e\x7fp\n";
+        let mut test_input: &[u8] = b"\x00\x01\x02\xff\n\x7e\x7f \x1f\n";
         let grid = Grid::load(&mut test_input).unwrap();
-        assert_eq!(grid.to_string(), "□□□\n~□p");
+        assert_eq!(grid.to_string(), "□□□□\n~□ □");
 
         // Parsing stops after blank line
         let mut test_input: &[u8] = b"abc\ndef\n\npotato";
