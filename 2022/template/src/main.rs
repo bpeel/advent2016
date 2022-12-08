@@ -1,4 +1,5 @@
 mod util;
+mod walker;
 
 use std::io::BufRead;
 
@@ -61,6 +62,30 @@ fn main() -> std::process::ExitCode {
 
     println!("{}", grid);
     println!("{:?}", items);
+
+    walker::shortest_walk((0, 0), |path, (x, y)| {
+        if x < 0 || y < 0 {
+            return walker::VisitResult::BACKTRACK;
+        }
+
+        let x = x as usize;
+        let y = y as usize;
+
+        if x >= grid.width || y >= grid.height {
+            return walker::VisitResult::BACKTRACK;
+        }
+
+        if x == 10 && y == 10 {
+            println!("{} {:?}", path.len(), path);
+            return walker::VisitResult::BACKTRACK;
+        }
+
+        if grid.values[y * grid.height + x] != b'.' {
+            return walker::VisitResult::BACKTRACK;
+        }
+
+        return walker::VisitResult::CONTINUE;
+    });
 
     std::process::ExitCode::SUCCESS
 }
