@@ -94,6 +94,12 @@ fn load_map<T>(input: &mut T) -> Result<Map, Error>
         let bytes = input.fill_buf()?;
 
         if bytes.len() == 0 {
+            if x != 0 {
+                return Err(Error::new(ErrorKind::Other,
+                                      "last line does not end with a \
+                                       newline character"));
+            }
+
             break Ok(Map { width, height, values: Box::from(values) });
         }
 
@@ -121,12 +127,6 @@ fn load_map<T>(input: &mut T) -> Result<Map, Error>
                                                     unexpected character",
                                            height + 1))),
             }
-        }
-
-        if x != 0 {
-            return Err(Error::new(ErrorKind::Other,
-                                  "last line does not end with a \
-                                   newline character"));
         }
 
         let len = bytes.len();
