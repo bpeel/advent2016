@@ -74,12 +74,12 @@ impl Visibility {
         vis.sweep(map,
                   Visibility::FROM_TOP,
                   0..vis.width,
-                  (0..vis.values.len()).step_by(vis.height));
+                  (0..vis.values.len()).step_by(vis.width));
         // Sweep up
         vis.sweep(map,
                   Visibility::FROM_BOTTOM,
                   0..vis.width,
-                  (0..vis.values.len()).step_by(vis.height).rev());
+                  (0..vis.values.len()).step_by(vis.width).rev());
 
         vis
     }
