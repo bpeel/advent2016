@@ -8,24 +8,33 @@ struct Map {
 }
 
 #[derive(Debug, Clone)]
+struct PointVisibility {
+    bits: u8,
+    distances: [u8; 4],
+}
+
+#[derive(Debug, Clone)]
 struct Visibility {
     width: usize,
     height: usize,
-    values: Box<[u8]>,
+    values: Box<[PointVisibility]>,
 }
 
 impl Visibility {
-    const FROM_LEFT: u8 = 1u8 << 0;
-    const FROM_RIGHT: u8 = 1u8 << 1;
-    const FROM_TOP: u8 = 1u8 << 2;
-    const FROM_BOTTOM: u8 = 1u8 << 3;
+    const FROM_LEFT: u8 = 0;
+    const FROM_RIGHT: u8 = 1;
+    const FROM_TOP: u8 = 2;
+    const FROM_BOTTOM: u8 = 3;
     const ALL: u8 = 0b1111u8;
 
     fn new(map: &Map) -> Visibility {
         let mut vis = Visibility {
             width: map.width,
             height: map.height,
-            values: std::iter::repeat(Visibility::ALL)
+            values: std::iter::repeat(PointVisibility {
+                bits: Visibility::ALL,
+                distances: [0u8; 4]
+            })
                 .take(map.width * map.height)
                 .collect(),
         };
@@ -56,7 +65,7 @@ impl Visibility {
 
     fn sweep<O, I>(&mut self,
                    map: &Map,
-                   bit: u8,
+                   axis: u8,
                    outer_iter: O,
                    inner_iter: I)
         where O: Iterator<Item = usize>,
@@ -67,15 +76,23 @@ impl Visibility {
 
         for outer in outer_iter {
             let mut tallest_tree = -1;
+            let mut blocker_positions = [0usize; 10];
 
-            for inner in inner_iter.clone() {
+            for (inner_num, inner) in inner_iter.clone().enumerate() {
                 let pos = outer + inner;
                 let this_tree = map.values[pos] as i16;
 
                 if this_tree <= tallest_tree {
-                    self.values[pos] &= !bit;
+                    self.values[pos].bits &= !(1u8 << axis);
                 } else {
                     tallest_tree = this_tree;
+                }
+
+                self.values[pos].distances[axis as usize] =
+                    (inner_num - blocker_positions[this_tree as usize]) as u8;
+
+                for i in 0..=this_tree as usize {
+                    blocker_positions[i] = inner_num;
                 }
             }
         }
@@ -145,7 +162,13 @@ fn main() -> std::process::ExitCode {
 
     let vis = Visibility::new(&map);
 
-    println!("part 1: {}", vis.values.iter().filter(|&&v| v > 0).count());
+    println!("part 1: {}", vis.values.iter().filter(|v| v.bits > 0).count());
+
+    let part2 = vis.values.iter()
+        .map(|pv| pv.distances.iter().fold(1, |a, &b| a as u32 * b as u32))
+        .max().unwrap();
+
+    println!("part 2: {}", part2);
 
     std::process::ExitCode::SUCCESS
 }
