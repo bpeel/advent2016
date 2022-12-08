@@ -39,12 +39,12 @@ impl Visibility {
                 .collect(),
         };
 
-        // Sweep left
+        // Sweep right
         vis.sweep(map,
                   Visibility::FROM_LEFT,
                   (0..vis.values.len()).step_by(vis.width),
                   0..vis.width);
-        // Sweep right
+        // Sweep left
         vis.sweep(map,
                   Visibility::FROM_RIGHT,
                   (0..vis.values.len()).step_by(vis.width),
