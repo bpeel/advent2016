@@ -11,33 +11,43 @@ struct Map {
 struct Visibility {
     width: usize,
     height: usize,
-    values: Box<[bool]>,
+    values: Box<[u8]>,
 }
 
 impl Visibility {
+    const FROM_LEFT: u8 = 1u8 << 0;
+    const FROM_RIGHT: u8 = 1u8 << 1;
+    const FROM_TOP: u8 = 1u8 << 2;
+    const FROM_BOTTOM: u8 = 1u8 << 3;
+    const ALL: u8 = 0b1111u8;
+
     fn new(map: &Map) -> Visibility {
         let mut vis = Visibility {
             width: map.width,
             height: map.height,
-            values: std::iter::repeat(true)
+            values: std::iter::repeat(Visibility::ALL)
                 .take(map.width * map.height)
                 .collect(),
         };
 
         // Sweep left
         vis.sweep(map,
+                  Visibility::FROM_LEFT,
                   (0..vis.values.len()).step_by(vis.width),
                   0..vis.width);
         // Sweep right
         vis.sweep(map,
+                  Visibility::FROM_RIGHT,
                   (0..vis.values.len()).step_by(vis.width),
                   (0..vis.width).rev());
         // Sweep down
         vis.sweep(map,
+                  Visibility::FROM_TOP,
                   0..vis.width,
                   (0..vis.values.len()).step_by(vis.height));
         // Sweep up
         vis.sweep(map,
+                  Visibility::FROM_BOTTOM,
                   0..vis.width,
                   (0..vis.values.len()).step_by(vis.height).rev());
 
@@ -46,6 +56,7 @@ impl Visibility {
 
     fn sweep<O, I>(&mut self,
                    map: &Map,
+                   bit: u8,
                    outer_iter: O,
                    inner_iter: I)
         where O: Iterator<Item = usize>,
@@ -62,7 +73,7 @@ impl Visibility {
                 let this_tree = map.values[pos];
 
                 if this_tree <= tallest_tree {
-                    self.values[pos] = false;
+                    self.values[pos] &= !bit;
                 } else {
                     tallest_tree = this_tree;
                 }
@@ -138,7 +149,11 @@ fn main() -> std::process::ExitCode {
 
     for y in 0..vis.height {
         for x in 0..vis.width {
-            print!("{}", if vis.values[y * vis.width + x] { '*' } else { '.' });
+            print!("{}", if vis.values[y * vis.width + x] == 0 {
+                '.'
+            } else {
+                '#'
+            });
         }
         println!("");
     }
