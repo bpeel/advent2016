@@ -66,11 +66,11 @@ impl Visibility {
         assert_eq!(self.height, map.height);
 
         for outer in outer_iter {
-            let mut tallest_tree = 0u8;
+            let mut tallest_tree = -1;
 
             for inner in inner_iter.clone() {
                 let pos = outer + inner;
-                let this_tree = map.values[pos];
+                let this_tree = map.values[pos] as i16;
 
                 if this_tree <= tallest_tree {
                     self.values[pos] &= !bit;
