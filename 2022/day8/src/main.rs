@@ -143,21 +143,9 @@ fn main() -> std::process::ExitCode {
         Ok(map) => map,
     };
 
-    println!("{:?}", map);
-
     let vis = Visibility::new(&map);
 
-    for y in 0..vis.height {
-        for x in 0..vis.width {
-            print!("{}", if vis.values[y * vis.width + x] == 0 {
-                '.'
-            } else {
-                '#'
-            });
-        }
-        println!("");
-    }
-
+    println!("part 1: {}", vis.values.iter().filter(|&&v| v > 0).count());
 
     std::process::ExitCode::SUCCESS
 }
