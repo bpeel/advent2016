@@ -184,4 +184,38 @@ mod test {
         assert_eq!(Direction::LEFT.offset(), (-1, 0));
         assert_eq!(Direction::RIGHT.offset(), (1, 0));
     }
+
+    #[test]
+    fn test_grid_walk() {
+        let mut test_input: &[u8] = b"#########\n\
+                                      # #######\n\
+                                      # #     #\n\
+                                      # ##### #\n\
+                                      #       #\n\
+                                      #########\n";
+        let grid = crate::util::Grid::load(&mut test_input).unwrap();
+
+        let mut visited = std::collections::HashSet::<(i32, i32)>::new();
+
+        shortest_walk((1, 1), |path, (x, y)| {
+            if grid.values[y as usize * grid.width + x as usize] != b' ' {
+                return VisitResult::BACKTRACK;
+            }
+
+            assert!(!visited.contains(&(x, y)));
+            visited.insert((x, y));
+
+            if (x, y) == (3, 2) {
+                let expected_path: Vec<Direction> = "dddrrrrrruullll"
+                    .chars()
+                    .map(|c| Direction::from_char(c).unwrap())
+                    .collect();
+                assert_eq!(path, &expected_path);
+            }
+
+            VisitResult::CONTINUE
+        });
+
+        assert!(visited.contains(&(3, 2)));
+    }
 }
