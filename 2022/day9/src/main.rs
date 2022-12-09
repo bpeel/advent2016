@@ -19,18 +19,18 @@ impl Rope {
     fn move_head(&mut self, direction_start: (i32, i32)) {
         let mut direction = direction_start;
 
-        for head_pos in (0..self.links.len()).rev() {
+        for head_pos in 0..self.links.len() {
             let head = &mut self.links[head_pos];
 
             head.x += direction.0;
             head.y += direction.1;
 
-            if head_pos == 0 {
+            if head_pos >= self.links.len() - 1 {
                 break;
             }
 
             let head = &self.links[head_pos];
-            let tail = &self.links[head_pos - 1];
+            let tail = &self.links[head_pos + 1];
 
             if (head.x - tail.x).abs() <= 1 && (head.y - tail.y).abs() <= 1 {
                 break;
@@ -42,7 +42,8 @@ impl Rope {
     }
 
     fn tail(&self) -> (i32, i32) {
-        (self.links[0].x, self.links[0].y)
+        let tail = self.links.last().unwrap();
+        (tail.x, tail.y)
     }
 }
 
