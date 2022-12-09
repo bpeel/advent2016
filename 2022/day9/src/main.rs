@@ -13,11 +13,7 @@ struct Rope {
 
 impl Rope {
     fn new(size: usize) -> Rope {
-        Rope {
-            links: std::iter::repeat(RopeLink { x: 0, y: 0 })
-                .take(size)
-                .collect()
-        }
+        Rope { links: vec![RopeLink { x: 0, y: 0 }; size] }
     }
 
     fn move_head(&mut self, direction_start: (i32, i32)) {
