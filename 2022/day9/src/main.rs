@@ -58,7 +58,7 @@ fn read_commands<I>(lines: &mut I) -> Result<Vec<Command>, String>
 
     for (line_num, result) in lines.enumerate() {
         let line = match result {
-            Err(e) => e.to_string(),
+            Err(e) => return Err(e.to_string()),
             Ok(line) => line,
         };
 
