@@ -108,6 +108,28 @@ fn run_part(commands: &[Command], rope_length: usize) -> usize {
     visited.len()
 }
 
+// Unofficial part 3 from Reddit
+// https://www.reddit.com/r/adventofcode/comments/zh4hvm/2022_day_9_shortest_rope_with_fixed_tail/
+fn run_part3(commands: &[Command]) -> usize {
+    let mut rope = Rope::new(1);
+
+    for command in commands {
+        for _ in 0..command.count {
+            rope.move_head(command.direction);
+
+            // If the tail has moved away from the center then make
+            // the rope longer
+            let last = rope.links.last().unwrap();
+
+            if last.x != 0 || last.y != 0 {
+                rope.links.push(RopeLink { x: 0, y: 0 });
+            }
+        }
+    }
+
+    rope.links.len()
+}
+
 fn main() -> std::process::ExitCode {
     let commands = match read_commands(&mut std::io::stdin().lines()) {
         Err(e) => {
@@ -119,6 +141,7 @@ fn main() -> std::process::ExitCode {
 
     println!("part 1: {}", run_part(&commands, 2));
     println!("part 2: {}", run_part(&commands, 10));
+    println!("part 3: {}", run_part3(&commands));
 
     std::process::ExitCode::SUCCESS
 }
