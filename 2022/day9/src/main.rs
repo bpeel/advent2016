@@ -40,10 +40,26 @@ struct Pos {
     y: i32,
 }
 
-#[derive(Clone, Debug)]
-struct Rope {
-    head: Pos,
-    tail: Pos,
+fn move_rope(rope: &mut [Pos], direction: (i32, i32)) {
+    let head = rope.len() - 1;
+
+    rope[head].x += direction.0;
+    rope[head].y += direction.1;
+
+    if head == 0 {
+        return;
+    }
+
+    let tail = head - 1;
+
+    let horiz = (rope[head].x - rope[tail].x).abs() > 1;
+    let vert = (rope[head].y - rope[tail].y).abs() > 1;
+
+    if horiz || vert {
+        let dir = ((rope[head].x - rope[tail].x).signum(),
+                   (rope[head].y - rope[tail].y).signum());
+        move_rope(&mut rope[0..head], dir);
+    }
 }
 
 fn main() -> std::process::ExitCode {
@@ -62,42 +78,31 @@ fn main() -> std::process::ExitCode {
     }
 
     let mut visited = HashSet::<Pos>::new();
-    let mut rope = Rope { head: Pos { x: 0, y: 0 }, tail: Pos { x: 0, y: 0 } };
+    let rope_start = Pos { x: 0, y: 0 };
+    let mut rope: Vec<Pos> = std::iter::repeat(rope_start).take(10).collect();
 
-    visited.insert(rope.tail.clone());
+    visited.insert(rope[0].clone());
 
     for item in items {
         for _ in 0..item.count {
-            match item.direction {
+            let direction = match item.direction {
                 'U' => {
-                    rope.head.y -= 1;
+                    (0, -1)
                 },
                 'D' => {
-                    rope.head.y += 1;
+                    (0, 1)
                 },
                 'L' => {
-                    rope.head.x -= 1;
+                    (-1, 0)
                 },
                 'R' => {
-                    rope.head.x += 1;
+                    (1, 0)
                 },
                 _ => panic!("??"),
-            }
-            let horiz = (rope.head.x - rope.tail.x).abs() > 1;
-            let vert = (rope.head.y - rope.tail.y).abs() > 1;
-            if horiz {
-                rope.tail.x += (rope.head.x - rope.tail.x).signum();
-                if rope.tail.y != rope.head.y {
-                    rope.tail.y += (rope.head.y - rope.tail.y).signum();
-                }
-            } else if vert {
-                rope.tail.y += (rope.head.y - rope.tail.y).signum();
-                if rope.tail.x != rope.head.x {
-                    rope.tail.x += (rope.head.x - rope.tail.x).signum();
-                }
-            }
-            println!("{:?} {:?} {:?}", item.direction, rope.head, rope.tail);
-            visited.insert(rope.tail.clone());
+            };
+            move_rope(&mut rope, direction);
+            println!("{:?} {:?} {:?}", item.direction, rope[9], rope[0]);
+            visited.insert(rope[0].clone());
         }
     }
 
