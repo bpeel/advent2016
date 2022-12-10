@@ -52,8 +52,10 @@ fn main() -> std::process::ExitCode {
 
     let mut ireg = 1i32;
     let mut clock = 0;
-    let mut next_target_cycle = 20;
-    let mut target_sum = 0;
+    const WIDTH: usize = 40;
+    const HEIGHT: usize = 6;
+    let mut screen = vec![false; WIDTH * HEIGHT];
+    let mut scan_pos = 0;
 
     for item in items {
         let count = match item {
@@ -61,13 +63,10 @@ fn main() -> std::process::ExitCode {
             Item::Add(_) => 2,
         };
 
-        if clock + count >= next_target_cycle {
-            println!("{} {}", clock, ireg);
-            target_sum += next_target_cycle * ireg;
-            next_target_cycle += 40;
-            if next_target_cycle > 220 {
-                break;
-            }
+        for i in 0..count {
+            let x = (clock + i) as usize % WIDTH;
+            let y = (clock + i) as usize / WIDTH;
+            screen[y * WIDTH + x] = (x as i32 - ireg).abs() <= 1;
         }
 
         if let Item::Add(x) = item {
@@ -76,7 +75,12 @@ fn main() -> std::process::ExitCode {
         clock += count;
     }
 
-    println!("part 1 {}", target_sum);
+    for y in 0..HEIGHT {
+        for x in 0..WIDTH {
+            print!("{}", if screen[y * WIDTH + x] { "#" } else { "." });
+        }
+        println!("");
+    }
 
     std::process::ExitCode::SUCCESS
 }
