@@ -1,0 +1,13 @@
+10DIM values%(100)
+20FOR I%=0 TO 99
+30INPUT values%(I%)
+40NEXT
+45file%=OPENOUT("temp")
+50FOR I%=0 TO 99
+60line$=STR$((I%+100)*10)+"D."+STR$(values%(I%))
+70FOR J%=1 TO LEN(line$)
+80BPUT# file%,ASC(MID$(line$,J%,1))
+90NEXT
+100BPUT# file%,13
+110NEXT
+120CLOSE# file%
