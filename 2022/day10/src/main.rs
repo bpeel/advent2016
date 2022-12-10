@@ -1,16 +1,17 @@
-use std::io::BufRead;
+const SCREEN_WIDTH: usize = 40;
+const SCREEN_HEIGHT: usize = 6;
 
 #[derive(Debug, Clone)]
-enum Item {
+enum Instruction {
     Add(i32),
     Noop,
 }
 
-fn read_items<I>(lines: &mut I) -> Result<Vec<Item>, String>
+fn read_items<I>(lines: &mut I) -> Result<Vec<Instruction>, String>
     where I: Iterator<Item = Result<String, std::io::Error>>
 {
     let re = regex::Regex::new(r"^addx (-?\d+)$").unwrap();
-    let mut items = Vec::<Item>::new();
+    let mut items = Vec::<Instruction>::new();
 
     for (line_num, result) in lines.enumerate() {
         let line = match result {
@@ -19,7 +20,7 @@ fn read_items<I>(lines: &mut I) -> Result<Vec<Item>, String>
         };
 
         if line == "noop" {
-            items.push(Item::Noop);
+            items.push(Instruction::Noop);
             continue;
         }
 
@@ -29,57 +30,77 @@ fn read_items<I>(lines: &mut I) -> Result<Vec<Item>, String>
                                        line_num + 1)),
         };
 
-        items.push(Item::Add(captures[1].parse::<i32>().unwrap()));
+        let operand = match captures[1].parse::<i32>() {
+            Ok(o) => o,
+            Err(e) => return Err(format!("line {}: {}",
+                                         line_num + 1,
+                                         e.to_string())),
+        };
+
+        items.push(Instruction::Add(operand));
     }
 
     Ok(items)
 }
 
 fn main() -> std::process::ExitCode {
-    let items;
-
-    {
-        let mut input = std::io::stdin().lock();
-
-        items = match read_items(&mut input.lines()) {
-            Err(e) => {
-                eprintln!("{}", e);
-                return std::process::ExitCode::FAILURE;
-            },
-            Ok(items) => items,
-        };
-    }
+    let items = match read_items(&mut std::io::stdin().lines()) {
+        Err(e) => {
+            eprintln!("{}", e);
+            return std::process::ExitCode::FAILURE;
+        },
+        Ok(items) => items,
+    };
 
     let mut ireg = 1i32;
     let mut clock = 0;
-    const WIDTH: usize = 40;
-    const HEIGHT: usize = 6;
-    let mut screen = vec![false; WIDTH * HEIGHT];
-    let mut scan_pos = 0;
+    let mut screen = vec![b'.'; SCREEN_WIDTH * SCREEN_HEIGHT];
 
-    for item in items {
+    let mut part1 = 0;
+    let mut next_target_cycle = 20;
+
+    'item_loop: for item in items {
         let count = match item {
-            Item::Noop => 1,
-            Item::Add(_) => 2,
+            Instruction::Noop => 1,
+            Instruction::Add(_) => 2,
         };
 
-        for i in 0..count {
-            let x = (clock + i) as usize % WIDTH;
-            let y = (clock + i) as usize / WIDTH;
-            screen[y * WIDTH + x] = (x as i32 - ireg).abs() <= 1;
+        // part 1
+        if clock + count >= next_target_cycle {
+            part1 += next_target_cycle as i32 * ireg;
+            next_target_cycle += 40;
         }
 
-        if let Item::Add(x) = item {
+        // part 2
+        for i in 0..count {
+            let y = (clock + i) / SCREEN_WIDTH;
+
+            if y >= SCREEN_HEIGHT {
+                break 'item_loop;
+            }
+
+            let x = (clock + i) % SCREEN_WIDTH;
+
+            if (x as i32 - ireg).abs() <= 1 {
+                screen[y * SCREEN_WIDTH + x] = b'#';
+            }
+        }
+
+        if let Instruction::Add(x) = item {
             ireg += x;
         }
+
         clock += count;
     }
 
-    for y in 0..HEIGHT {
-        for x in 0..WIDTH {
-            print!("{}", if screen[y * WIDTH + x] { "#" } else { "." });
-        }
-        println!("");
+    println!("part 1: {}", part1);
+
+    println!("part 2:");
+
+    for y in 0..SCREEN_HEIGHT {
+        let line = &screen[y * SCREEN_WIDTH..(y + 1) * SCREEN_WIDTH];
+
+        println!("{}", std::str::from_utf8(line).unwrap());
     }
 
     std::process::ExitCode::SUCCESS
