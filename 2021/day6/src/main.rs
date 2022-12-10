@@ -5,30 +5,39 @@ fn main() -> Result<(), Error> {
 
     std::io::stdin().read_line(&mut contents)?;
 
-    let mut fishes: Vec<u32> = contents.trim_end().split(",").map(|num| {
-        num.parse::<u32>().unwrap()
-    }).collect();
+    let mut fish_counts = vec![0u64; 9];
 
-    for i in 0..80 {
-        let mut new_fish = 0;
+    for num in contents.trim_end().split(",") {
+        let n = match num.parse::<usize>() {
+            Err(e) => return Err(Error::new(std::io::ErrorKind::Other,
+                                            format!("{}: {}", num, e))),
+            Ok(n) => n,
+        };
 
-        for fish in fishes.iter_mut() {
-            if *fish <= 0 {
-                *fish = 6;
-                new_fish += 1;
-            } else {
-                *fish -= 1;
-            }
+        if n >= fish_counts.len() {
+            return Err(Error::new(std::io::ErrorKind::Other,
+                                  format!("invalid fish value: {}", n)));
         }
 
-        fishes.extend(std::iter::repeat(8u32).take(new_fish));
+        fish_counts[n] += 1;
+    }
+
+    for i in 0..256 {
+        let new_fish = fish_counts[0];
+
+        let len = fish_counts.len();
+        fish_counts.copy_within(1..len, 0);
+        fish_counts[6] += new_fish;
+        fish_counts[len - 1] = new_fish;
 
         if i == 17 {
-            println!("after 18 days: {}", fishes.len());
+            println!("after 18 days: {}", fish_counts.iter().sum::<u64>());
+        } else if i == 79 {
+            println!("part 1: {}", fish_counts.iter().sum::<u64>());
         }
     }
 
-    println!("part 1: {}", fishes.len());
+    println!("part 2: {}", fish_counts.iter().sum::<u64>());
 
     Ok(())
 }
