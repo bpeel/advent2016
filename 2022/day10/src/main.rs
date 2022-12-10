@@ -54,7 +54,7 @@ fn main() -> std::process::ExitCode {
 
     let mut ireg = 1i32;
     let mut clock = 0;
-    let mut screen = vec![b'.'; SCREEN_WIDTH * SCREEN_HEIGHT];
+    let mut screen = vec![false; SCREEN_WIDTH * SCREEN_HEIGHT];
 
     let mut part1 = 0;
     let mut next_target_cycle = 20;
@@ -81,9 +81,7 @@ fn main() -> std::process::ExitCode {
 
             let x = (clock + i) % SCREEN_WIDTH;
 
-            if (x as i32 - ireg).abs() <= 1 {
-                screen[y * SCREEN_WIDTH + x] = b'#';
-            }
+            screen[y * SCREEN_WIDTH + x] = (x as i32 - ireg).abs() <= 1;
         }
 
         if let Instruction::Add(x) = item {
@@ -98,9 +96,12 @@ fn main() -> std::process::ExitCode {
     println!("part 2:");
 
     for y in 0..SCREEN_HEIGHT {
-        let line = &screen[y * SCREEN_WIDTH..(y + 1) * SCREEN_WIDTH];
+        let line_bools = &screen[y * SCREEN_WIDTH..(y + 1) * SCREEN_WIDTH];
+        let line = line_bools.iter()
+            .map(|&v| if v { '█' } else { '·' })
+            .collect::<String>();
 
-        println!("{}", std::str::from_utf8(line).unwrap());
+        println!("{}", line);
     }
 
     std::process::ExitCode::SUCCESS
