@@ -23,8 +23,30 @@ fn read_list<T>() -> Result<Vec<T>, std::io::Error>
     Ok(result)
 }
 
-fn calculate_fuel(crabs: &[i32], target: i32) -> i32 {
-    crabs.iter().map(|pos| (pos - target).abs()).sum::<i32>()
+fn fuel_func_part1(distance: i32) -> i32 {
+    distance
+}
+
+fn fuel_func_part2(distance: i32) -> i32 {
+    distance * (distance + 1) / 2
+}
+
+fn calculate_fuel(crabs: &[i32],
+                  target: i32,
+                  fuel_func: fn(i32) -> i32) -> i32
+{
+    crabs.iter().map(|pos| fuel_func((pos - target).abs())).sum::<i32>()
+}
+
+fn find_best_target(crabs: &[i32],
+                    fuel_func: fn(i32) -> i32) -> i32
+{
+    let last_crab = crabs.iter().max().unwrap();
+
+    (0..last_crab + 1)
+        .map(|pos| calculate_fuel(crabs, pos, fuel_func))
+        .min()
+        .unwrap()
 }
 
 fn main() -> std::process::ExitCode {
@@ -41,13 +63,8 @@ fn main() -> std::process::ExitCode {
         return std::process::ExitCode::FAILURE;
     }
 
-    let best_fuel_used = crabs
-        .iter()
-        .map(|&crab| calculate_fuel(&crabs, crab))
-        .min()
-        .unwrap();
-
-    println!("part 1: {}", best_fuel_used);
+    println!("part 1: {}", find_best_target(&crabs, fuel_func_part1));
+    println!("part 2: {}", find_best_target(&crabs, fuel_func_part2));
 
     std::process::ExitCode::SUCCESS
 }
