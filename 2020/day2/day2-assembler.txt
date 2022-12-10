@@ -1,0 +1,85 @@
+5DIM proc% 200
+10FOR O%=0 TO 3 STEP 3
+20P%=proc%
+30[OPT O%
+35.readnum
+36LDA #0
+38STA &70
+39.loop
+40JSR &FFD7
+50CMP #ASC("0")
+60BCC notdigit
+70CMP #ASC("9")+1
+80BCS notdigit
+83SBC #ASC("0")-1
+85STA&71
+87LDA&70
+90ASL A
+100ASL A
+110ASL A
+120ASL A
+130ORA &71
+135STA &70
+140JMP loop
+150.notdigit
+160RTS
+170.handleline
+180JSR readnum
+190LDA &70
+200STA &72
+210JSR readnum
+220LDA &70
+230STA &73
+240JSR &FFD7
+250STA &74
+260\ &72 = min range
+270\ &73 = max range
+280\ &74 = byte to search
+290JSR &FFD7
+300\ &75 = count
+305\ &76,7 valid line count
+310LDA #0
+320STA &75
+325SED
+330.lineloop
+340JSR &FFD7
+350CMP #10
+360BEQ done
+370CMP #&FE
+380BEQ done
+390CMP &74
+400 BNE lineloop
+410LDA &75
+420CLC
+430ADC #1
+440STA &75
+450JMP lineloop
+460.done
+470LDA &75
+480SEC
+490SBC &72
+500BCC notvalid
+510 LDA &73
+520 SBC &75
+530BCC notvalid
+540LDA &76
+550CLD
+560ADC #0
+570STA &76
+580LDA &77
+590ADC #0
+600STA &77
+610.notvalid
+620CLD
+630RTS
+997]
+998IF P%-proc%>200 THEN ERROR "proc too long"
+999NEXT
+1000file%=OPENIN("data")
+1002!&76=0
+1005REPEAT
+1010Y%=file%
+1020CALL handleline
+1030 PRINT STR$~(?&72);" ";STR$~(?&73);" ";CHR$(?&74);" ";STR$~(?&75);" ";!&76
+1035UNTIL EOF#(file%)
+1040CLOSE#file%

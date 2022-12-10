@@ -1,0 +1,10 @@
+5PRINT"#AdventOfCode Day 13"
+10dep%=1003240
+20mint%=9999
+30REPEAT
+40READ id%
+50IF id%=-1 THEN PRINT "Part 1 = ";minid%*mint%:END
+60t%=id%-(dep% MOD id%)
+70IF t%<mint% THEN mint%=t%:minid%=id%
+80UNTIL FALSE
+90DATA 19,41,37,787,13,23,29,571,17,-1

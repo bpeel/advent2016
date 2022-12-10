@@ -1,0 +1,31 @@
+5DIM proc% 100
+10FOR O%=0 TO 3 STEP 3
+20P%=proc%
+30[OPT O%
+40LDA &601
+50STA &72
+60LDA &602
+70STA &73
+80 LDY #3
+90.loop
+100LDA (&72), Y
+110STA &74, Y
+120DEY
+130BPL loop
+140\ now &74,5 is the address of the string
+150\ &77 is the length
+160LDY &77
+170DEY
+180LDX #0
+190.sloop
+200LDA (&74), Y
+210CMP #ASC("c")
+220BNE notc
+230INX
+240.notc
+250DEY
+260BPL sloop
+270STX &70
+280RTS
+290]
+300NEXT
