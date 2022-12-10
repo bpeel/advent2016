@@ -7,11 +7,11 @@ enum Instruction {
     Noop,
 }
 
-fn read_items<I>(lines: &mut I) -> Result<Vec<Instruction>, String>
+fn read_instructions<I>(lines: &mut I) -> Result<Vec<Instruction>, String>
     where I: Iterator<Item = Result<String, std::io::Error>>
 {
     let re = regex::Regex::new(r"^addx (-?\d+)$").unwrap();
-    let mut items = Vec::<Instruction>::new();
+    let mut instructions = Vec::<Instruction>::new();
 
     for (line_num, result) in lines.enumerate() {
         let line = match result {
@@ -20,7 +20,7 @@ fn read_items<I>(lines: &mut I) -> Result<Vec<Instruction>, String>
         };
 
         if line == "noop" {
-            items.push(Instruction::Noop);
+            instructions.push(Instruction::Noop);
             continue;
         }
 
@@ -37,19 +37,19 @@ fn read_items<I>(lines: &mut I) -> Result<Vec<Instruction>, String>
                                          e.to_string())),
         };
 
-        items.push(Instruction::Add(operand));
+        instructions.push(Instruction::Add(operand));
     }
 
-    Ok(items)
+    Ok(instructions)
 }
 
 fn main() -> std::process::ExitCode {
-    let items = match read_items(&mut std::io::stdin().lines()) {
+    let instructions = match read_instructions(&mut std::io::stdin().lines()) {
         Err(e) => {
             eprintln!("{}", e);
             return std::process::ExitCode::FAILURE;
         },
-        Ok(items) => items,
+        Ok(instructions) => instructions,
     };
 
     let mut ireg = 1i32;
@@ -59,8 +59,8 @@ fn main() -> std::process::ExitCode {
     let mut part1 = 0;
     let mut next_target_cycle = 20;
 
-    'item_loop: for item in items {
-        let count = match item {
+    'instruction_loop: for instruction in instructions {
+        let count = match instruction {
             Instruction::Noop => 1,
             Instruction::Add(_) => 2,
         };
@@ -76,7 +76,7 @@ fn main() -> std::process::ExitCode {
             let y = (clock + i) / SCREEN_WIDTH;
 
             if y >= SCREEN_HEIGHT {
-                break 'item_loop;
+                break 'instruction_loop;
             }
 
             let x = (clock + i) % SCREEN_WIDTH;
@@ -84,7 +84,7 @@ fn main() -> std::process::ExitCode {
             screen[y * SCREEN_WIDTH + x] = (x as i32 - ireg).abs() <= 1;
         }
 
-        if let Instruction::Add(x) = item {
+        if let Instruction::Add(x) = instruction {
             ireg += x;
         }
 
