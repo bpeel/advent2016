@@ -96,18 +96,19 @@ impl std::str::FromStr for Monkey {
 fn run_round(monkies: &mut Vec<Monkey>,
              wrapper: i64,
              divide_worry_level: bool) {
-    let mut to_throw = Vec::<(usize, i64)>::new();
-
     for monkey_num in 0..monkies.len() {
-        to_throw.clear();
+        // This dance with split_mut_at is so that we can modify the
+        // target monkey whilst still holding a mutable reference to
+        // the source monkey. This explains to the borrow checker that
+        // they aren’t the same monkies
+        let (before, tail) = monkies.split_at_mut(monkey_num);
+        let (monkey_ref, after) = tail.split_at_mut(1);
 
-        let monkey = monkies.get_mut(monkey_num).unwrap();
+        let monkey = &mut monkey_ref[0];
 
         monkey.throw_count += monkey.items.len();
 
-        while monkey.items.len() > 0 {
-            let mut item = monkey.items.pop().unwrap();
-
+        for &(mut item) in monkey.items.iter() {
             item = monkey.operation.apply(item);
 
             if divide_worry_level {
@@ -116,14 +117,19 @@ fn run_round(monkies: &mut Vec<Monkey>,
 
             item %= wrapper;
 
-            let target = monkey.targets[(item % monkey.test_divisor == 0)
-                                        as usize];
-            to_throw.push((target, item));
+            let target_num = monkey.targets[(item % monkey.test_divisor == 0)
+                                            as usize];
+
+            let target = if target_num < monkey_num {
+                &mut before[target_num]
+            } else {
+                &mut after[target_num - monkey_num - 1]
+            };
+
+            target.items.push(item);
         }
 
-        for (target, item) in to_throw.iter().rev() {
-            monkies[*target].items.push(*item);
-        }
+        monkey.items.clear();
     }
 }
 
