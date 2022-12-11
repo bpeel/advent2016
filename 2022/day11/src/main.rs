@@ -1,15 +1,15 @@
 #[derive(Debug, Clone)]
 enum Operation {
-    Multiply(i32),
-    Add(i32),
+    Multiply(i64),
+    Add(i64),
     Square,
 }
 
 #[derive(Debug, Clone)]
 struct Monkey {
-    items: Vec<i32>,
+    items: Vec<i64>,
     operation: Operation,
-    test_divisor: i32,
+    test_divisor: i64,
     targets: [usize; 2],
     throw_count: usize,
 }
@@ -23,8 +23,8 @@ fn read_monkey<I>(lines: &mut I) -> Result<Monkey, String>
     let re = regex::Regex::new(r"^  Starting items: (.*)$").unwrap();
     let starting_items = re.captures(&starting_items).unwrap()[1].to_string();
     let starting_items = starting_items.split(", ").map(|item| {
-        item.parse::<i32>().unwrap()
-    }).collect::<Vec<i32>>();
+        item.parse::<i64>().unwrap()
+    }).collect::<Vec<i64>>();
 
     let operation = lines.next().unwrap().unwrap();
     let operation = if operation == "  Operation: new = old * old" {
@@ -34,16 +34,16 @@ fn read_monkey<I>(lines: &mut I) -> Result<Monkey, String>
             regex::Regex::new(r"^  Operation: new = old ([+*]) (\d+)").unwrap();
         let captures = re.captures(&operation).unwrap();
         if &captures[1] == "*" {
-            Operation::Multiply(captures[2].parse::<i32>().unwrap())
+            Operation::Multiply(captures[2].parse::<i64>().unwrap())
         } else {
-            Operation::Add(captures[2].parse::<i32>().unwrap())
+            Operation::Add(captures[2].parse::<i64>().unwrap())
         }
     };
 
     let test = lines.next().unwrap().unwrap();
     let re = regex::Regex::new(r"^  Test: divisible by (\d+)").unwrap();
     let captures = re.captures(&test).unwrap();
-    let test = captures[1].parse::<i32>().unwrap();
+    let test = captures[1].parse::<i64>().unwrap();
 
     let mut targets = [0usize; 2];
 
@@ -66,8 +66,8 @@ fn read_monkey<I>(lines: &mut I) -> Result<Monkey, String>
     })
 }
 
-fn run_round(monkies: &mut Vec<Monkey>) {
-    let mut to_throw = Vec::<(usize, i32)>::new();
+fn run_round(monkies: &mut Vec<Monkey>, wrapper: i64) {
+    let mut to_throw = Vec::<(usize, i64)>::new();
 
     for monkey_num in 0..monkies.len() {
         to_throw.clear();
@@ -85,7 +85,7 @@ fn run_round(monkies: &mut Vec<Monkey>) {
                 Operation::Square => item *= item,
             }
 
-            item /= 3;
+            item %= wrapper;
 
             let target = monkey.targets[(item % monkey.test_divisor == 0)
                                         as usize];
@@ -111,10 +111,11 @@ fn main() -> std::process::ExitCode {
         }
     }
 
-    println!("{:?}", monkies);
+    let wrapper = monkies.iter().map(|m| m.test_divisor)
+        .fold(1, |a, b| a * b);
 
-    for _ in 0..20 {
-        run_round(&mut monkies);
+    for _ in 0..10000 {
+        run_round(&mut monkies, wrapper);
     }
 
     monkies.sort_by(|a, b| b.throw_count.cmp(&a.throw_count));
