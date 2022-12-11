@@ -147,6 +147,24 @@ fn run_part(monkies: &[Monkey],
     format!("{} * {} = {}", a, b, a * b)
 }
 
+fn validate_monkies(monkies: &[Monkey]) -> Result<(), String> {
+    for (monkey_num, monkey) in monkies.iter().enumerate() {
+        for target in monkey.targets {
+            if target == monkey_num {
+                return Err(format!("monkey {} throws to itself", monkey_num));
+            }
+
+            if target >= monkies.len() {
+                return Err(format!("monkey {} throws to invalid monkey {}",
+                                   monkey_num,
+                                   target));
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn read_monkies() -> Result<Vec<Monkey>, String> {
     let monkies_str = match std::io::read_to_string(std::io::stdin().lock()) {
         Err(e) => return Err(e.to_string()),
@@ -161,6 +179,8 @@ fn read_monkies() -> Result<Vec<Monkey>, String> {
             Ok(m) => monkies.push(m),
         }
     }
+
+    validate_monkies(&monkies)?;
 
     Ok(monkies)
 }
