@@ -14,56 +14,73 @@ struct Monkey {
     throw_count: usize,
 }
 
-fn read_monkey<I>(lines: &mut I) -> Result<Monkey, String>
-    where I: Iterator<Item = Result<String, std::io::Error>>
-{
-    lines.next().unwrap().unwrap();
+impl std::str::FromStr for Monkey {
+    type Err = String;
 
-    let starting_items = lines.next().unwrap().unwrap();
-    let re = regex::Regex::new(r"^  Starting items: (.*)$").unwrap();
-    let starting_items = re.captures(&starting_items).unwrap()[1].to_string();
-    let starting_items = starting_items.split(", ").map(|item| {
-        item.parse::<i64>().unwrap()
-    }).collect::<Vec<i64>>();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let re = regex::Regex::new("\
+            \\AMonkey \\d+:\n\
+            \x20 Starting items: (?P<items>[\\d, ]+)\n\
+            \x20 Operation: new = old \
+            (?:(?P<square>\\* old)|(?P<op>[*+]) (?P<amount>\\d+))\n\
+            \x20 Test: divisible by (?P<test>\\d+)\n\
+            \x20   If true: throw to monkey (?P<true_monkey>\\d+)\n\
+            \x20   If false: throw to monkey (?P<false_monkey>\\d+)\
+            \\s*\\z").unwrap();
 
-    let operation = lines.next().unwrap().unwrap();
-    let operation = if operation == "  Operation: new = old * old" {
-        Operation::Square
-    } else {
-        let re =
-            regex::Regex::new(r"^  Operation: new = old ([+*]) (\d+)").unwrap();
-        let captures = re.captures(&operation).unwrap();
-        if &captures[1] == "*" {
-            Operation::Multiply(captures[2].parse::<i64>().unwrap())
-        } else {
-            Operation::Add(captures[2].parse::<i64>().unwrap())
+        let captures = match re.captures(s) {
+            None => return Err("invalid monkey".to_string()),
+            Some(c) => c,
+        };
+
+        let split_re = regex::Regex::new(r",\s*").unwrap();
+
+        let mut items = Vec::<i64>::new();
+
+        for item in split_re.split(&captures["items"]) {
+            items.push(match item.parse::<i64>() {
+                Err(e) => return Err(format!("{}: {}", item, e)),
+                Ok(i) => i,
+            });
         }
-    };
 
-    let test = lines.next().unwrap().unwrap();
-    let re = regex::Regex::new(r"^  Test: divisible by (\d+)").unwrap();
-    let captures = re.captures(&test).unwrap();
-    let test = captures[1].parse::<i64>().unwrap();
+        let operation = match captures.name("square") {
+            Some(_) => Operation::Square,
+            None => {
+                let amount = match captures["amount"].parse::<i64>() {
+                    Err(e) => return Err(format!("{}: {}",
+                                                 &captures["amount"],
+                                                 e)),
+                    Ok(a) => a,
+                };
 
-    let mut targets = [0usize; 2];
+                match &captures["op"] {
+                    "*" => Operation::Multiply(amount),
+                    "+" => Operation::Add(amount),
+                    _ => panic!("unexpected op shouldn’t have been matched \
+                                 by the regexp"),
+                }
+            }
+        };
 
-    for _ in 0..targets.len() {
-        let target = lines.next().unwrap().unwrap();
-        let re = regex::Regex::new(
-            r"^    If (true|false): throw to monkey (\d+)").unwrap();
-        let captures = re.captures(&target).unwrap();
-        let tnum = if &captures[1] == "true" { 1 } else { 0 };
-        let target = captures[2].parse::<usize>().unwrap();
-        targets[tnum] = target;
+        let test_divisor = match captures["test"].parse::<i64>() {
+            Err(e) => return Err(format!("test divisor: {}", e)),
+            Ok(d) => d,
+        };
+
+        let targets = [
+            match captures["false_monkey"].parse::<usize>() {
+                Err(e) => return Err(format!("false monkey: {}", e)),
+                Ok(m) => m,
+            },
+            match captures["true_monkey"].parse::<usize>() {
+                Err(e) => return Err(format!("true monkey: {}", e)),
+                Ok(m) => m,
+            },
+        ];
+
+        Ok(Monkey { items, operation, test_divisor, targets, throw_count: 0 })
     }
-
-    Ok(Monkey {
-        items: starting_items,
-        operation,
-        test_divisor: test,
-        targets,
-        throw_count: 0,
-    })
 }
 
 fn run_round(monkies: &mut Vec<Monkey>,
@@ -124,18 +141,32 @@ fn run_part(monkies: &[Monkey],
     format!("{} * {} = {}", a, b, a * b)
 }
 
-fn main() -> std::process::ExitCode {
+fn read_monkies() -> Result<Vec<Monkey>, String> {
+    let monkies_str = match std::io::read_to_string(std::io::stdin().lock()) {
+        Err(e) => return Err(e.to_string()),
+        Ok(s) => s,
+    };
+
     let mut monkies = Vec::<Monkey>::new();
 
-    let mut lines = std::io::stdin().lines();
-
-    loop {
-        monkies.push(read_monkey(&mut lines).unwrap());
-
-        if matches!(lines.next(), None) {
-            break;
+    for monkey_str in monkies_str.split("\n\n") {
+        match monkey_str.parse::<Monkey>() {
+            Err(s) => return Err(s),
+            Ok(m) => monkies.push(m),
         }
     }
+
+    Ok(monkies)
+}
+
+fn main() -> std::process::ExitCode {
+    let monkies = match read_monkies() {
+        Err(e) => {
+            eprintln!("{}", e);
+            return std::process::ExitCode::FAILURE;
+        },
+        Ok(m) => m,
+    };
 
     println!("part 1: {}", run_part(&monkies, 20, true));
     println!("part 2: {}", run_part(&monkies, 10_000, false));
