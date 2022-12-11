@@ -5,6 +5,16 @@ enum Operation {
     Square,
 }
 
+impl Operation {
+    fn apply(&self, val: i64) -> i64 {
+        match self {
+            Operation::Multiply(o) => val * o,
+            Operation::Add(o) => val + o,
+            Operation::Square => val * val,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Monkey {
     items: Vec<i64>,
@@ -98,11 +108,7 @@ fn run_round(monkies: &mut Vec<Monkey>,
         while monkey.items.len() > 0 {
             let mut item = monkey.items.pop().unwrap();
 
-            match monkey.operation {
-                Operation::Multiply(amount) => item *= amount,
-                Operation::Add(amount) => item += amount,
-                Operation::Square => item *= item,
-            }
+            item = monkey.operation.apply(item);
 
             if divide_worry_level {
                 item /= 3;
