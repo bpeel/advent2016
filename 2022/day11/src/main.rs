@@ -66,7 +66,9 @@ fn read_monkey<I>(lines: &mut I) -> Result<Monkey, String>
     })
 }
 
-fn run_round(monkies: &mut Vec<Monkey>, wrapper: i64) {
+fn run_round(monkies: &mut Vec<Monkey>,
+             wrapper: i64,
+             divide_worry_level: bool) {
     let mut to_throw = Vec::<(usize, i64)>::new();
 
     for monkey_num in 0..monkies.len() {
@@ -85,6 +87,10 @@ fn run_round(monkies: &mut Vec<Monkey>, wrapper: i64) {
                 Operation::Square => item *= item,
             }
 
+            if divide_worry_level {
+                item /= 3;
+            }
+
             item %= wrapper;
 
             let target = monkey.targets[(item % monkey.test_divisor == 0)
@@ -96,6 +102,26 @@ fn run_round(monkies: &mut Vec<Monkey>, wrapper: i64) {
             monkies[*target].items.push(*item);
         }
     }
+}
+
+fn run_part(monkies: &[Monkey],
+            n_rounds: usize,
+            divide_worry_level: bool) -> String {
+    let mut monkies = monkies.to_vec();
+
+    let wrapper = monkies.iter().map(|m| m.test_divisor)
+        .fold(1, |a, b| a * b);
+
+    for _ in 0..n_rounds {
+        run_round(&mut monkies, wrapper, divide_worry_level);
+    }
+
+    monkies.sort_by(|a, b| b.throw_count.cmp(&a.throw_count));
+
+    let a = monkies[0].throw_count;
+    let b = monkies[1].throw_count;
+
+    format!("{} * {} = {}", a, b, a * b)
 }
 
 fn main() -> std::process::ExitCode {
@@ -111,19 +137,8 @@ fn main() -> std::process::ExitCode {
         }
     }
 
-    let wrapper = monkies.iter().map(|m| m.test_divisor)
-        .fold(1, |a, b| a * b);
-
-    for _ in 0..10000 {
-        run_round(&mut monkies, wrapper);
-    }
-
-    monkies.sort_by(|a, b| b.throw_count.cmp(&a.throw_count));
-
-    let a = monkies[0].throw_count;
-    let b = monkies[1].throw_count;
-
-    println!("{} * {} = {}", a, b, a * b);
+    println!("part 1: {}", run_part(&monkies, 20, true));
+    println!("part 2: {}", run_part(&monkies, 10_000, false));
 
     std::process::ExitCode::SUCCESS
 }
