@@ -150,6 +150,53 @@ impl Direction for HexDirection {
     }
 }
 
+// TriangleDirection is meant to be used on a grid of triangle spaces.
+// Every is connected to its left and right neighbours and one
+// neighbour on a nother row. Whether the row neighbour is above or
+// below depends on whether the row and column are odd or even.
+//
+//   ╱0╲1╱2╲3╱ line 0
+//   ╲0╱1╲2╱3╲ line 1
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TriangleDirection {
+    Left,
+    Right,
+    Row,
+}
+
+impl Direction for TriangleDirection {
+    type Pos = (i32, i32);
+
+    fn first_direction() -> TriangleDirection {
+        TriangleDirection::Left
+    }
+
+    fn next_direction(self) -> Option<TriangleDirection> {
+        match self {
+            TriangleDirection::Left => Some(TriangleDirection::Right),
+            TriangleDirection::Right => Some(TriangleDirection::Row),
+            TriangleDirection::Row => None,
+        }
+    }
+
+    fn opposite(self) -> TriangleDirection {
+        match self {
+            TriangleDirection::Left => TriangleDirection::Right,
+            TriangleDirection::Right => TriangleDirection::Left,
+            TriangleDirection::Row => TriangleDirection::Row,
+        }
+    }
+
+    fn move_pos(self, (x, y): (i32, i32)) -> (i32, i32) {
+        match self {
+            TriangleDirection::Left => (x - 1, y),
+            TriangleDirection::Right => (x + 1, y),
+            TriangleDirection::Row => (x, y + ((x ^ y ^ 1) & 1) * 2 - 1),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VisitResult {
     Continue,
@@ -317,6 +364,39 @@ mod test {
         assert_eq!(HexDirection::Left.move_pos((0, 1)), (-1, 1));
         assert_eq!(HexDirection::Right.move_pos((0, 0)), (1, 0));
         assert_eq!(HexDirection::Right.move_pos((0, 1)), (1, 1));
+    }
+
+    #[test]
+    fn test_triangle_direction() {
+        let directions = [TriangleDirection::Left,
+                          TriangleDirection::Right,
+                          TriangleDirection::Row];
+
+        assert_eq!(directions[0], TriangleDirection::first_direction());
+
+        for (i, d) in directions[0..directions.len() - 1].iter().enumerate() {
+            assert_eq!(directions[0].next_direction().unwrap(),
+                       directions[1]);
+        }
+        assert_eq!(directions[directions.len() - 1].next_direction(), None);
+
+        assert_eq!(TriangleDirection::Left.move_pos((0, 0)), (-1, 0));
+        assert_eq!(TriangleDirection::Left.move_pos((0, 1)), (-1, 1));
+        assert_eq!(TriangleDirection::Right.move_pos((0, 0)), (1, 0));
+        assert_eq!(TriangleDirection::Right.move_pos((0, 1)), (1, 1));
+        assert_eq!(TriangleDirection::Row.move_pos((0, 0)), (0, 1));
+        assert_eq!(TriangleDirection::Row.move_pos((0, 1)), (0, 0));
+        assert_eq!(TriangleDirection::Row.move_pos((1, 0)), (1, -1));
+        assert_eq!(TriangleDirection::Row.move_pos((1, 1)), (1, 2));
+
+        for d in directions {
+            assert_eq!(d.opposite().opposite(), d);
+            assert_eq!(d.opposite().move_pos(d.move_pos((1, 2))),
+                       (1, 2));
+            assert_eq!(d.opposite().move_pos(d.move_pos((1, 3))),
+                       (1, 3));
+            assert_eq!(d.revert_pos(d.move_pos((1, 2))), (1, 2));
+        }
     }
 
     #[test]
