@@ -84,6 +84,13 @@ impl Grid {
             values: Box::from(loader.values)
         })
     }
+
+    pub fn get(&self, (x, y): (i32, i32)) -> u8 {
+        assert!(x >= 0 && (x as usize) < self.width);
+        assert!(y >= 0 && (y as usize) < self.height);
+
+        self.values[y as usize * self.width + x as usize]
+    }
 }
 
 impl std::fmt::Display for Grid {

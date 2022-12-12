@@ -70,19 +70,16 @@ fn main() -> std::process::ExitCode {
         }
 
         if path.len() > 0 {
-            let (last_x, last_y) = path[path.len() - 1].revert_pos((xp, yp));
-            let last_height = grid.values[last_x as usize +
-                                          last_y as usize * grid.width];
-            let last_height = letter_height(last_height);
-            let this_height = grid.values[x + y * grid.width];
-            let this_height = letter_height(this_height);
+            let last_pos = path[path.len() - 1].revert_pos((xp, yp));
+            let last_height = letter_height(grid.get(last_pos));
+            let this_height = letter_height(grid.get((xp, yp)));
 
             if last_height - this_height > 1 {
                 return walker::VisitResult::BACKTRACK;
             }
         }
 
-        if grid.values[x + y * grid.width] == b'S' {
+        if grid.get((xp, yp)) == b'S' {
             return walker::VisitResult::GOAL;
         }
 
@@ -98,9 +95,8 @@ fn main() -> std::process::ExitCode {
     // Pick the shortest path out of all the points with zero height
     let part2 = match distances
         .iter()
-        .filter_map(|(&(x, y), &v)| {
-            let l = grid.values[x as usize + y as usize * grid.width];
-            if letter_height(l) == 0 {
+        .filter_map(|(&pos, &v)| {
+            if letter_height(grid.get(pos)) == 0 {
                 Some(v)
             } else {
                 None
