@@ -63,7 +63,7 @@ fn main() -> std::process::ExitCode {
     println!("{}", grid);
     println!("{:?}", items);
 
-    walker::shortest_walk((0, 0), |path, pos| {
+    walker::shortest_walk::<walker::QuadDirection, _>((0, 0), |path, pos| {
         if pos == (10, 10) {
             println!("{} {:?}", path.len(), path);
             return walker::VisitResult::GOAL;
