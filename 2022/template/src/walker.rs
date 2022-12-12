@@ -89,6 +89,67 @@ impl std::str::FromStr for QuadDirection {
     }
 }
 
+// HexDirection is meant to be used on a grid of hexagonal spaces.
+// Every odd line is shifted to the right by 0.5 spaces. So space 0 on
+// line 1 is down and to the right of space 0 on line 0.
+//
+//   ╱╲╱╲╱╲
+//  │0│1│2│ line 0
+//   ╲╱╲╱╲╱╲
+//   │0│1│2│ line 1
+//    ╲╱╲╱╲╱
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum HexDirection {
+    UpLeft,
+    UpRight,
+    DownLeft,
+    DownRight,
+    Left,
+    Right,
+}
+
+impl Direction for HexDirection {
+    type Pos = (i32, i32);
+
+    fn first_direction() -> HexDirection {
+        HexDirection::UpLeft
+    }
+
+    fn next_direction(self) -> Option<HexDirection> {
+        match self {
+            HexDirection::UpLeft => Some(HexDirection::UpRight),
+            HexDirection::UpRight => Some(HexDirection::DownLeft),
+            HexDirection::DownLeft => Some(HexDirection::DownRight),
+            HexDirection::DownRight => Some(HexDirection::Left),
+            HexDirection::Left => Some(HexDirection::Right),
+            HexDirection::Right => None,
+        }
+    }
+
+    fn opposite(self) -> HexDirection {
+        match self {
+            HexDirection::UpLeft => HexDirection::DownRight,
+            HexDirection::UpRight => HexDirection::DownLeft,
+            HexDirection::DownLeft => HexDirection::UpRight,
+            HexDirection::DownRight => HexDirection::UpLeft,
+            HexDirection::Left => HexDirection::Right,
+            HexDirection::Right => HexDirection::Left,
+        }
+    }
+
+    fn move_pos(self, (x, y): (i32, i32)) -> (i32, i32) {
+        match self {
+            HexDirection::UpLeft => (x - (!y & 1), y - 1),
+            HexDirection::UpRight => (x + (y & 1), y - 1),
+            HexDirection::DownLeft => (x - (!y & 1), y + 1),
+            HexDirection::DownRight => (x + (y & 1), y + 1),
+            HexDirection::Left => (x - 1, y),
+            HexDirection::Right => (x + 1, y),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VisitResult {
     CONTINUE,
@@ -215,6 +276,47 @@ mod test {
         assert_eq!(QuadDirection::Down.offset(), (0, 1));
         assert_eq!(QuadDirection::Left.offset(), (-1, 0));
         assert_eq!(QuadDirection::Right.offset(), (1, 0));
+    }
+
+    #[test]
+    fn test_hex_direction() {
+        let directions = [HexDirection::UpLeft,
+                          HexDirection::UpRight,
+                          HexDirection::DownLeft,
+                          HexDirection::DownRight,
+                          HexDirection::Left,
+                          HexDirection::Right];
+
+        assert_eq!(directions[0], HexDirection::first_direction());
+
+        for (i, d) in directions[0..directions.len() - 1].iter().enumerate() {
+            assert_eq!(directions[0].next_direction().unwrap(),
+                       directions[1]);
+        }
+        assert_eq!(directions[directions.len() - 1].next_direction(), None);
+
+        for d in directions {
+            assert_ne!(d.opposite(), d);
+            assert_eq!(d.opposite().opposite(), d);
+            assert_eq!(d.opposite().move_pos(d.move_pos((1, 2))),
+                       (1, 2));
+            assert_eq!(d.opposite().move_pos(d.move_pos((1, 3))),
+                       (1, 3));
+            assert_eq!(d.revert_pos(d.move_pos((1, 2))), (1, 2));
+        }
+
+        assert_eq!(HexDirection::UpLeft.move_pos((0, 0)), (-1, -1));
+        assert_eq!(HexDirection::UpLeft.move_pos((0, 1)), (0, 0));
+        assert_eq!(HexDirection::UpRight.move_pos((0, 0)), (0, -1));
+        assert_eq!(HexDirection::UpRight.move_pos((0, 1)), (1, 0));
+        assert_eq!(HexDirection::DownLeft.move_pos((0, 0)), (-1, 1));
+        assert_eq!(HexDirection::DownLeft.move_pos((0, 1)), (0, 2));
+        assert_eq!(HexDirection::DownRight.move_pos((0, 0)), (0, 1));
+        assert_eq!(HexDirection::DownRight.move_pos((0, 1)), (1, 2));
+        assert_eq!(HexDirection::Left.move_pos((0, 0)), (-1, 0));
+        assert_eq!(HexDirection::Left.move_pos((0, 1)), (-1, 1));
+        assert_eq!(HexDirection::Right.move_pos((0, 0)), (1, 0));
+        assert_eq!(HexDirection::Right.move_pos((0, 1)), (1, 1));
     }
 
     #[test]
