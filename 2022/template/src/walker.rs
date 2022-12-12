@@ -17,34 +17,34 @@ pub trait Direction: Sized + Clone + Copy {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum QuadDirection {
-    UP,
-    DOWN,
-    LEFT,
-    RIGHT,
+    Up,
+    Down,
+    Left,
+    Right,
 }
 
 impl Direction for QuadDirection {
     type Pos = (i32, i32);
 
     fn first_direction() -> QuadDirection {
-        QuadDirection::UP
+        QuadDirection::Up
     }
 
     fn next_direction(self) -> Option<QuadDirection> {
         match self {
-            QuadDirection::UP => Some(QuadDirection::DOWN),
-            QuadDirection::DOWN => Some(QuadDirection::LEFT),
-            QuadDirection::LEFT => Some(QuadDirection::RIGHT),
-            QuadDirection::RIGHT => None,
+            QuadDirection::Up => Some(QuadDirection::Down),
+            QuadDirection::Down => Some(QuadDirection::Left),
+            QuadDirection::Left => Some(QuadDirection::Right),
+            QuadDirection::Right => None,
         }
     }
 
     fn opposite(self) -> QuadDirection {
         match self {
-            QuadDirection::UP => QuadDirection::DOWN,
-            QuadDirection::DOWN => QuadDirection::UP,
-            QuadDirection::LEFT => QuadDirection::RIGHT,
-            QuadDirection::RIGHT => QuadDirection::LEFT,
+            QuadDirection::Up => QuadDirection::Down,
+            QuadDirection::Down => QuadDirection::Up,
+            QuadDirection::Left => QuadDirection::Right,
+            QuadDirection::Right => QuadDirection::Left,
         }
     }
 
@@ -57,19 +57,19 @@ impl Direction for QuadDirection {
 impl QuadDirection {
     pub fn offset(self) -> (i32, i32) {
         match self {
-            QuadDirection::UP => (0, -1),
-            QuadDirection::DOWN => (0, 1),
-            QuadDirection::LEFT => (-1, 0),
-            QuadDirection::RIGHT => (1, 0),
+            QuadDirection::Up => (0, -1),
+            QuadDirection::Down => (0, 1),
+            QuadDirection::Left => (-1, 0),
+            QuadDirection::Right => (1, 0),
         }
     }
 
     pub fn from_char(ch: char) -> Option<QuadDirection> {
         match ch.to_ascii_lowercase() {
-            'u' | 'n' => Some(QuadDirection::UP),
-            'd' | 's' => Some(QuadDirection::DOWN),
-            'l' | 'w' => Some(QuadDirection::LEFT),
-            'r' | 'e' => Some(QuadDirection::RIGHT),
+            'u' | 'n' => Some(QuadDirection::Up),
+            'd' | 's' => Some(QuadDirection::Down),
+            'l' | 'w' => Some(QuadDirection::Left),
+            'r' | 'e' => Some(QuadDirection::Right),
             _ => None
         }
     }
@@ -80,10 +80,10 @@ impl std::str::FromStr for QuadDirection {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match &s.to_ascii_lowercase()[..] {
-            "u" | "n" | "up" | "north" => Ok(QuadDirection::UP),
-            "d" | "s" | "down" | "south" => Ok(QuadDirection::DOWN),
-            "l" | "w" | "left" | "west" => Ok(QuadDirection::LEFT),
-            "r" | "e" | "right" | "east" => Ok(QuadDirection::RIGHT),
+            "u" | "n" | "up" | "north" => Ok(QuadDirection::Up),
+            "d" | "s" | "down" | "south" => Ok(QuadDirection::Down),
+            "l" | "w" | "left" | "west" => Ok(QuadDirection::Left),
+            "r" | "e" | "right" | "east" => Ok(QuadDirection::Right),
             _ => Err(format!("unknown direction: {}", s)),
         }
     }
@@ -192,16 +192,16 @@ mod test {
             }
         }
         check_direction_string(&["up", "u", "UP", "U", "Up", "NoRTH", "n"],
-                               QuadDirection::UP);
+                               QuadDirection::Up);
         check_direction_string(&["down", "d", "DOWN", "D", "Down",
                                  "SoUTH", "s"],
-                               QuadDirection::DOWN);
+                               QuadDirection::Down);
         check_direction_string(&["left", "l", "LEFT", "L", "Left",
                                  "West", "w"],
-                               QuadDirection::LEFT);
+                               QuadDirection::Left);
         check_direction_string(&["right", "r", "RIGHT", "R", "Right",
                                  "East", "E"],
-                               QuadDirection::RIGHT);
+                               QuadDirection::Right);
 
         for d in "udlr".chars() {
             let d = QuadDirection::from_char(d).unwrap();
@@ -211,10 +211,10 @@ mod test {
             assert_eq!(offset.1, -opposite.1);
         }
 
-        assert_eq!(QuadDirection::UP.offset(), (0, -1));
-        assert_eq!(QuadDirection::DOWN.offset(), (0, 1));
-        assert_eq!(QuadDirection::LEFT.offset(), (-1, 0));
-        assert_eq!(QuadDirection::RIGHT.offset(), (1, 0));
+        assert_eq!(QuadDirection::Up.offset(), (0, -1));
+        assert_eq!(QuadDirection::Down.offset(), (0, 1));
+        assert_eq!(QuadDirection::Left.offset(), (-1, 0));
+        assert_eq!(QuadDirection::Right.offset(), (1, 0));
     }
 
     #[test]
