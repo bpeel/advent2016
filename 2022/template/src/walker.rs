@@ -352,4 +352,40 @@ mod test {
 
         assert!(visited.contains(&(3, 2)));
     }
+
+    #[test]
+    fn test_hex_grid_walk() {
+        let mut test_input: &[u8] = b"...\n\
+                                      ##.\n\
+                                      .#.\n\
+                                      .#.\n\
+                                      ...\n";
+        let grid = crate::util::Grid::load(&mut test_input).unwrap();
+
+        let mut found_end = false;
+
+        shortest_walk::<HexDirection, _>((0, 0), |path, pos| {
+            if pos == (0, 2) {
+                assert_eq!(path, &[HexDirection::Right,
+                                   HexDirection::Right,
+                                   HexDirection::DownRight,
+                                   HexDirection::DownLeft,
+                                   HexDirection::DownRight,
+                                   HexDirection::DownLeft,
+                                   HexDirection::Left,
+                                   HexDirection::UpLeft,
+                                   HexDirection::UpLeft]);
+                found_end = true;
+
+                VisitResult::Goal
+            } else {
+                match grid.get(pos) {
+                    Some(b'.') => VisitResult::Continue,
+                    _ => VisitResult::Backtrack,
+                }
+            }
+        });
+
+        assert!(found_end);
+    }
 }
