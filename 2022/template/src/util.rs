@@ -85,11 +85,19 @@ impl Grid {
         })
     }
 
-    pub fn get(&self, (x, y): (i32, i32)) -> u8 {
-        assert!(x >= 0 && (x as usize) < self.width);
-        assert!(y >= 0 && (y as usize) < self.height);
+    pub fn get(&self, (xp, yp): (i32, i32)) -> Option<u8> {
+        if xp < 0 || yp < 0 {
+            return None;
+        }
 
-        self.values[y as usize * self.width + x as usize]
+        let x = xp as usize;
+        let y = yp as usize;
+
+        if x >= self.width || y >= self.height {
+            return None;
+        }
+
+        Some(self.values[y * self.width + x])
     }
 }
 
