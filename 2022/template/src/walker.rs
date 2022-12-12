@@ -152,10 +152,10 @@ impl Direction for HexDirection {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VisitResult {
-    CONTINUE,
-    BACKTRACK,
-    STOP,
-    GOAL,
+    Continue,
+    Backtrack,
+    Stop,
+    Goal,
 }
 
 pub fn walk<D, F>(start_pos: D::Pos, mut visit_func: F)
@@ -167,13 +167,13 @@ pub fn walk<D, F>(start_pos: D::Pos, mut visit_func: F)
 
     loop {
         match visit_func(&stack, pos) {
-            VisitResult::STOP => break,
-            VisitResult::CONTINUE => {
+            VisitResult::Stop => break,
+            VisitResult::Continue => {
                 let first_direction = D::first_direction();
                 stack.push(D::first_direction());
                 pos = first_direction.move_pos(pos);
             },
-            VisitResult::GOAL | VisitResult::BACKTRACK => {
+            VisitResult::Goal | VisitResult::Backtrack => {
                 loop {
                     let last_direction = match stack.pop() {
                         Some(d) => d,
@@ -208,19 +208,19 @@ pub fn shortest_walk<D, F>(start_pos: D::Pos, mut visit_func: F)
                 if path.len() < old_length {
                     let r = visit_func(path, pos);
 
-                    if r != VisitResult::BACKTRACK {
+                    if r != VisitResult::Backtrack {
                         *e.get_mut() = path.len();
                     }
 
                     r
                 } else {
-                    VisitResult::BACKTRACK
+                    VisitResult::Backtrack
                 }
             },
             Entry::Vacant(e) => {
                 let r = visit_func(path, pos);
 
-                if r != VisitResult::BACKTRACK {
+                if r != VisitResult::Backtrack {
                     e.insert(path.len());
                 }
 
@@ -333,7 +333,7 @@ mod test {
 
         shortest_walk::<QuadDirection, _>((1, 1), |path, (x, y)| {
             if grid.values[y as usize * grid.width + x as usize] != b' ' {
-                return VisitResult::BACKTRACK;
+                return VisitResult::Backtrack;
             }
 
             assert!(!visited.contains(&(x, y)));
@@ -347,7 +347,7 @@ mod test {
                 assert_eq!(path, &expected_path);
             }
 
-            VisitResult::CONTINUE
+            VisitResult::Continue
         });
 
         assert!(visited.contains(&(3, 2)));

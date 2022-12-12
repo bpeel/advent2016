@@ -66,12 +66,12 @@ fn main() -> std::process::ExitCode {
     walker::shortest_walk::<walker::QuadDirection, _>((0, 0), |path, pos| {
         if pos == (10, 10) {
             println!("{} {:?}", path.len(), path);
-            return walker::VisitResult::GOAL;
+            return walker::VisitResult::Goal;
         }
 
         match grid.get(pos) {
-            Some(b'.') => return walker::VisitResult::CONTINUE,
-            None | Some(_) => return walker::VisitResult::BACKTRACK,
+            Some(b'.') => return walker::VisitResult::Continue,
+            None | Some(_) => return walker::VisitResult::Backtrack,
         }
     });
 
