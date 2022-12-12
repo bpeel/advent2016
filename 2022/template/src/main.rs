@@ -77,7 +77,7 @@ fn main() -> std::process::ExitCode {
 
         if x == 10 && y == 10 {
             println!("{} {:?}", path.len(), path);
-            return walker::VisitResult::BACKTRACK;
+            return walker::VisitResult::GOAL;
         }
 
         if grid.values[y * grid.height + x] != b'.' {

@@ -77,6 +77,7 @@ pub enum VisitResult {
     CONTINUE,
     BACKTRACK,
     STOP,
+    GOAL,
 }
 
 pub fn walk<F>(start_pos: (i32, i32), mut visit_func: F)
@@ -92,7 +93,7 @@ pub fn walk<F>(start_pos: (i32, i32), mut visit_func: F)
                 stack.push(Direction::UP);
                 pos = Direction::UP.move_pos(pos);
             },
-            VisitResult::BACKTRACK => {
+            VisitResult::GOAL | VisitResult::BACKTRACK => {
                 loop {
                     let last_direction = match stack.pop() {
                         Some(d) => d,
@@ -123,15 +124,25 @@ pub fn shortest_walk<F>(start_pos: (i32, i32), mut visit_func: F)
                 let old_length = *e.get();
 
                 if path.len() < old_length {
-                    *e.get_mut() = path.len();
-                    visit_func(path, pos)
+                    let r = visit_func(path, pos);
+
+                    if r != VisitResult::BACKTRACK {
+                        *e.get_mut() = path.len();
+                    }
+
+                    r
                 } else {
                     VisitResult::BACKTRACK
                 }
             },
             Entry::Vacant(e) => {
-                e.insert(path.len());
-                visit_func(path, pos)
+                let r = visit_func(path, pos);
+
+                if r != VisitResult::BACKTRACK {
+                    e.insert(path.len());
+                }
+
+                r
             },
         }
     });
