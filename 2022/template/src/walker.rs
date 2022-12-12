@@ -83,11 +83,11 @@ pub enum VisitResult {
 pub fn walk<F>(start_pos: (i32, i32), mut visit_func: F)
     where F: FnMut(&[Direction], (i32, i32)) -> VisitResult
 {
-    let mut stack = vec![Direction::RIGHT];
+    let mut stack = Vec::<Direction>::new();
     let mut pos = start_pos;
 
     loop {
-        match visit_func(&stack[1..], pos) {
+        match visit_func(&stack, pos) {
             VisitResult::STOP => break,
             VisitResult::CONTINUE => {
                 stack.push(Direction::UP);
