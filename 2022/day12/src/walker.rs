@@ -113,7 +113,8 @@ pub fn walk<F>(start_pos: (i32, i32), mut visit_func: F)
     }
 }
 
-pub fn shortest_walk<F>(start_pos: (i32, i32), mut visit_func: F)
+pub fn shortest_walk<F>(start_pos: (i32, i32), mut visit_func: F) ->
+    HashMap::<(i32, i32), usize>
     where F: FnMut(&[Direction], (i32, i32)) -> VisitResult
 {
     let mut shortest_visits = HashMap::<(i32, i32), usize>::new();
@@ -143,6 +144,8 @@ pub fn shortest_walk<F>(start_pos: (i32, i32), mut visit_func: F)
             },
         }
     });
+
+    shortest_visits
 }
 
 #[cfg(test)]

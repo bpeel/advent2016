@@ -4,7 +4,7 @@ mod walker;
 fn get_start(grid: &util::Grid) -> (i32, i32) {
     for y in 0..grid.height {
         for x in 0..grid.width {
-            if grid.values[y * grid.width + x] == b'S' {
+            if grid.values[y * grid.width + x] == b'E' {
                 return (x as i32, y as i32);
             }
         }
@@ -37,9 +37,7 @@ fn main() -> std::process::ExitCode {
         };
     }
 
-    let start = get_start(&grid);
-
-    walker::shortest_walk(start, |path, (xp, yp)| {
+    let distances = walker::shortest_walk(get_start(&grid), |path, (xp, yp)| {
         if xp < 0 || yp < 0 {
             return walker::VisitResult::BACKTRACK;
         }
@@ -60,18 +58,29 @@ fn main() -> std::process::ExitCode {
             let this_height = grid.values[x + y * grid.width];
             let this_height = letter_height(this_height);
 
-            if last_height != b'S' as i32 && this_height - last_height > 1 {
+            if last_height - this_height > 1 {
                 return walker::VisitResult::BACKTRACK;
             }
         }
 
-        if grid.values[x + y * grid.width] == b'E' {
-            println!("{} {:?}", path.len(), path);
+        if grid.values[x + y * grid.width] == b'S' {
             return walker::VisitResult::GOAL;
         }
 
         return walker::VisitResult::CONTINUE;
     });
+
+    println!("{}",
+             distances
+             .iter()
+             .filter_map(|(&(x, y), &v)| {
+                 let l = grid.values[x as usize + y as usize * grid.width];
+                 if letter_height(l) == 0 {
+                     Some(v)
+                 } else {
+                     None
+                 }
+             }).min().unwrap());
 
     std::process::ExitCode::SUCCESS
 }
