@@ -72,7 +72,7 @@ impl std::str::FromStr for Direction {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VisitResult {
     CONTINUE,
     BACKTRACK,
