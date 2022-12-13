@@ -1,11 +1,16 @@
 use std::cmp::Ordering;
 
-#[derive(Debug, Clone)]
+static MARKERS: [&'static str; 2] = [
+    "[[2]]",
+    "[[6]]",
+];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct List {
     entries: Vec<ListEntry>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum ListEntry {
     Integer(i32),
     List(List),
@@ -187,6 +192,20 @@ fn compare_list_slice(a: &[ListEntry], b: &[ListEntry]) -> Ordering {
     }
 }
 
+fn make_lists_with_dividers(pairs: &[(List, List)]) -> Vec<List> {
+    let mut lists: Vec<List> =
+        MARKERS.iter().map(|marker| marker.parse::<List>().unwrap()).collect();
+
+    for (a, b) in pairs {
+        lists.push(a.clone());
+        lists.push(b.clone());
+    }
+
+    lists.sort_by(|a, b| compare_list_slice(&a.entries, &b.entries));
+
+    lists
+}
+
 fn read_lists<I>(lines: &mut I) -> Result<Vec<(List, List)>, String>
     where I: Iterator<Item = Result<String, std::io::Error>>
 {
@@ -256,7 +275,19 @@ fn main() -> std::process::ExitCode {
         }
     }
 
+    let lists_with_dividers = make_lists_with_dividers(&lists);
+
+    for l in lists_with_dividers.iter() {
+        println!("{}", l);
+    }
+
+    let part2 = MARKERS.iter().map(|marker| {
+        let marker = marker.parse::<List>().unwrap();
+        lists_with_dividers.iter().position(|l| l == &marker).unwrap() + 1
+    }).fold(1, |a, b| a * b);
+
     println!("part 1: {}", part1);
+    println!("part 2: {}", part2);
 
     std::process::ExitCode::SUCCESS
 }
