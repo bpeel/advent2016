@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 #[derive(Debug, Clone)]
 struct List {
     entries: Vec<ListEntry>,
@@ -12,6 +14,30 @@ enum ListEntry {
 impl List {
     fn new() -> List {
         List { entries: Vec::<ListEntry>::new() }
+    }
+}
+
+impl std::fmt::Display for ListEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ListEntry::Integer(i) => write!(f, "{}", i),
+            ListEntry::List(l) => write!(f, "{}", l),
+        }
+    }
+}
+
+impl std::fmt::Display for List {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[")?;
+
+        for (entry_num, entry) in self.entries.iter().enumerate() {
+            if entry_num > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", entry)?;
+        }
+
+        write!(f, "]")
     }
 }
 
@@ -114,10 +140,59 @@ impl std::str::FromStr for List {
     }
 }
 
-fn read_lists<I>(lines: &mut I) -> Result<Vec<List>, String>
+fn compare_entry(a: &ListEntry, b: &ListEntry) -> Ordering {
+    match a {
+        ListEntry::Integer(int_a) => {
+            match b {
+                ListEntry::Integer(int_b) => int_a.cmp(int_b),
+                ListEntry::List(list_b) => {
+                    let array_a = [ListEntry::Integer(*int_a)];
+                    compare_list_slice(&array_a, &list_b.entries)
+                },
+            }
+        },
+        ListEntry::List(list_a) => {
+            match b {
+                ListEntry::Integer(int_b) => {
+                    let array_b = [ListEntry::Integer(*int_b)];
+                    compare_list_slice(&list_a.entries, &array_b)
+                },
+                ListEntry::List(list_b) =>
+                    compare_list_slice(&list_a.entries, &list_b.entries),
+            }
+        },
+    }
+}
+
+fn compare_list_slice(a: &[ListEntry], b: &[ListEntry]) -> Ordering {
+    let mut a = a.into_iter();
+    let mut b = b.into_iter();
+
+    loop {
+        match a.next() {
+            Some(entry_a) => {
+                match b.next() {
+                    None => return Ordering::Greater,
+                    Some(entry_b) => match compare_entry(entry_a, entry_b) {
+                        Ordering::Equal => (),
+                        r @ (Ordering::Greater | Ordering::Less) => return r,
+                    }
+                }
+            },
+            None => match b.next() {
+                Some(_) => return Ordering::Less,
+                None => return Ordering::Equal,
+            },
+        }
+    }
+}
+
+fn read_lists<I>(lines: &mut I) -> Result<Vec<(List, List)>, String>
     where I: Iterator<Item = Result<String, std::io::Error>>
 {
-    let mut lists = Vec::<List>::new();
+    let mut lists = Vec::<(List, List)>::new();
+    let mut list_a = Option::<List>::None;
+    let mut need_blank = false;
 
     for (line_num, result) in lines.enumerate() {
         let line = match result {
@@ -125,16 +200,33 @@ fn read_lists<I>(lines: &mut I) -> Result<Vec<List>, String>
             Ok(line) => line,
         };
 
+        if line.len() == 0 {
+            if let Some(_) = list_a {
+                return Err(format!("line {}: unpaired list", line_num + 1));
+            }
+            need_blank = false;
+            continue;
+        } else if need_blank {
+            return Err(format!("line {}: expected blank line", line_num + 1));
+        }
+
         let list = match line.parse::<List>() {
             Ok(list) => list,
-            Err(e) => return Err(format!("line: {}: {}",
-                                         line_num + 1,
-                                         e)),
+            Err(e) => return Err(format!("line {}: {}", line_num + 1, e)),
         };
 
-        println!("{:?}", list);
+        match list_a {
+            None => list_a = Some(list),
+            Some(other_list) => {
+                lists.push((other_list, list));
+                list_a = None;
+                need_blank = true;
+            },
+        }
+    }
 
-        lists.push(list);
+    if let Some(_) = list_a {
+        return Err("unpaired list at end of file".to_string());
     }
 
     Ok(lists)
@@ -149,7 +241,22 @@ fn main() -> std::process::ExitCode {
         Ok(lists) => lists,
     };
 
-    println!("{:?}", lists);
+    let mut part1 = 0;
+
+    for (pair_num, (a, b)) in lists.iter().enumerate() {
+        println!("a: {}\n\
+                  b: {}",
+                 a, b);
+        let comp = compare_list_slice(&a.entries, &b.entries);
+        println!("{:?}", comp);
+
+        match comp {
+            Ordering::Less | Ordering::Equal => part1 += pair_num + 1,
+            Ordering::Greater => (),
+        }
+    }
+
+    println!("part 1: {}", part1);
 
     std::process::ExitCode::SUCCESS
 }
