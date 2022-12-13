@@ -56,6 +56,15 @@ enum ParseState {
 
 use ParseState::*;
 
+fn add_digit(before: i32, digit: char) -> Result<i32, String> {
+    let digit = digit.to_digit(10).unwrap() as i32;
+
+    match before.checked_mul(10).and_then(|n| n.checked_add(digit)) {
+        Some(n) => Ok(n),
+        None => Err("invalid number".to_string()),
+    }
+}
+
 impl std::str::FromStr for List {
     type Err = String;
 
@@ -131,7 +140,7 @@ impl std::str::FromStr for List {
                             .entries
                             .last_mut().unwrap();
                         if let ListEntry::Integer(ref mut n) = entry {
-                            *n = (*n * 10) + digit.to_digit(10).unwrap() as i32;
+                            *n = add_digit(*n, digit)?;
                         } else {
                             panic!("should be parsing an integer");
                         }
