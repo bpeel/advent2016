@@ -7,12 +7,7 @@ pub trait Direction: Sized + Clone + Copy {
 
     fn first_direction() -> Self;
     fn next_direction(self) -> Option<Self>;
-    fn opposite(self) -> Self;
     fn move_pos(self, pos: Self::Pos) -> Self::Pos;
-
-    fn revert_pos(self, pos: Self::Pos) -> Self::Pos {
-        self.opposite().move_pos(pos)
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -36,15 +31,6 @@ impl Direction for QuadDirection {
             QuadDirection::Down => Some(QuadDirection::Left),
             QuadDirection::Left => Some(QuadDirection::Right),
             QuadDirection::Right => None,
-        }
-    }
-
-    fn opposite(self) -> QuadDirection {
-        match self {
-            QuadDirection::Up => QuadDirection::Down,
-            QuadDirection::Down => QuadDirection::Up,
-            QuadDirection::Left => QuadDirection::Right,
-            QuadDirection::Right => QuadDirection::Left,
         }
     }
 
@@ -127,17 +113,6 @@ impl Direction for HexDirection {
         }
     }
 
-    fn opposite(self) -> HexDirection {
-        match self {
-            HexDirection::UpLeft => HexDirection::DownRight,
-            HexDirection::UpRight => HexDirection::DownLeft,
-            HexDirection::DownLeft => HexDirection::UpRight,
-            HexDirection::DownRight => HexDirection::UpLeft,
-            HexDirection::Left => HexDirection::Right,
-            HexDirection::Right => HexDirection::Left,
-        }
-    }
-
     fn move_pos(self, (x, y): (i32, i32)) -> (i32, i32) {
         match self {
             HexDirection::UpLeft => (x - (!y & 1), y - 1),
@@ -177,14 +152,6 @@ impl Direction for TriangleDirection {
             TriangleDirection::Left => Some(TriangleDirection::Right),
             TriangleDirection::Right => Some(TriangleDirection::Row),
             TriangleDirection::Row => None,
-        }
-    }
-
-    fn opposite(self) -> TriangleDirection {
-        match self {
-            TriangleDirection::Left => TriangleDirection::Right,
-            TriangleDirection::Right => TriangleDirection::Left,
-            TriangleDirection::Row => TriangleDirection::Row,
         }
     }
 
@@ -311,14 +278,6 @@ mod test {
                                  "East", "E"],
                                QuadDirection::Right);
 
-        for d in "udlr".chars() {
-            let d = QuadDirection::from_char(d).unwrap();
-            let offset = d.offset();
-            let opposite = d.opposite().offset();
-            assert_eq!(offset.0, -opposite.0);
-            assert_eq!(offset.1, -opposite.1);
-        }
-
         assert_eq!(QuadDirection::Up.offset(), (0, -1));
         assert_eq!(QuadDirection::Down.offset(), (0, 1));
         assert_eq!(QuadDirection::Left.offset(), (-1, 0));
@@ -341,16 +300,6 @@ mod test {
                        directions[1]);
         }
         assert_eq!(directions[directions.len() - 1].next_direction(), None);
-
-        for d in directions {
-            assert_ne!(d.opposite(), d);
-            assert_eq!(d.opposite().opposite(), d);
-            assert_eq!(d.opposite().move_pos(d.move_pos((1, 2))),
-                       (1, 2));
-            assert_eq!(d.opposite().move_pos(d.move_pos((1, 3))),
-                       (1, 3));
-            assert_eq!(d.revert_pos(d.move_pos((1, 2))), (1, 2));
-        }
 
         assert_eq!(HexDirection::UpLeft.move_pos((0, 0)), (-1, -1));
         assert_eq!(HexDirection::UpLeft.move_pos((0, 1)), (0, 0));
@@ -388,15 +337,6 @@ mod test {
         assert_eq!(TriangleDirection::Row.move_pos((0, 1)), (0, 0));
         assert_eq!(TriangleDirection::Row.move_pos((1, 0)), (1, -1));
         assert_eq!(TriangleDirection::Row.move_pos((1, 1)), (1, 2));
-
-        for d in directions {
-            assert_eq!(d.opposite().opposite(), d);
-            assert_eq!(d.opposite().move_pos(d.move_pos((1, 2))),
-                       (1, 2));
-            assert_eq!(d.opposite().move_pos(d.move_pos((1, 3))),
-                       (1, 3));
-            assert_eq!(d.revert_pos(d.move_pos((1, 2))), (1, 2));
-        }
     }
 
     #[test]
