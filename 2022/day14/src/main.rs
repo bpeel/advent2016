@@ -256,6 +256,10 @@ fn read_lines<I>(input_lines: &mut I) -> Result<Vec<Line>, String>
         }
     }
 
+    if lines.is_empty() {
+        return Err("empty input".to_string());
+    }
+
     Ok(lines)
 }
 
