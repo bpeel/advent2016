@@ -283,6 +283,7 @@ fn map_digits(digits: &[u8], mapping: &[u8]) -> Result<u32, String> {
 }
 
 fn main() -> std::process::ExitCode {
+    let mut part1 = 0;
     let mut part2 = 0;
 
     for (line_num, result) in std::io::stdin().lines().enumerate() {
@@ -301,6 +302,13 @@ fn main() -> std::process::ExitCode {
             },
             Ok(d) => d,
         };
+
+        for digit in display.digits.iter() {
+            match digit.count_ones() {
+                2 | 4 | 3 | 7 => part1 += 1,
+                _ => (),
+            }
+        }
 
         let mut mapping = WireMapping::new();
 
@@ -328,6 +336,7 @@ fn main() -> std::process::ExitCode {
         part2 += display_num;
     }
 
+    println!("part 1: {}", part1);
     println!("part 2: {}", part2);
 
     std::process::ExitCode::SUCCESS
