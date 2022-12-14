@@ -206,10 +206,10 @@ pub enum VisitResult {
 }
 
 pub fn walk<D, F>(start_pos: D::Pos, mut visit_func: F)
-    where F: FnMut(&[D], D::Pos) -> VisitResult,
+    where F: FnMut(&[(D, D::Pos)], D::Pos) -> VisitResult,
           D: Direction
 {
-    let mut stack = Vec::<D>::new();
+    let mut stack = Vec::<(D, D::Pos)>::new();
     let mut pos = start_pos;
 
     loop {
@@ -217,20 +217,20 @@ pub fn walk<D, F>(start_pos: D::Pos, mut visit_func: F)
             VisitResult::Stop => break,
             VisitResult::Continue => {
                 let first_direction = D::first_direction();
-                stack.push(D::first_direction());
+                stack.push((D::first_direction(), pos));
                 pos = first_direction.move_pos(pos);
             },
             VisitResult::Goal | VisitResult::Backtrack => {
                 loop {
-                    let last_direction = match stack.pop() {
-                        Some(d) => d,
+                    let (last_direction, last_pos) = match stack.pop() {
+                        Some(s) => s,
                         None => return,
                     };
 
-                    pos = last_direction.revert_pos(pos);
+                    pos = last_pos;
 
                     if let Some(d) = last_direction.next_direction() {
-                        stack.push(d);
+                        stack.push((d, last_pos));
                         pos = d.move_pos(pos);
                         break;
                     }
@@ -241,13 +241,13 @@ pub fn walk<D, F>(start_pos: D::Pos, mut visit_func: F)
 }
 
 pub fn shortest_walk<D, F>(start_pos: D::Pos, mut visit_func: F)
-    where F: FnMut(&[D], D::Pos) -> VisitResult,
+    where F: FnMut(&[(D, D::Pos)], D::Pos) -> VisitResult,
           D: Direction,
           D::Pos: Hash + Eq,
 {
     let mut shortest_visits = HashMap::<D::Pos, usize>::new();
 
-    walk::<D, _>(start_pos, |path: &[D], pos| {
+    walk::<D, _>(start_pos, |path: &[(D, D::Pos)], pos| {
         match shortest_visits.entry(pos) {
             Entry::Occupied(mut e) => {
                 let old_length = *e.get();
@@ -424,7 +424,11 @@ mod test {
                     .chars()
                     .map(|c| QuadDirection::from_char(c).unwrap())
                     .collect();
-                assert_eq!(path, &expected_path);
+                let actual_path: Vec<QuadDirection> = path
+                    .iter()
+                    .map(|&(dir, _)| dir)
+                    .collect();
+                assert_eq!(&actual_path, &expected_path);
             }
 
             VisitResult::Continue
@@ -446,15 +450,19 @@ mod test {
 
         shortest_walk::<HexDirection, _>((0, 0), |path, pos| {
             if pos == (0, 2) {
-                assert_eq!(path, &[HexDirection::Right,
-                                   HexDirection::Right,
-                                   HexDirection::DownRight,
-                                   HexDirection::DownLeft,
-                                   HexDirection::DownRight,
-                                   HexDirection::DownLeft,
-                                   HexDirection::Left,
-                                   HexDirection::UpLeft,
-                                   HexDirection::UpLeft]);
+                let dirs: Vec<HexDirection> = path
+                    .iter()
+                    .map(|&(dir, _)| dir)
+                    .collect();
+                assert_eq!(&dirs, &[HexDirection::Right,
+                                    HexDirection::Right,
+                                    HexDirection::DownRight,
+                                    HexDirection::DownLeft,
+                                    HexDirection::DownRight,
+                                    HexDirection::DownLeft,
+                                    HexDirection::Left,
+                                    HexDirection::UpLeft,
+                                    HexDirection::UpLeft]);
                 found_end = true;
 
                 VisitResult::Goal
