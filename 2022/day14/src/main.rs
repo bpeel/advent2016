@@ -109,6 +109,7 @@ enum GridSpace {
     Sand,
 }
 
+#[derive(Debug, Clone)]
 struct Grid {
     bounds: Bounds,
     values: Vec<GridSpace>,
@@ -261,8 +262,18 @@ fn get_bounds(lines: &[Line]) -> Bounds {
     bounds
 }
 
+fn fill_grid_with_sand(mut grid: Grid) -> usize {
+    for sand_num in 0.. {
+        if !grid.add_sand((500, 0)) {
+            return sand_num;
+        }
+    }
+
+    panic!("for loop on infinite range should never end");
+}
+
 fn main() -> std::process::ExitCode {
-    let lines = match read_lines(&mut std::io::stdin().lines()) {
+    let mut lines = match read_lines(&mut std::io::stdin().lines()) {
         Err(e) => {
             eprintln!("{}", e);
             return std::process::ExitCode::FAILURE;
@@ -270,14 +281,22 @@ fn main() -> std::process::ExitCode {
         Ok(lines) => lines,
     };
 
-    let mut grid = Grid::new(&lines);
+    let grid = Grid::new(&lines);
+    let bounds = grid.bounds.clone();
 
-    for sand_num in 0.. {
-        if !grid.add_sand((500, 0)) {
-            println!("part 1: {}", sand_num);
-            break;
-        }
-    }
+    println!("part 1: {}", fill_grid_with_sand(grid));
+
+    // Add a finite line at the bottom of the grid that should have
+    // the same effect as an infinite line. It shouldn’t be possible
+    // for the sand to go further than 500-height to the left and
+    // 500+height to the right.
+    let new_y = bounds.max.1 + 2;
+    lines.push(Line {
+        start: (500 - new_y, new_y),
+        length: new_y * 2 + 1,
+        direction: LineDirection::Right
+    });
+    println!("part 2: {}", fill_grid_with_sand(Grid::new(&lines)));
 
     std::process::ExitCode::SUCCESS
 }
