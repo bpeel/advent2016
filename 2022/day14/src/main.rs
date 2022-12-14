@@ -236,15 +236,23 @@ fn read_lines<I>(input_lines: &mut I) -> Result<Vec<Line>, String>
         };
 
         let mut last_point = None;
+        let mut had_line = false;
 
         for part in input_line.split(" -> ") {
             let point = parse_point(&re, line_num + 1, part)?;
 
             if let Some(last_point) = last_point {
                 lines.push(parse_line(line_num + 1, last_point, point)?);
+                had_line = true;
             }
 
             last_point = Some(point);
+        }
+
+        if !had_line {
+            return Err(format!("line {}: need at least two \
+                                points to make a line",
+                               line_num + 1));
         }
     }
 
