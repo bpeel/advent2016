@@ -81,44 +81,45 @@ impl WireMapping {
         true
     }
 
-    fn add_pattern(&mut self, pattern: u8) -> bool {
+    fn set_mapping(&mut self, input_bit: usize, output_bit: usize) {
+        for bit in 0..N_SEGMENTS {
+            if bit == input_bit {
+                // The input bit now only has a single mapping
+                self.bits[bit] &= 1u8 << output_bit
+            } else {
+                // This input can not be mapped to the output
+                self.bits[bit] &= !(1u8 << output_bit)
+            };
+        }
+    }
+
+    fn add_pattern(&mut self, pattern: u8) {
         let mut found_digit = None;
 
         // If this pattern can only be one of the digits…
         for digit in 0..DIGIT_PATTERNS.len() {
             if self.could_be_digit(digit, pattern) {
                 if found_digit != None {
-                    return false;
+                    return;
                 }
 
                 found_digit = Some(digit);
             }
         }
 
-        let mut changed_something = false;
-
         if let Some(digit) = found_digit {
             for bit in 0..N_SEGMENTS {
-                let new_bits = if pattern & (1u8 << bit) != 0 {
+                if pattern & (1u8 << bit) != 0 {
                     // The bits that are in the input pattern can only
                     // map to the bits in the output pattern
-                    self.bits[bit] & DIGIT_PATTERNS[digit]
+                    self.bits[bit] &= DIGIT_PATTERNS[digit]
                 } else {
                     // The bits that aren’t in the input pattern can’t
                     // map to the bits in the output pattern
-                    self.bits[bit] & !DIGIT_PATTERNS[digit]
+                    self.bits[bit] &= !DIGIT_PATTERNS[digit]
                 };
-
-                if new_bits == self.bits[bit] {
-                    continue;
-                }
-
-                self.bits[bit] = new_bits;
-                changed_something = true;
             }
         }
-
-        changed_something
     }
 
     fn is_complete(&self) -> bool {
@@ -129,6 +130,16 @@ impl WireMapping {
         }
 
         true
+    }
+
+    fn final_mapping(&self) -> [u8; N_SEGMENTS] {
+        let mut mapping = [0u8; N_SEGMENTS];
+
+        for bit in 0..N_SEGMENTS {
+            mapping[bit] = self.bits[bit].trailing_zeros() as u8;
+        }
+
+        mapping
     }
 }
 
@@ -219,7 +230,61 @@ impl std::str::FromStr for Display {
     }
 }
 
+fn set_mapping_for_bit_counts(mapping: &mut WireMapping, patterns: &[u8]) {
+    // Count the number of times each bit appears
+    let mut bit_counts = [0u8; N_SEGMENTS];
+
+    for pattern in patterns.iter() {
+        for bit in BitIter::new(*pattern) {
+            bit_counts[bit] += 1;
+        }
+    }
+
+    // a 8
+    // b 6
+    // c 8
+    // d 7
+    // e 4
+    // f 9
+    // g 7
+
+    for (input_bit, count) in bit_counts.iter().enumerate() {
+        match count {
+            // Only segment B appears exactly 6 times
+            6 => mapping.set_mapping(input_bit, 1),
+            // Only segment E appears exactly 4 times
+            4 => mapping.set_mapping(input_bit, 4),
+            // Only segment F appears exactly 9 times
+            9 => mapping.set_mapping(input_bit, 5),
+            _ => (),
+        };
+    }
+}
+
+fn map_digits(digits: &[u8], mapping: &[u8]) -> Result<u32, String> {
+    let mut val = 0u32;
+
+    for digit in digits.iter() {
+        let mut bits = 0u8;
+
+        for bit in BitIter::new(*digit) {
+            bits |= 1u8 << mapping[bit];
+        }
+
+        let digit = match DIGIT_PATTERNS.iter().position(|&b| b == bits) {
+            Some(d) => d,
+            None => return Err(format!("unknown bit pattern {:x}", bits)),
+        };
+
+        val = (val * 10) + digit as u32;
+    }
+
+    Ok(val)
+}
+
 fn main() -> std::process::ExitCode {
+    let mut part2 = 0;
+
     for (line_num, result) in std::io::stdin().lines().enumerate() {
         let line = match result {
             Ok(line) => line,
@@ -239,23 +304,31 @@ fn main() -> std::process::ExitCode {
 
         let mut mapping = WireMapping::new();
 
-        loop {
-            let mut progress = false;
+        set_mapping_for_bit_counts(&mut mapping, &display.patterns);
 
-            for pattern in display.patterns.iter() {
-                progress |= mapping.add_pattern(*pattern);
-            }
-
-            if !progress {
-                break;
-            }
+        for pattern in display.patterns.iter() {
+            mapping.add_pattern(*pattern);
         }
 
         if !mapping.is_complete() {
             eprintln!("line {}: couldn’t solve mapping", line_num + 1);
             return std::process::ExitCode::FAILURE;
         }
+
+        let mapping = mapping.final_mapping();
+
+        let display_num = match map_digits(&display.digits, &mapping) {
+            Ok(n) => n,
+            Err(e) => {
+                eprintln!("line {}: {}", line_num + 1, e);
+                return std::process::ExitCode::FAILURE;
+            }
+        };
+
+        part2 += display_num;
     }
+
+    println!("part 2: {}", part2);
 
     std::process::ExitCode::SUCCESS
 }
