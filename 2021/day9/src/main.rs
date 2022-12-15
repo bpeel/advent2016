@@ -69,7 +69,7 @@ fn part2(grid: &Grid) -> String {
                     Some(this_height) if this_height >= b'9' => false,
                     Some(this_height) => match path.last() {
                         Some(&(_, last_pos)) =>
-                            this_height == grid.get(last_pos).unwrap() + 1,
+                            this_height > grid.get(last_pos).unwrap(),
                         None => true,
                     },
                 };
