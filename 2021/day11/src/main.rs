@@ -58,7 +58,22 @@ fn main() -> std::process::ExitCode {
         Ok(grid) => grid,
     };
 
-    println!("part 1: {}", (0..100).map(|_| step(&mut grid)).sum::<usize>());
+    let mut total_flashes = 0;
+
+    for step_num in 1.. {
+        let flashes = step(&mut grid);
+
+        total_flashes += flashes;
+
+        if step_num == 100 {
+            println!("part 1: {}", total_flashes);
+        }
+
+        if flashes >= grid.width * grid.height {
+            println!("part 2: {}", step_num);
+            break;
+        }
+    }
 
     std::process::ExitCode::SUCCESS
 }
