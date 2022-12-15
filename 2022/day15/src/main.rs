@@ -124,8 +124,21 @@ fn run_part1(test_row: i32, sensors: &[Sensor]) -> usize {
             continue;
         }
 
-        set.subtract(sensor.sensor_pos.0 - row_distance,
-                     sensor.sensor_pos.0 + row_distance + 1);
+        let mut range_start = sensor.sensor_pos.0 - row_distance;
+        let mut range_end = sensor.sensor_pos.0 + row_distance + 1;
+
+        // Special case if the beacon is on the test row. In that case
+        // we want to exclude the beacon position from the range
+        // because there definitely is a beacon there
+        if sensor.beacon_pos.1 == test_row {
+            if sensor.beacon_pos.0 < sensor.sensor_pos.0 {
+                range_start += 1;
+            } else {
+                range_end -= 1;
+            }
+        }
+
+        set.subtract(range_start, range_end);
     }
 
     let mut total_spaces = 0;
