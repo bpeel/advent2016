@@ -27,10 +27,19 @@ struct CoordSet {
 
 impl CoordSet {
     fn new() -> CoordSet {
-        CoordSet {
-            intervals: vec![Interval::new(i32::MIN, i32::MAX)],
+        let mut set = CoordSet {
+            intervals: Vec::<Interval>::new(),
             temp_intervals: Vec::<Interval>::new(),
-        }
+        };
+
+        set.reset();
+
+        set
+    }
+
+    fn reset(&mut self) {
+        self.intervals.clear();
+        self.intervals.push(Interval::new(i32::MIN, i32::MAX));
     }
 
     fn subtract(&mut self, start: i32, end: i32) {
@@ -172,10 +181,11 @@ fn run_part1(test_row: i32, sensors: &[Sensor]) -> usize {
 
 
 fn run_part2(test_range: i32, sensors: &[Sensor]) -> String {
+    let mut set = CoordSet::new();
     let mut found_pos = None;
 
     for test_row in 0..test_range {
-        let mut set = CoordSet::new();
+        set.reset();
 
         set.subtract(i32::MIN, 0);
         set.subtract(test_range, i32::MAX);
