@@ -20,34 +20,40 @@ impl Interval {
 #[derive(Debug, Clone)]
 struct CoordSet {
     intervals: Vec<Interval>,
+    // Temporary interval set used to avoid reallocating every time we
+    // subtract a range
+    temp_intervals: Vec<Interval>,
 }
 
 impl CoordSet {
     fn new() -> CoordSet {
-        CoordSet { intervals: vec![Interval::new(i32::MIN, i32::MAX)] }
+        CoordSet {
+            intervals: vec![Interval::new(i32::MIN, i32::MAX)],
+            temp_intervals: Vec::<Interval>::new(),
+        }
     }
 
     fn subtract(&mut self, start: i32, end: i32) {
-        let mut new_points = Vec::<Interval>::new();
+        self.temp_intervals.clear();
 
         for interval in self.intervals.iter() {
             // If the interval doesn’t overlap the range to subtract
             // then leave it alone
             if end <= interval.start || start >= interval.end {
-                new_points.push(*interval);
+                self.temp_intervals.push(*interval);
                 continue;
             }
 
             if start > interval.start {
-                new_points.push(Interval::new(interval.start, start));
+                self.temp_intervals.push(Interval::new(interval.start, start));
             }
 
             if end < interval.end {
-                new_points.push(Interval::new(end, interval.end));
+                self.temp_intervals.push(Interval::new(end, interval.end));
             }
         }
 
-        self.intervals = new_points;
+        std::mem::swap(&mut self.intervals, &mut self.temp_intervals);
     }
 }
 
