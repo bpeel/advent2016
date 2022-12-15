@@ -107,9 +107,10 @@ fn read_sensors<I>(lines: &mut I) -> Result<Vec<Sensor>, String>
     Ok(sensors)
 }
 
-fn run_part1(test_row: i32, sensors: &[Sensor]) -> usize {
-    let mut set = CoordSet::new();
-
+fn apply_sensors(set: &mut CoordSet,
+                 test_row: i32,
+                 sensors: &[Sensor],
+                 exclude_beacon_pos: bool) {
     for sensor in sensors.iter() {
         let distance_to_beacon =
             (sensor.sensor_pos.0 - sensor.beacon_pos.0).abs() +
@@ -127,19 +128,27 @@ fn run_part1(test_row: i32, sensors: &[Sensor]) -> usize {
         let mut range_start = sensor.sensor_pos.0 - row_distance;
         let mut range_end = sensor.sensor_pos.0 + row_distance + 1;
 
-        // Special case if the beacon is on the test row. In that case
-        // we want to exclude the beacon position from the range
-        // because there definitely is a beacon there
-        if sensor.beacon_pos.1 == test_row {
-            if sensor.beacon_pos.0 < sensor.sensor_pos.0 {
-                range_start += 1;
-            } else {
-                range_end -= 1;
+        if exclude_beacon_pos {
+            // Special case if the beacon is on the test row. In that
+            // case we want to exclude the beacon position from the
+            // range because there definitely is a beacon there
+            if sensor.beacon_pos.1 == test_row {
+                if sensor.beacon_pos.0 < sensor.sensor_pos.0 {
+                    range_start += 1;
+                } else {
+                    range_end -= 1;
+                }
             }
         }
 
         set.subtract(range_start, range_end);
     }
+}
+
+fn run_part1(test_row: i32, sensors: &[Sensor]) -> usize {
+    let mut set = CoordSet::new();
+
+    apply_sensors(&mut set, test_row, sensors, true);
 
     let mut total_spaces = 0;
 
@@ -155,6 +164,54 @@ fn run_part1(test_row: i32, sensors: &[Sensor]) -> usize {
     total_spaces
 }
 
+
+fn run_part2(test_range: i32, sensors: &[Sensor]) -> String {
+    let mut found_pos = None;
+
+    for test_row in 0..test_range {
+        let mut set = CoordSet::new();
+
+        set.subtract(i32::MIN, 0);
+        set.subtract(test_range, i32::MAX);
+
+        apply_sensors(&mut set, test_row, sensors, false);
+
+        for interval in set.intervals.iter() {
+            for x in interval.start..interval.end {
+                if let Some(old_pos) = found_pos {
+                    return format!("Possible beacon at {:?} but there is \
+                                    already a possible beacon at {:?}",
+                                   (x, test_row),
+                                   old_pos);
+                }
+
+                found_pos = Some((x, test_row));
+            }
+        }
+    }
+
+    match found_pos {
+        Some((x, y)) => format!("{}", x as i64 * 4_000_000 + y as i64),
+        None => "no possible beacon position found".to_string(),
+    }
+}
+
+fn parse_int_arg<T>(s: Option<std::ffi::OsString>, default: T)
+                    -> Result<T, String>
+    where T: std::str::FromStr
+{
+    match s {
+        None => Ok(default),
+        Some(os_string) => match os_string.into_string() {
+            Err(_) => Err("invalid UTF-8 string in argument".to_string()),
+            Ok(s) => match s.parse::<T>() {
+                Ok(n) => Ok(n),
+                Err(_) => Err("invalid integer arg".to_string()),
+            },
+        },
+    }
+}
+
 fn main() -> std::process::ExitCode {
     let sensors = match read_sensors(&mut std::io::stdin().lines()) {
         Err(e) => {
@@ -164,24 +221,19 @@ fn main() -> std::process::ExitCode {
         Ok(sensors) => sensors,
     };
 
-    let test_row = match std::env::args_os().nth(1) {
-        None => 2_000_000,
-        Some(os_string) => match os_string.into_string() {
-            Err(_) => {
-                eprintln!("invalid UTF-8 string in argument");
+    let mut args = std::env::args_os();
+
+    let (test_row, test_range) = match parse_int_arg(args.nth(1), 2_000_000)
+        .and_then(|row| Ok((row, parse_int_arg(args.next(), 4_000_000)?))) {
+            Err(e) => {
+                eprintln!("{}", e);
                 return std::process::ExitCode::FAILURE;
             },
-            Ok(s) => match s.parse::<i32>() {
-                Ok(row) => row,
-                Err(e) => {
-                    eprintln!("invalid test row: {}", e);
-                    return std::process::ExitCode::FAILURE;
-                },
-            },
-        },
-    };
+            Ok(v) => v,
+        };
 
     println!("part 1: {}", run_part1(test_row, &sensors));
+    println!("part 2: {}", run_part2(test_range, &sensors));
 
     std::process::ExitCode::SUCCESS
 }
