@@ -2,24 +2,31 @@
 
 set -eu
 
-cd $(dirname "$0")
+template_dir=$(cd $(dirname "$0") && pwd)/template
 
-day=$(date +%-d)
-hour=$(date +%-H)
+if test "$#" -ge 1; then
+    src_dir="$1"
+else
+    day=$(date +%-d)
+    hour=$(date +%-H)
 
-if test "$hour" -ge 16; then
-    day=$(expr $day + 1)
-    echo "Preparing for tomorrow"
+    if test "$hour" -ge 16; then
+        day=$(expr $day + 1)
+        echo "Preparing for tomorrow"
+    fi
+
+    src_dir="day$day"
 fi
 
-cargo new day"$day"
-cargo add --manifest-path day"$day"/Cargo.toml regex
+cargo new "$src_dir"
+cargo add --manifest-path "$src_dir"/Cargo.toml regex
 cp -v \
-   $(cd template && git ls-files src | sed -nr 's|.*\.rs$|template/\0|p') \
-   day"$day"/src
-cp -v template/.gitignore day"$day"
+   $(cd "$template_dir" && git ls-files src | \
+             sed -nr 's|.*\.rs$|'"$template_dir"'/\0|p') \
+   "$src_dir"/src
+cp -v "$template_dir"/.gitignore "$src_dir"
 
-cd day"$day"
+cd "$src_dir"
 git add --intent-to-add .gitignore src/*.rs Cargo.toml
 
 cargo build
