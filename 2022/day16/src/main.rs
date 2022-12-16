@@ -128,6 +128,22 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
             return false;
         }
 
+        // Did we skip opening a valve that has a bigger flow rate? If
+        // so then there’s no point in opening this one because it
+        // would have always been better to open that one first before
+        // coming here.
+        for (_, pos) in self.stack.iter() {
+            if let Some(_) = self.open_valves.get(&pos[actor]) {
+                continue;
+            }
+
+            let other_valve = &self.valves[&pos[actor]];
+
+            if other_valve.flow_rate > valve.flow_rate {
+                return false;
+            }
+        }
+
         true
     }
 
