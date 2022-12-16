@@ -23,6 +23,8 @@ struct Walker<'a, const N_ACTORS: usize> {
 }
 
 impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
+    const START_TIME: usize = (N_ACTORS - 1) * 4;
+
     fn new(valves: &'a HashMap<u16, Valve>) -> Walker<'a, N_ACTORS> {
         Walker {
             stack: Vec::<([Action; N_ACTORS], [u16; N_ACTORS])>::new(),
@@ -38,7 +40,7 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
             .iter()
             .map(|(valve, &open_time)|
                  self.valves[valve].flow_rate as usize *
-                 (TOTAL_TIME - open_time as usize))
+                 (TOTAL_TIME - Self::START_TIME - open_time as usize))
             .sum::<usize>();
 
         if score > self.best_score {
@@ -246,7 +248,7 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
         loop {
             self.score_actions();
 
-            if self.stack.len() >= TOTAL_TIME - (N_ACTORS - 1) * 4 {
+            if self.stack.len() >= TOTAL_TIME - Self::START_TIME {
                 if self.backtrack() {
                     continue;
                 } else {
