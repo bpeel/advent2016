@@ -255,7 +255,7 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
         }
     }
 
-    fn walk(&mut self) {
+    fn walk(&mut self) -> usize {
         loop {
             self.score_actions();
 
@@ -275,6 +275,8 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
                 break;
             }
         }
+
+        self.best_score
     }
 }
 
