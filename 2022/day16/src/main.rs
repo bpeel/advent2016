@@ -97,6 +97,27 @@ impl<'a> Walker<'a> {
         }
     }
 
+    fn open_valve(&mut self) -> bool {
+        if let Some((Action::OpenValve, _)) = self.stack.last() {
+            return false;
+        }
+
+        if let Some(_) = self.open_valves.get(&self.pos) {
+            return false;
+        }
+
+        let valve = &self.valves[&self.pos];
+
+        // Don’t bother opening valves that have zero flow rate
+        if valve.flow_rate == 0 {
+            return false;
+        }
+
+        self.stack.push((Action::OpenValve, self.pos));
+        self.open_valves.insert(self.pos, self.stack.len() as u8);
+        true
+    }
+
     fn walk(&mut self) {
         loop {
             if self.stack.len() >= TOTAL_TIME {
@@ -109,19 +130,7 @@ impl<'a> Walker<'a> {
                 }
             }
 
-            match self.stack.last() {
-                Some((Action::OpenValve, _)) => (),
-                _ => {
-                    if let None = self.open_valves.get(&self.pos) {
-                        self.stack.push((Action::OpenValve, self.pos));
-                        self.open_valves.insert(self.pos,
-                                                self.stack.len() as u8);
-                        continue;
-                    }
-                },
-            };
-
-            if !self.take_tunnel(0) && !self.backtrack() {
+            if !self.open_valve() && !self.take_tunnel(0) && !self.backtrack() {
                 break;
             }
         }
