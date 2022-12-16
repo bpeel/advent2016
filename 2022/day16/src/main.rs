@@ -266,16 +266,33 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
                             break 'find_action;
                         },
                         Action::OpenValve => {
-                            action[i] = Action::TakeTunnel(0);
+                            let first_tunnel = if (i & 1) == 0 {
+                                0
+                            } else {
+                                let valve = &self.valves[self.pos[i] as usize];
+                                if valve.tunnels.len() == 0 {
+                                    0
+                                } else {
+                                    valve.tunnels.len() as u8 - 1
+                                }
+                            };
+                            action[i] = Action::TakeTunnel(first_tunnel);
                             break 'find_action;
                         },
                         Action::TakeTunnel(t) => {
-                            let valve = &self.valves[self.pos[i] as usize];
+                            if (i & 1) == 0 {
+                                let valve = &self.valves[self.pos[i] as usize];
 
-                            if t as usize + 1 >= valve.tunnels.len() {
+                                if t as usize + 1 >= valve.tunnels.len() {
+                                    action[i] = Action::StayStill;
+                                } else {
+                                    action[i] = Action::TakeTunnel(t + 1);
+                                    break 'find_action;
+                                }
+                            } else if t <= 0 {
                                 action[i] = Action::StayStill;
                             } else {
-                                action[i] = Action::TakeTunnel(t + 1);
+                                action[i] = Action::TakeTunnel(t - 1);
                                 break 'find_action;
                             }
                         },
