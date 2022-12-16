@@ -61,16 +61,36 @@ impl<'a> Walker<'a> {
         }
     }
 
-    fn take_tunnel(&mut self, tunnel_num: usize) -> bool {
+    fn have_visited_since_last_open(&self, valve: u16) -> bool {
+        for (action, pos) in self.stack.iter().rev() {
+            if let Action::OpenValve = action {
+                return false;
+            }
+
+            if *pos == valve {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn take_tunnel(&mut self, first_tunnel_num: usize) -> bool {
         let valve = &self.valves[&self.pos];
 
-        if let Some(&valve) = valve.tunnels.get(tunnel_num) {
+        for tunnel_num in first_tunnel_num..valve.tunnels.len() {
+            let next_valve = valve.tunnels[tunnel_num];
+
+            if self.have_visited_since_last_open(next_valve) {
+                continue;
+            }
+
             self.stack.push((Action::TakeTunnel(tunnel_num as u8), self.pos));
-            self.pos = valve;
-            true
-        } else {
-            false
+            self.pos = next_valve;
+            return true
         }
+
+        false
     }
 
     fn backtrack(&mut self) -> bool {
@@ -120,9 +140,9 @@ impl<'a> Walker<'a> {
 
     fn walk(&mut self) {
         loop {
-            if self.stack.len() >= TOTAL_TIME {
-                self.score_actions();
+            self.score_actions();
 
+            if self.stack.len() >= TOTAL_TIME {
                 if self.backtrack() {
                     continue;
                 } else {
