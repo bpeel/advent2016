@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+const MAX_VALVES: usize = u64::BITS as usize;
+
 #[derive(Debug, Clone)]
 struct Valve {
     name: String,
@@ -24,7 +26,10 @@ enum Action {
 struct Walker<'a, const N_ACTORS: usize> {
     stack: Vec<([Action; N_ACTORS], [u8; N_ACTORS])>,
     pos: [u8; N_ACTORS],
-    open_valves: HashMap<u8, u8>,
+    // Array indexed by valve number. If the valve is open this will
+    // be Some(n) where n is the minute where we opened the valve,
+    // otherwise it will be None.
+    open_valves: [Option<u8>; MAX_VALVES],
     valves: &'a Vec<Valve>,
     best_score: usize,
 }
@@ -36,7 +41,7 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
         Walker {
             stack: Vec::<([Action; N_ACTORS], [u8; N_ACTORS])>::new(),
             pos: [0; N_ACTORS],
-            open_valves: HashMap::<u8, u8>::new(),
+            open_valves: [None; MAX_VALVES],
             valves,
             best_score: usize::MIN,
         }
@@ -45,9 +50,14 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
     fn score_actions(&mut self) {
         let score = self.open_valves
             .iter()
+            .enumerate()
             .map(|(valve, &open_time)|
-                 self.valves[*valve as usize].flow_rate as usize *
-                 (TOTAL_TIME - Self::START_TIME - open_time as usize))
+                 if let Some(open_time) = open_time {
+                     self.valves[valve].flow_rate as usize *
+                         (TOTAL_TIME - Self::START_TIME - open_time as usize)
+                 } else {
+                     0
+                 })
             .sum::<usize>();
 
         if score > self.best_score {
@@ -124,7 +134,7 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
             }
         }
 
-        if let Some(_) = self.open_valves.get(&self.pos[actor]) {
+        if let Some(_) = self.open_valves[self.pos[actor] as usize] {
             return false;
         }
 
@@ -140,7 +150,7 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
         // would have always been better to open that one first before
         // coming here.
         for (_, pos) in self.stack.iter() {
-            if let Some(_) = self.open_valves.get(&pos[actor]) {
+            if let Some(_) = self.open_valves[pos[actor] as usize] {
                 continue;
             }
 
@@ -241,8 +251,8 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
         for (actor, action) in action.iter().enumerate() {
             match action {
                 Action::OpenValve => {
-                    self.open_valves.insert(self.pos[actor],
-                                            self.stack.len() as u8);
+                    self.open_valves[self.pos[actor] as usize] =
+                        Some(self.stack.len() as u8);
                 },
                 Action::TakeTunnel(t) => {
                     let valve = &self.valves[self.pos[actor] as usize];
@@ -262,9 +272,8 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
 
             for (actor, action) in last_action.iter().enumerate() {
                 match action {
-                    Action::OpenValve => {
-                        self.open_valves.remove(&self.pos[actor]);
-                    },
+                    Action::OpenValve =>
+                        self.open_valves[self.pos[actor] as usize] = None,
                     Action::TakeTunnel(_) =>
                         self.pos[actor] = last_pos[actor],
                     Action::StayStill =>
@@ -350,7 +359,7 @@ fn read_valves<I>(lines: &mut I) -> Result<Vec<Valve>, String>
         });
     }
 
-    if valves.len() > u64::BITS as usize {
+    if valves.len() > MAX_VALVES {
         return Err("too many valves".to_string());
     }
 
