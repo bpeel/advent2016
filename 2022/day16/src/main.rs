@@ -132,7 +132,16 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
     fn can_do_action(&self, all_actions: &[Action; N_ACTORS]) -> bool {
         for (actor, action) in all_actions.iter().enumerate() {
             match action {
-                Action::StayStill => (),
+                Action::StayStill => {
+                    // There’s no point in allowing an actor to stay
+                    // still if there’s a tunnel they can go to
+                    let n_tunnels = self.valves[&self.pos[actor]].tunnels.len();
+                    for i in 0..n_tunnels {
+                        if self.can_take_tunnel(actor, i) {
+                            return false;
+                        }
+                    }
+                },
                 Action::TakeTunnel(t) => {
                     if !self.can_take_tunnel(actor, *t as usize) {
                         return false;
