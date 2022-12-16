@@ -8,24 +8,25 @@ struct Valve {
 
 #[derive(Debug, Clone, Copy)]
 enum Action {
+    StayStill,
     OpenValve,
     TakeTunnel(u8),
 }
 
 #[derive(Debug)]
-struct Walker<'a> {
-    stack: Vec<(Action, u16)>,
-    pos: u16,
+struct Walker<'a, const N_ACTORS: usize> {
+    stack: Vec<([Action; N_ACTORS], [u16; N_ACTORS])>,
+    pos: [u16; N_ACTORS],
     open_valves: HashMap<u16, u8>,
     valves: &'a HashMap<u16, Valve>,
     best_score: usize,
 }
 
-impl<'a> Walker<'a> {
-    fn new(valves: &'a HashMap<u16, Valve>) -> Walker<'a> {
+impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
+    fn new(valves: &'a HashMap<u16, Valve>) -> Walker<'a, N_ACTORS> {
         Walker {
-            stack: Vec::<(Action, u16)>::new(),
-            pos: valve_num(&"AA"),
+            stack: Vec::<([Action; N_ACTORS], [u16; N_ACTORS])>::new(),
+            pos: [valve_num(&"AA"); N_ACTORS],
             open_valves: HashMap::<u16, u8>::new(),
             valves,
             best_score: usize::MIN,
@@ -41,17 +42,31 @@ impl<'a> Walker<'a> {
             .sum::<usize>();
 
         if score > self.best_score {
-            print!("{:4}: AA", score);
+            print!("{:4}: ", score);
+
+            for actor in 0..N_ACTORS {
+                if actor > 0 {
+                    print!(":");
+                }
+                print!("AA");
+            }
 
             for (action, last_pos) in self.stack.iter() {
                 print!(",");
-                match action {
-                    Action::OpenValve => print!("op"),
-                    Action::TakeTunnel(tunnel_num) => {
-                        let next_valve =
-                            self.valves[last_pos].tunnels[*tunnel_num as usize];
-                        print!("{}", valve_name(next_valve));
-                    },
+                for actor in 0..N_ACTORS {
+                    if actor > 0 {
+                        print!(":");
+                    }
+                    match action[actor] {
+                        Action::OpenValve => print!("op"),
+                        Action::TakeTunnel(tunnel_num) => {
+                            let tunnel_num = tunnel_num as usize;
+                            let valve = &self.valves[&last_pos[actor]];
+                            let next_valve = valve.tunnels[tunnel_num];
+                            print!("{}", valve_name(next_valve));
+                        },
+                        Action::StayStill => print!("**"),
+                    }
                 }
             }
 
@@ -61,13 +76,15 @@ impl<'a> Walker<'a> {
         }
     }
 
-    fn have_visited_since_last_open(&self, valve: u16) -> bool {
+    fn have_visited_since_last_open(&self, actor: usize, valve: u16) -> bool {
         for (action, pos) in self.stack.iter().rev() {
-            if let Action::OpenValve = action {
-                return false;
+            for action in action.iter() {
+                if let Action::OpenValve = action {
+                    return false;
+                }
             }
 
-            if *pos == valve {
+            if pos[actor] == valve {
                 return true;
             }
         }
@@ -75,22 +92,128 @@ impl<'a> Walker<'a> {
         false
     }
 
-    fn take_tunnel(&mut self, first_tunnel_num: usize) -> bool {
-        let valve = &self.valves[&self.pos];
+    fn can_take_tunnel(&self,
+                       actor: usize,
+                       tunnel_num: usize) -> bool {
+        let valve = &self.valves[&self.pos[actor]];
 
-        for tunnel_num in first_tunnel_num..valve.tunnels.len() {
-            let next_valve = valve.tunnels[tunnel_num];
-
-            if self.have_visited_since_last_open(next_valve) {
-                continue;
-            }
-
-            self.stack.push((Action::TakeTunnel(tunnel_num as u8), self.pos));
-            self.pos = next_valve;
-            return true
+        if tunnel_num >= valve.tunnels.len() {
+            return false;
         }
 
-        false
+        let next_valve = valve.tunnels[tunnel_num];
+
+        !self.have_visited_since_last_open(actor, next_valve)
+    }
+
+    fn can_open_valve(&self, actor: usize) -> bool {
+        if let Some((action, _)) = self.stack.last() {
+            if let Action::OpenValve = action[actor] {
+                return false;
+            }
+        }
+
+        if let Some(_) = self.open_valves.get(&self.pos[actor]) {
+            return false;
+        }
+
+        let valve = &self.valves[&self.pos[actor]];
+
+        // Don’t bother opening valves that have zero flow rate
+        if valve.flow_rate == 0 {
+            return false;
+        }
+
+        true
+    }
+
+    fn can_do_action(&self, all_actions: &[Action; N_ACTORS]) -> bool {
+        for (actor, action) in all_actions.iter().enumerate() {
+            match action {
+                Action::StayStill => (),
+                Action::TakeTunnel(t) => {
+                    if !self.can_take_tunnel(actor, *t as usize) {
+                        return false;
+                    }
+                },
+                Action::OpenValve => {
+                    // Make sure that no other actors are also
+                    // openening the same valve
+                    for (other_actor, action) in all_actions[0..actor]
+                        .iter()
+                        .enumerate() {
+                            if matches!(action, Action::OpenValve) &&
+                                self.pos[actor] == self.pos[other_actor] {
+                                    return false;
+                            }
+                    }
+
+                    if !self.can_open_valve(actor) {
+                        return false;
+                    }
+                },
+            }
+        }
+
+        true
+    }
+
+    fn next_action(&self, last_action: &[Action; N_ACTORS])
+                   -> Option<[Action; N_ACTORS]> {
+        let mut action = *last_action;
+
+        loop {
+            'find_action: {
+                for i in 0..N_ACTORS {
+                    match action[i] {
+                        Action::StayStill => {
+                            action[i] = Action::OpenValve;
+                            break 'find_action;
+                        },
+                        Action::OpenValve => {
+                            action[i] = Action::TakeTunnel(0);
+                            break 'find_action;
+                        },
+                        Action::TakeTunnel(t) => {
+                            let valve = &self.valves[&self.pos[i]];
+
+                            if t as usize + 1 >= valve.tunnels.len() {
+                                action[i] = Action::StayStill;
+                            } else {
+                                action[i] = Action::TakeTunnel(t + 1);
+                                break 'find_action;
+                            }
+                        },
+                    }
+                }
+
+                // If we make it here then we’ve exhausted all the
+                // possible actions and we need to backtrack
+                return None;
+            }
+
+            if self.can_do_action(&action) {
+                return Some(action);
+            }
+        }
+    }
+
+    fn take_action(&mut self, action: &[Action; N_ACTORS]) {
+        self.stack.push((*action, self.pos));
+
+        for (actor, action) in action.iter().enumerate() {
+            match action {
+                Action::OpenValve => {
+                    self.open_valves.insert(self.pos[actor],
+                                            self.stack.len() as u8);
+                },
+                Action::TakeTunnel(t) => {
+                    let valve = &self.valves[&self.pos[actor]];
+                    self.pos[actor] = valve.tunnels[*t as usize];
+                },
+                Action::StayStill => (),
+            }
+        }
     }
 
     fn backtrack(&mut self) -> bool {
@@ -100,49 +223,30 @@ impl<'a> Walker<'a> {
                 None => return false,
             };
 
-            let next_tunnel = match last_action {
-                Action::OpenValve => {
-                    self.open_valves.remove(&self.pos);
-                    0
-                },
-                Action::TakeTunnel(t) => {
-                    self.pos = last_pos;
-                    t as usize + 1
-                },
-            };
+            for (actor, action) in last_action.iter().enumerate() {
+                match action {
+                    Action::OpenValve => {
+                        self.open_valves.remove(&self.pos[actor]);
+                    },
+                    Action::TakeTunnel(_) =>
+                        self.pos[actor] = last_pos[actor],
+                    Action::StayStill =>
+                        (),
+                }
+            }
 
-            if self.take_tunnel(next_tunnel) {
+            if let Some(action) = self.next_action(&last_action) {
+                self.take_action(&action);
                 return true;
             }
         }
-    }
-
-    fn open_valve(&mut self) -> bool {
-        if let Some((Action::OpenValve, _)) = self.stack.last() {
-            return false;
-        }
-
-        if let Some(_) = self.open_valves.get(&self.pos) {
-            return false;
-        }
-
-        let valve = &self.valves[&self.pos];
-
-        // Don’t bother opening valves that have zero flow rate
-        if valve.flow_rate == 0 {
-            return false;
-        }
-
-        self.stack.push((Action::OpenValve, self.pos));
-        self.open_valves.insert(self.pos, self.stack.len() as u8);
-        true
     }
 
     fn walk(&mut self) {
         loop {
             self.score_actions();
 
-            if self.stack.len() >= TOTAL_TIME {
+            if self.stack.len() >= TOTAL_TIME - (N_ACTORS - 1) * 4 {
                 if self.backtrack() {
                     continue;
                 } else {
@@ -150,7 +254,11 @@ impl<'a> Walker<'a> {
                 }
             }
 
-            if !self.open_valve() && !self.take_tunnel(0) && !self.backtrack() {
+            let start_action = [Action::StayStill; N_ACTORS];
+
+            if let Some(action) = self.next_action(&start_action) {
+                self.take_action(&action);
+            } else if !self.backtrack() {
                 break;
             }
         }
@@ -238,7 +346,7 @@ fn main() -> std::process::ExitCode {
         Ok(valves) => valves,
     };
 
-    Walker::new(&valves).walk();
+    Walker::<2>::new(&valves).walk();
 
     std::process::ExitCode::SUCCESS
 }
