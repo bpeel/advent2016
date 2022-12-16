@@ -78,7 +78,7 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
         }
     }
 
-    fn have_visited_since_last_open(&self, actor: usize, valve: u16) -> bool {
+    fn have_visited_since_last_open(&self, valve: u16) -> bool {
         for (action, pos) in self.stack.iter().rev() {
             for action in action.iter() {
                 if let Action::OpenValve = action {
@@ -86,8 +86,10 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
                 }
             }
 
-            if pos[actor] == valve {
-                return true;
+            for &actor_pos in pos.iter() {
+                if actor_pos == valve {
+                    return true;
+                }
             }
         }
 
@@ -105,7 +107,7 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
 
         let next_valve = valve.tunnels[tunnel_num];
 
-        !self.have_visited_since_last_open(actor, next_valve)
+        !self.have_visited_since_last_open(next_valve)
     }
 
     fn can_open_valve(&self, actor: usize) -> bool {
