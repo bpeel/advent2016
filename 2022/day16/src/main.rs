@@ -106,15 +106,20 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
     }
 
     fn have_visited_since_last_open(&self, valve: u8) -> bool {
-        for (action, pos) in self.stack.iter().rev() {
-            for action in action.iter() {
-                if let Action::OpenValve = action {
-                    return false;
-                }
-            }
+        let mut actors_found_open = 0;
 
-            for &actor_pos in pos.iter() {
-                if actor_pos == valve {
+        for (action, pos) in self.stack.iter().rev() {
+            for actor in 0..N_ACTORS {
+                if let Action::OpenValve = action[actor] {
+                    actors_found_open |= 1u8 << actor;
+                    continue;
+                }
+
+                if actors_found_open & (1u8 << actor) != 0 {
+                    continue;
+                }
+
+                if pos[actor] == valve {
                     return true;
                 }
             }
