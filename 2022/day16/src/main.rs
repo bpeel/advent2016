@@ -361,7 +361,13 @@ fn main() -> std::process::ExitCode {
         Ok(valves) => valves,
     };
 
-    Walker::<2>::new(&valves).walk();
+    let part1 = Walker::<1>::new(&valves).walk();
+    let part2 = Walker::<2>::new(&valves).walk();
+
+    println!("part 1: {}\n\
+              part 2: {}",
+             part1,
+             part2);
 
     std::process::ExitCode::SUCCESS
 }
