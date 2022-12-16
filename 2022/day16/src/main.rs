@@ -32,6 +32,7 @@ struct Walker<'a, const N_ACTORS: usize> {
     open_valves: [Option<u8>; MAX_VALVES],
     valves: &'a Vec<Valve>,
     best_score: usize,
+    seen_states: HashMap<[u8; MAX_VALVES], u16>,
 }
 
 impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
@@ -44,21 +45,30 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
             open_valves: [None; MAX_VALVES],
             valves,
             best_score: usize::MIN,
+            seen_states: HashMap::<[u8; MAX_VALVES], u16>::new(),
         }
     }
 
-    fn score_actions(&mut self) {
-        let score = self.open_valves
+    fn score_for_valve(&self, valve: usize, open_time: usize) -> usize {
+        self.valves[valve].flow_rate as usize *
+            (TOTAL_TIME - Self::START_TIME - open_time)
+    }
+
+    fn score_for_open_valves(&self, open_valves: &[Option<u8>]) -> usize {
+        open_valves
             .iter()
             .enumerate()
             .map(|(valve, &open_time)|
                  if let Some(open_time) = open_time {
-                     self.valves[valve].flow_rate as usize *
-                         (TOTAL_TIME - Self::START_TIME - open_time as usize)
+                     self.score_for_valve(valve, open_time as usize)
                  } else {
                      0
                  })
-            .sum::<usize>();
+            .sum::<usize>()
+    }
+
+    fn score_actions(&mut self) {
+        let score = self.score_for_open_valves(&self.open_valves);
 
         if score > self.best_score {
             print!("{:4}: ", score);
@@ -127,6 +137,28 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
         !self.have_visited_since_last_open(next_valve)
     }
 
+    fn valve_order(&self, actor: usize, valve_to_add: u8)
+                   -> ([u8; MAX_VALVES], [Option<u8>; MAX_VALVES]) {
+        let mut i = 0;
+        let mut order = [u8::MAX; MAX_VALVES];
+        let mut open_valves = [None; MAX_VALVES];
+
+        for (action, pos) in self.stack.iter() {
+            if let Action::OpenValve = action[actor] {
+                order[i] = pos[actor];
+                i += 1;
+            }
+        }
+
+        if valve_to_add != u8::MAX {
+            order[i] = valve_to_add;
+            open_valves[valve_to_add as usize] =
+                Some(self.stack.len() as u8 + 1);
+        }
+
+        (order, open_valves)
+    }
+
     fn can_open_valve(&self, actor: usize) -> bool {
         if let Some((action, _)) = self.stack.last() {
             if let Action::OpenValve = action[actor] {
@@ -159,6 +191,17 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
             if other_valve.flow_rate > valve.flow_rate {
                 return false;
             }
+        }
+
+        // Have we already tried opening the valves in this order with
+        // a better score?
+        let (valve_order, open_valves) =
+            self.valve_order(actor, self.pos[actor]);
+        let new_score = self.score_for_open_valves(&open_valves);
+
+        match self.seen_states.get(&valve_order) {
+            Some(&score) if (score as usize) >= new_score => return false,
+            _ => (),
         }
 
         true
@@ -253,6 +296,11 @@ impl<'a, const N_ACTORS: usize> Walker<'a, N_ACTORS> {
                 Action::OpenValve => {
                     self.open_valves[self.pos[actor] as usize] =
                         Some(self.stack.len() as u8);
+                    let (valve_order, open_valves) =
+                        self.valve_order(actor, u8::MAX);
+                    let new_score =
+                        self.score_for_open_valves(&open_valves) as u16;
+                    self.seen_states.insert(valve_order, new_score);
                 },
                 Action::TakeTunnel(t) => {
                     let valve = &self.valves[self.pos[actor] as usize];
