@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 
 #[derive(Debug, Clone)]
 struct Valve {
@@ -22,11 +21,6 @@ struct Walker<'a> {
     best_score: usize,
 }
 
-enum VisitResult {
-    Continue,
-    Backtrack,
-}
-
 impl<'a> Walker<'a> {
     fn new(valves: &'a HashMap<u16, Valve>) -> Walker<'a> {
         Walker {
@@ -36,25 +30,6 @@ impl<'a> Walker<'a> {
             valves,
             best_score: usize::MIN,
         }
-    }
-
-    fn visit(&mut self) -> VisitResult {
-        if self.stack.len() > TOTAL_TIME {
-            return VisitResult::Backtrack;
-        }
-
-        if let Some((Action::OpenValve, _)) = self.stack.last() {
-            match self.open_valves.entry(self.pos) {
-                Entry::Occupied(_) => return VisitResult::Backtrack,
-                Entry::Vacant(e) => { e.insert(self.stack.len() as u8); },
-            }
-        }
-
-        if self.stack.len() >= TOTAL_TIME {
-            self.score_actions();
-        }
-
-        VisitResult::Continue
     }
 
     fn score_actions(&mut self) {
@@ -124,24 +99,30 @@ impl<'a> Walker<'a> {
 
     fn walk(&mut self) {
         loop {
-            match self.visit() {
-                VisitResult::Continue => {
-                    match self.stack.last() {
-                        Some((Action::OpenValve, _)) => {
-                            if !self.take_tunnel(0) && !self.backtrack() {
-                                break;
-                            }
-                        },
-                        _ => {
-                            self.stack.push((Action::OpenValve, self.pos));
-                        },
-                    };
-                },
-                VisitResult::Backtrack => {
-                    if !self.backtrack() {
-                        break;
-                    }
+            if self.stack.len() >= TOTAL_TIME {
+                self.score_actions();
+
+                if self.backtrack() {
+                    continue;
+                } else {
+                    break;
                 }
+            }
+
+            match self.stack.last() {
+                Some((Action::OpenValve, _)) => (),
+                _ => {
+                    if let None = self.open_valves.get(&self.pos) {
+                        self.stack.push((Action::OpenValve, self.pos));
+                        self.open_valves.insert(self.pos,
+                                                self.stack.len() as u8);
+                        continue;
+                    }
+                },
+            };
+
+            if !self.take_tunnel(0) && !self.backtrack() {
+                break;
             }
         }
     }
