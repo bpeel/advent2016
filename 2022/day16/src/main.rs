@@ -1,3 +1,38 @@
+// The algorithm for this solution is:
+//
+// Part 1:
+//
+// First we walk the entire graph starting from each valve in turn in
+// order to build a lookup table of shortest distances from each valve
+// to any other valve. Next we make a list of all the valves that have
+// a flow rate greater than zero. Then we just iterate over every
+// possible permutation of these valves. Each permutation represents
+// visiting the valves in that order. We can calculate a score for
+// each permutation using the distance table and just pick the best
+// one.
+//
+// As there are 15 valves with a flow rate in my input, that means
+// there are 15! = 1307674368000 possible permutations. In order to
+// cut down the search, the function that generates the permutations
+// can be told to skip iterating over permutations after a certain
+// point in the list. The callback function that analyses the
+// permutations uses this to skip permutations that are only different
+// by valves that are after visited after the 30 minutes are up. The
+// order of these won’t make any difference to the score so we can
+// calculate the score for just one of them and skip the rest.
+//
+// Part 2:
+//
+// Part 2 takes the list of valves that have a flow rate generated in
+// part 1. Then it iterates over all possible subsets of the valves
+// using a function that returns two subsets, everything in the subset
+// and everything out of the subset. Then we just run the algorithm
+// from part 1 on each of the two subsets and add the scores together
+// to get a score for this pair of subsets. Then we just need to pick
+// the best score.
+//
+// The program can solve both parts in less than 10 seconds on my laptop.
+
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
