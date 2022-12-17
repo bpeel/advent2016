@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 struct Valve {
-    name: String,
     flow_rate: u8,
     tunnels: Vec<u8>,
 }
@@ -143,7 +142,6 @@ fn read_valves<I>(lines: &mut I) -> Result<Vec<Valve>, String>
 
     for valve in valves.iter() {
         let mut final_valve = Valve {
-            name: valve.name.clone(),
             flow_rate: valve.flow_rate,
             tunnels: Vec::<u8>::new(),
         };
