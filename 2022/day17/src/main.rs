@@ -190,18 +190,86 @@ fn read_jet<R: BufRead>(reader: &mut R) ->
     Ok(Jet::new(directions))
 }
 
-fn print_grid(grid: &[u8]) {
-    for &(mut line) in grid.iter().rev() {
-        for _ in 0..GRID_WIDTH {
-            print!("{}", if (line & 1) == 0 { '.' } else { '#' });
-            line >>= 1;
-        }
-        println!("");
+fn is_height_loop(height_history: &[usize]) -> Option<usize> {
+    const MIN_CYCLE_SIZE: usize = 5;
+    const MIN_CYCLES: usize = 100;
+
+    if height_history.len() < MIN_CYCLE_SIZE * MIN_CYCLES {
+        return None;
     }
+
+    let max_cycle_length = height_history.len() / MIN_CYCLES;
+
+    'next_cycle: for cycle_length in SHAPES.len()..=max_cycle_length {
+        for cycle_num in 0..MIN_CYCLES - 1 {
+            let start_point = height_history.len() -
+                cycle_length * MIN_CYCLES +
+                cycle_num * cycle_length;
+
+            let mid_point = start_point + cycle_length;
+
+            for i in 0..cycle_length {
+                let bottom_height = height_history[start_point + i];
+                let top_height = height_history[mid_point + i];
+
+                if bottom_height != top_height {
+                    continue 'next_cycle;
+                }
+            }
+        }
+
+        return Some(cycle_length);
+    }
+
+    None
+}
+
+fn jet_to_height_loop(mut jet: Jet) -> (Box<[usize]>, usize) {
+    let mut grid = Vec::<u8>::new();
+    let mut height_history = Vec::<usize>::new();
+
+    for shape_num in 0.. {
+        let old_height = grid.len();
+
+        add_shape(&mut grid, &mut jet, SHAPES[shape_num % SHAPES.len()]);
+
+        height_history.push(grid.len() - old_height);
+
+        if let Some(cycle_length) = is_height_loop(&height_history) {
+            height_history.truncate(height_history.len() - cycle_length);
+            return (height_history.into_boxed_slice(), cycle_length);
+        }
+    }
+
+    panic!("infinite loop shouldn’t terminate");
+}
+
+fn get_height_at(&(ref height_history, cycle_size): &(Box<[usize]>, usize),
+                 y: usize) -> usize
+{
+    if y <= height_history.len() {
+        return height_history[0..y].iter().sum();
+    }
+
+    let cycle_start = height_history.len() - cycle_size;
+
+    let base_height = height_history[0..cycle_start].iter().sum::<usize>();
+
+    let cycle_height = height_history[cycle_start..].iter().sum::<usize>();
+    let cycle_offset = y - cycle_start;
+    let n_cycles = cycle_offset / cycle_size;
+
+    let inside_cycle_pos = cycle_offset % cycle_size;
+
+    let inside_cycle_height =
+        height_history[cycle_start..cycle_start + inside_cycle_pos]
+        .iter().sum::<usize>();
+
+    base_height + cycle_height * n_cycles + inside_cycle_height
 }
 
 fn main() -> std::process::ExitCode {
-    let mut jet = match read_jet(&mut std::io::stdin().lock()) {
+    let jet = match read_jet(&mut std::io::stdin().lock()) {
         Err(e) => {
             eprintln!("{}", e);
             return std::process::ExitCode::FAILURE;
@@ -209,15 +277,10 @@ fn main() -> std::process::ExitCode {
         Ok(d) => d,
     };
 
-    let mut grid = Vec::<u8>::new();
+    let loop_data = jet_to_height_loop(jet);
 
-    for shape_num in 0..2022 {
-        add_shape(&mut grid, &mut jet, SHAPES[shape_num % SHAPES.len()]);
-    }
-
-    print_grid(&grid[0..20]);
-
-    println!("part 1: {}", grid.len());
+    println!("part 1: {}", get_height_at(&loop_data, 2022));
+    println!("part 2: {}", get_height_at(&loop_data, 1000000000000));
 
     std::process::ExitCode::SUCCESS
 }
