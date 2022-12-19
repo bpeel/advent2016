@@ -89,6 +89,28 @@ fn try_make_robot(blueprint: &Blueprint,
     true
 }
 
+fn robot_is_pointless(blueprint: &Blueprint,
+                      n_robots: &[usize],
+                      robot_type: u8) -> bool {
+    let robot_index = robot_type as usize;
+
+    // It’s never pointless to build the geode robot
+    if robot_index >= N_MATERIALS {
+        return false;
+    }
+
+    // It is pointless to make this robot if we already have enough
+    // robots to build whatever robot needs its resources at every
+    // turn
+    for costs in blueprint.costs.iter() {
+        if costs.material[robot_index] as usize > n_robots[robot_index] {
+            return false;
+        }
+    }
+
+    true
+}
+
 fn apply_next_robot(blueprint: &Blueprint,
                     stack: &mut Vec<State>,
                     start_robot: u8) {
@@ -96,6 +118,12 @@ fn apply_next_robot(blueprint: &Blueprint,
 
     'find_robot_type: {
         for robot_type in start_robot..(N_ROBOTS as u8) {
+            if robot_is_pointless(blueprint,
+                                  &top.n_robots,
+                                  robot_type) {
+                continue;
+            }
+
             if try_make_robot(blueprint,
                               &mut top.n_materials,
                               robot_type) {
