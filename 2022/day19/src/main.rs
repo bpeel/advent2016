@@ -179,11 +179,11 @@ fn try_blueprint(blueprint: &Blueprint) -> usize {
             top.n_materials[material] += top.n_robots[material];
         }
 
+        top.n_geodes += top.n_robots.last().unwrap();
+
         if let Some(r) = top.robot_created {
             top.n_robots[r as usize] += 1;
         }
-
-        top.n_geodes += top.n_robots.last().unwrap();
 
         stack.push(top);
     }
