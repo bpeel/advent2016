@@ -185,9 +185,19 @@ fn main() -> std::process::ExitCode {
         Ok(b) => b,
     };
 
-    let part1 = blueprints.iter().map(|bp| try_blueprint(bp)).max().unwrap();
+    let (best_blueprint, best_score) = blueprints
+        .iter()
+        .map(|bp| try_blueprint(bp))
+        .enumerate()
+        .fold((0, 0), |old, new| {
+            if old.1 >= new.1 {
+                old
+            } else {
+                new
+            }
+        });
 
-    println!("part 1: {}", part1);
+    println!("part 1: {}", (best_blueprint + 1) * best_score);
 
     std::process::ExitCode::SUCCESS
 }
