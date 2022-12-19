@@ -2,7 +2,6 @@ use std::io::Read;
 
 const N_MATERIALS: usize = 3;
 const N_ROBOTS: usize = N_MATERIALS + 1;
-const N_MINUTES: usize = 24;
 
 #[derive(Debug, Clone, Copy)]
 struct Costs {
@@ -170,7 +169,8 @@ fn backtrack(blueprint: &Blueprint,
     }
 }
 
-fn try_blueprint(blueprint: &Blueprint) -> usize {
+fn try_blueprint(blueprint: &Blueprint,
+                 n_minutes: usize) -> usize {
     let mut stack = vec![State {
         n_robots: [0; N_ROBOTS],
         n_materials: [0; N_MATERIALS],
@@ -183,7 +183,7 @@ fn try_blueprint(blueprint: &Blueprint) -> usize {
     stack[0].n_robots[0] = 1;
 
     loop {
-        if stack.len() >= N_MINUTES + 1 {
+        if stack.len() >= n_minutes + 1 {
             let n_geodes = stack.last().unwrap().n_geodes;
 
             if n_geodes > best_score {
@@ -216,7 +216,7 @@ fn main() -> std::process::ExitCode {
         .iter()
         .enumerate()
         .map(|(num, bp)| {
-            let best_score = try_blueprint(bp);
+            let best_score = try_blueprint(bp, 24);
             let result = (num + 1) * best_score;
             println!("{}/{}: {} * {} = {}",
                      num + 1,
@@ -229,6 +229,23 @@ fn main() -> std::process::ExitCode {
         .sum::<usize>();
 
     println!("part 1: {}", part1);
+
+    let max_blueprints = std::cmp::min(3, blueprints.len());
+
+    let part2 = blueprints[0..max_blueprints]
+        .iter()
+        .enumerate()
+        .map(|(num, bp)| {
+            let best_score = try_blueprint(bp, 32);
+            println!("{}/{}: {}",
+                     num + 1,
+                     max_blueprints,
+                     best_score);
+            best_score
+        })
+        .product::<usize>();
+
+    println!("part 2: {}", part2);
 
     std::process::ExitCode::SUCCESS
 }
