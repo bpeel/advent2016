@@ -187,7 +187,6 @@ fn try_blueprint(blueprint: &Blueprint) -> usize {
             let n_geodes = stack.last().unwrap().n_geodes;
 
             if n_geodes > best_score {
-                println!("{:?} {:?}", n_geodes, stack);
                 best_score = n_geodes;
             }
 
@@ -213,19 +212,23 @@ fn main() -> std::process::ExitCode {
         Ok(b) => b,
     };
 
-    let (best_blueprint, best_score) = blueprints
+    let part1 = blueprints
         .iter()
-        .map(|bp| try_blueprint(bp))
         .enumerate()
-        .fold((0, 0), |old, new| {
-            if old.1 >= new.1 {
-                old
-            } else {
-                new
-            }
-        });
+        .map(|(num, bp)| {
+            let best_score = try_blueprint(bp);
+            let result = (num + 1) * best_score;
+            println!("{}/{}: {} * {} = {}",
+                     num + 1,
+                     blueprints.len(),
+                     num + 1,
+                     best_score,
+                     result);
+            result
+        })
+        .sum::<usize>();
 
-    println!("part 1: {}", (best_blueprint + 1) * best_score);
+    println!("part 1: {}", part1);
 
     std::process::ExitCode::SUCCESS
 }
