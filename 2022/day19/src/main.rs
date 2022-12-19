@@ -89,20 +89,41 @@ fn try_make_robot(blueprint: &Blueprint,
     true
 }
 
-fn unmake_robot(blueprint: &Blueprint,
-                n_materials: &mut [usize],
-                robot_type: u8) {
-    let costs = blueprint.costs[robot_type as usize];
+fn apply_next_robot(blueprint: &Blueprint,
+                    stack: &mut Vec<State>,
+                    start_robot: u8) {
+    let mut top = stack.last().unwrap().clone();
 
-    for (material_num, &count) in costs.material.iter().enumerate() {
-        n_materials[material_num] += count as usize;
+    'find_robot_type: {
+        for robot_type in start_robot..(N_ROBOTS as u8) {
+            if try_make_robot(blueprint,
+                              &mut top.n_materials,
+                              robot_type) {
+                top.robot_created = Some(robot_type);
+                break 'find_robot_type;
+            }
+        }
+
+        top.robot_created = None;
     }
+
+    for material in 0..N_MATERIALS {
+        top.n_materials[material] += top.n_robots[material];
+    }
+
+    top.n_geodes += top.n_robots.last().unwrap();
+
+    if let Some(r) = top.robot_created {
+        top.n_robots[r as usize] += 1;
+    }
+
+    stack.push(top);
 }
 
 fn backtrack(blueprint: &Blueprint,
              stack: &mut Vec<State>) -> bool {
     loop {
-        let mut top = match stack.pop() {
+        let top = match stack.pop() {
             Some(t) => t,
             None => return false,
         };
@@ -112,22 +133,11 @@ fn backtrack(blueprint: &Blueprint,
             None => continue,
         };
 
-        unmake_robot(blueprint, &mut top.n_materials, robot_created);
-        top.n_robots[robot_created as usize] -= 1;
-
-        for next_robot in robot_created + 1..(N_ROBOTS as u8) {
-            if try_make_robot(blueprint,
-                              &mut top.n_materials,
-                              next_robot) {
-                top.robot_created = Some(next_robot);
-                top.n_robots[next_robot as usize] += 1;
-                stack.push(top);
-                return true;
-            }
+        if stack.is_empty() {
+            return false;
         }
 
-        top.robot_created = None;
-        stack.push(top);
+        apply_next_robot(blueprint, stack, robot_created + 1);
         return true;
     }
 }
@@ -160,32 +170,7 @@ fn try_blueprint(blueprint: &Blueprint) -> usize {
             }
         }
 
-        let mut top = stack.last().unwrap().clone();
-
-        'find_robot_type: {
-            for robot_type in 0..(N_ROBOTS as u8) {
-                if try_make_robot(blueprint,
-                                  &mut top.n_materials,
-                                  robot_type) {
-                    top.robot_created = Some(robot_type);
-                    break 'find_robot_type;
-                }
-            }
-
-            top.robot_created = None;
-        }
-
-        for material in 0..N_MATERIALS {
-            top.n_materials[material] += top.n_robots[material];
-        }
-
-        top.n_geodes += top.n_robots.last().unwrap();
-
-        if let Some(r) = top.robot_created {
-            top.n_robots[r as usize] += 1;
-        }
-
-        stack.push(top);
+        apply_next_robot(blueprint, &mut stack, 0);
     }
 
     best_score
