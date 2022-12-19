@@ -14,6 +14,14 @@ struct Blueprint {
     costs: [Costs; N_ROBOTS],
 }
 
+#[derive(Debug, Clone)]
+struct State {
+    n_robots: [usize; N_ROBOTS],
+    n_materials: [usize; N_MATERIALS],
+    n_geodes: usize,
+    robot_created: Option<u8>,
+}
+
 fn read_blueprints<R>(input: &mut R) -> Result<Vec<Blueprint>, String>
     where R: Read
 {
@@ -81,57 +89,103 @@ fn try_make_robot(blueprint: &Blueprint,
     true
 }
 
-fn try_robot_combination(blueprint: &Blueprint,
-                         robot_for_minute: &[u8]) -> usize {
-    let mut n_robots = [0usize; N_ROBOTS];
-    let mut n_materials = [0usize; N_MATERIALS];
-    let mut n_geodes = 0usize;
+fn unmake_robot(blueprint: &Blueprint,
+                n_materials: &mut [usize],
+                robot_type: u8) {
+    let costs = blueprint.costs[robot_type as usize];
 
-    // We start with a clay robot
-    n_robots[0] = 1;
-
-    for &new_robot_type in robot_for_minute.iter() {
-        let can_make_robot = try_make_robot(blueprint,
-                                            &mut n_materials,
-                                            new_robot_type);
-
-        for material in 0..N_MATERIALS {
-            n_materials[material] += n_robots[material];
-        }
-
-        n_geodes += *n_robots.last().unwrap() as usize;
-
-        if can_make_robot {
-            n_robots[new_robot_type as usize] += 1;
-        }
+    for (material_num, &count) in costs.material.iter().enumerate() {
+        n_materials[material_num] += count as usize;
     }
+}
 
-    n_geodes
+fn backtrack(blueprint: &Blueprint,
+             stack: &mut Vec<State>) -> bool {
+    loop {
+        let mut top = match stack.pop() {
+            Some(t) => t,
+            None => return false,
+        };
+
+        let robot_created = match top.robot_created {
+            Some(r) => r,
+            None => continue,
+        };
+
+        unmake_robot(blueprint, &mut top.n_materials, robot_created);
+        top.n_robots[robot_created as usize] -= 1;
+
+        for next_robot in robot_created + 1..(N_ROBOTS as u8) {
+            if try_make_robot(blueprint,
+                              &mut top.n_materials,
+                              next_robot) {
+                top.robot_created = Some(next_robot);
+                top.n_robots[next_robot as usize] += 1;
+                stack.push(top);
+                return true;
+            }
+        }
+
+        top.robot_created = None;
+        stack.push(top);
+        return true;
+    }
 }
 
 fn try_blueprint(blueprint: &Blueprint) -> usize {
-    let mut robot_for_minute = [0u8; N_MINUTES];
-    let mut best_score = 0usize;
+    let mut stack = vec![State {
+        n_robots: [0; N_ROBOTS],
+        n_materials: [0; N_MATERIALS],
+        n_geodes: 0,
+        robot_created: None,
+    }; 1];
+    let mut best_score = 0;
 
-    'outer_loop: loop {
-        let score = try_robot_combination(blueprint, &robot_for_minute);
+    // Start with an ore robot
+    stack[0].n_robots[0] = 1;
 
-        if score > best_score {
-            best_score = score;
-        }
+    loop {
+        if stack.len() >= N_MINUTES + 1 {
+            let n_geodes = stack.last().unwrap().n_geodes;
 
-        // Get the next robot_for_minute combination
-        for robot in robot_for_minute.iter_mut() {
-            if *robot as usize + 1 < N_ROBOTS {
-                *robot += 1;
-                continue 'outer_loop;
+            if n_geodes > best_score {
+                println!("{:?} {:?}", n_geodes, stack);
+                best_score = n_geodes;
             }
 
-            *robot = 0;
+            if !backtrack(blueprint, &mut stack) {
+                break;
+            } else {
+                continue;
+            }
         }
 
-        // If we make it here then we’ve exhausted all of the combinations
-        break;
+        let mut top = stack.last().unwrap().clone();
+
+        'find_robot_type: {
+            for robot_type in 0..(N_ROBOTS as u8) {
+                if try_make_robot(blueprint,
+                                  &mut top.n_materials,
+                                  robot_type) {
+                    top.robot_created = Some(robot_type);
+                    break 'find_robot_type;
+                }
+            }
+
+            top.robot_created = None;
+        }
+
+        for material in 0..N_MATERIALS {
+            top.n_materials[material] += top.n_robots[material];
+        }
+
+        if let Some(r) = top.robot_created {
+            top.n_robots[r as usize] += 1;
+        }
+
+        top.n_geodes += top.n_robots.last().unwrap();
+
+        stack.push(top);
     }
 
     best_score
