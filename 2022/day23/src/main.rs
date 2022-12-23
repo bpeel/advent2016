@@ -88,7 +88,7 @@ impl State {
     fn can_move_dir(&self, pos: (i32, i32), dir: u8) -> bool {
         let pos = State::move_pos(pos, dir);
 
-        if dir & 1 == 0 {
+        if dir & 2 == 2 {
             for y in -1..=1 {
                 if self.map.contains(&(pos.0, pos.1 + y)) {
                     return false;
