@@ -15,6 +15,12 @@ struct Elf {
     target: Option<(i32, i32)>,
 }
 
+#[derive(Debug, Clone)]
+struct Bounds {
+    min: (i32, i32),
+    max: (i32, i32),
+}
+
 impl State {
     fn load<F: BufRead>(input: &mut F) -> Result<State, String> {
         let mut state = State {
@@ -143,6 +149,48 @@ impl State {
 
         self.next_dir = (self.next_dir + 1) % 4;
     }
+
+    fn bounds(&self) -> Bounds {
+        let mut bounds = Bounds {
+            min: (i32::MAX, i32::MAX),
+            max: (i32::MIN, i32::MIN),
+        };
+
+        for pos in self.map.iter() {
+            if pos.0 < bounds.min.0 {
+                bounds.min.0 = pos.0;
+            }
+            if pos.0 > bounds.max.0 {
+                bounds.max.0 = pos.0;
+            }
+            if pos.1 < bounds.min.1 {
+                bounds.min.1 = pos.1;
+            }
+            if pos.1 > bounds.max.1 {
+                bounds.max.1 = pos.1;
+            }
+        }
+
+        bounds
+    }
+}
+
+impl std::fmt::Display for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        let bounds = self.bounds();
+
+        for y in bounds.min.1..=bounds.max.1 {
+            for x in bounds.min.0..=bounds.max.0 {
+                write!(f, "{}", if self.map.contains(&(x, y)) { '#' } else { '.' })?;
+            }
+
+            if y < bounds.max.1 {
+                write!(f, "\n")?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 fn main() -> std::process::ExitCode {
@@ -158,7 +206,7 @@ fn main() -> std::process::ExitCode {
         state.step();
     }
 
-    println!("{:?}", state);
+    println!("{}", state);
 
     std::process::ExitCode::SUCCESS
 }
