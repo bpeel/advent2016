@@ -156,7 +156,7 @@ impl State {
         None
     }
 
-    fn step(&mut self) {
+    fn step(&mut self) -> bool {
         self.considering.clear();
 
         for elf in 0..self.elves.len() {
@@ -168,6 +168,8 @@ impl State {
             }
             self.elves[elf].target = target;
         }
+
+        let mut elf_moved = false;
 
         for elf in 0..self.elves.len() {
             let target = match self.elves[elf].target {
@@ -182,9 +184,12 @@ impl State {
             self.map.remove(&self.elves[elf].pos);
             self.map.insert(target);
             self.elves[elf].pos = target;
+            elf_moved = true;
         }
 
         self.next_dir = (self.next_dir + 1) % 4;
+
+        elf_moved
     }
 
     fn bounds(&self) -> Bounds {
@@ -255,12 +260,18 @@ fn main() -> std::process::ExitCode {
         Ok(s) => s,
     };
 
-    for _ in 0..10 {
-        state.step();
-    }
+    for round in 1.. {
+        let elf_moved = state.step();
 
-    println!("{}", state);
-    println!("part 1: {}", state.count_gaps());
+        if round == 10 {
+            println!("part 1: {}", state.count_gaps());
+        }
+
+        if !elf_moved {
+            println!("part 2: {}", round);
+            break;
+        }
+    }
 
     std::process::ExitCode::SUCCESS
 }
