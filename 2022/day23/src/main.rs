@@ -175,6 +175,34 @@ impl State {
 
         bounds
     }
+
+    fn count_gaps(&self) -> usize {
+        let mut gaps = 0;
+        let bounds = self.bounds();
+        let mut last_x = bounds.min.0 - 1;
+        let mut last_y = bounds.min.1;
+        let mut positions: Vec<(i32, i32)> =
+            self.map.iter().map(|&p| p).collect();
+
+        positions.sort_by(|a, b| {
+            a.1.cmp(&b.1).then(a.0.cmp(&b.0))
+        });
+
+        for pos in positions {
+            if pos.1 != last_y {
+                gaps += (bounds.max.0 - last_x) as usize;
+                gaps += ((bounds.max.0 - bounds.min.0 + 1) * (pos.1 - last_y - 1)) as usize;
+                last_x = bounds.min.0 - 1;
+            }
+
+            gaps += (pos.0 - last_x - 1) as usize;
+
+            last_x = pos.0;
+            last_y = pos.1;
+        }
+
+        gaps
+    }
 }
 
 impl std::fmt::Display for State {
@@ -209,6 +237,7 @@ fn main() -> std::process::ExitCode {
     }
 
     println!("{}", state);
+    println!("part 1: {}", state.count_gaps());
 
     std::process::ExitCode::SUCCESS
 }
