@@ -144,6 +144,8 @@ impl State {
                 continue;
             }
 
+            self.map.remove(&self.elves[elf].pos);
+            self.map.insert(target);
             self.elves[elf].pos = target;
         }
 
