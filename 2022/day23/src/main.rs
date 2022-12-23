@@ -21,6 +21,41 @@ struct Bounds {
     max: (i32, i32),
 }
 
+struct GapCounter {
+    bounds: Bounds,
+    last_x: i32,
+    last_y: i32,
+    gaps: usize,
+}
+
+impl GapCounter {
+    fn new(bounds: Bounds) -> GapCounter {
+        let last_x = bounds.min.0 - 1;
+        let last_y = bounds.min.1;
+
+        GapCounter { bounds, last_x, last_y, gaps: 0 }
+    }
+
+    fn add_pos(&mut self, pos: (i32, i32)) {
+        if pos.1 != self.last_y {
+            self.gaps += (self.bounds.max.0 - self.last_x) as usize;
+            self.gaps += ((self.bounds.max.0 - self.bounds.min.0 + 1) * (pos.1 - self.last_y - 1)) as usize;
+            self.last_x = self.bounds.min.0 - 1;
+        }
+
+        self.gaps += (pos.0 - self.last_x - 1) as usize;
+
+        self.last_x = pos.0;
+        self.last_y = pos.1;
+    }
+
+    fn end(&mut self) -> usize {
+        self.add_pos((self.bounds.max.0 + 1,
+                      self.bounds.max.1));
+        self.gaps
+    }
+}
+
 impl State {
     fn load<F: BufRead>(input: &mut F) -> Result<State, String> {
         let mut state = State {
@@ -177,10 +212,7 @@ impl State {
     }
 
     fn count_gaps(&self) -> usize {
-        let mut gaps = 0;
-        let bounds = self.bounds();
-        let mut last_x = bounds.min.0 - 1;
-        let mut last_y = bounds.min.1;
+        let mut counter = GapCounter::new(self.bounds());
         let mut positions: Vec<(i32, i32)> =
             self.map.iter().map(|&p| p).collect();
 
@@ -189,19 +221,10 @@ impl State {
         });
 
         for pos in positions {
-            if pos.1 != last_y {
-                gaps += (bounds.max.0 - last_x) as usize;
-                gaps += ((bounds.max.0 - bounds.min.0 + 1) * (pos.1 - last_y - 1)) as usize;
-                last_x = bounds.min.0 - 1;
-            }
-
-            gaps += (pos.0 - last_x - 1) as usize;
-
-            last_x = pos.0;
-            last_y = pos.1;
+            counter.add_pos(pos);
         }
 
-        gaps
+        counter.end()
     }
 }
 
