@@ -23,12 +23,11 @@ struct Blizzard {
 struct State {
     pos: (i32, i32),
     blizzard_pos: usize,
-    visit_count: u8,
 }
 
 impl State {
-    fn new(pos: (i32, i32), blizzard_pos: usize, visit_count: u8) -> State {
-        State { pos, blizzard_pos, visit_count }
+    fn new(pos: (i32, i32), blizzard_pos: usize) -> State {
+        State { pos, blizzard_pos }
     }
 }
 
@@ -142,35 +141,7 @@ fn read_grid<I>(lines: &mut I) -> Result<Grid, String>
     Ok(grid)
 }
 
-fn count_visits(grid: &Grid, path: &[(QuadDirection, (i32, i32))], pos: (i32, i32)) -> u8 {
-    let mut visits = 0u8;
-
-    for &(_, (x, y)) in path.iter() {
-        if visits & 1 == 0 {
-            if y >= 0 && y as usize == grid.height {
-                visits += 1;
-            }
-        } else {
-            if y == -1 {
-                visits += 1;
-            }
-        }
-    }
-
-    if visits & 1 == 0 {
-        if pos.1 >= 0 && pos.1 as usize == grid.height {
-            visits += 1;
-        }
-    } else {
-        if pos.1 == -1 {
-            visits += 1;
-        }
-    }
-
-    visits
-}
-
-fn solve(grid: &Grid, max_visits: u8) -> usize {
+fn solve(grid: &Grid) -> usize {
     let mut visited = HashMap::<State, usize>::new();
     let mut best = usize::MAX;
 
@@ -193,9 +164,7 @@ fn solve(grid: &Grid, max_visits: u8) -> usize {
             return VisitResult::Backtrack;
         }
 
-        let visits = count_visits(grid, path, pos);
-
-        let state = State::new(pos, path.len() % grid.lcm, visits);
+        let state = State::new(pos, path.len() % grid.lcm);
 
         match visited.entry(state) {
             Entry::Occupied(mut e) => {
@@ -210,7 +179,7 @@ fn solve(grid: &Grid, max_visits: u8) -> usize {
             },
         }
 
-        if visits >= max_visits {
+        if pos.1 >= 0 && pos.1 as usize == grid.height {
             if path.len() < best {
                 best = path.len();
                 println!("{}", path.len());
@@ -233,8 +202,7 @@ fn main() -> std::process::ExitCode {
         Ok(items) => items,
     };
 
-    println!("part 1: {}", solve(&grid, 1));
-    println!("part 2: {}", solve(&grid, 3));
+    println!("part 1: {}", solve(&grid));
 
     std::process::ExitCode::SUCCESS
 }
