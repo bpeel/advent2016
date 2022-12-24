@@ -141,8 +141,9 @@ fn read_grid<I>(lines: &mut I) -> Result<Grid, String>
     Ok(grid)
 }
 
-fn solve(grid: &Grid) {
+fn solve(grid: &Grid) -> usize {
     let mut visited = HashMap::<State, usize>::new();
+    let mut best = usize::MAX;
 
     walker::walk::<QuadDirection, _>((grid.start_pos as i32, -1), |path, pos| {
         if pos.0 < 0 || pos.0 as usize >= grid.width {
@@ -179,12 +180,17 @@ fn solve(grid: &Grid) {
         }
 
         if pos.1 >= 0 && pos.1 as usize == grid.height {
-            println!("{}", path.len());
+            if path.len() < best {
+                best = path.len();
+                println!("{}", path.len());
+            }
             return VisitResult::Backtrack;
         }
 
         VisitResult::Continue
     });
+
+    best
 }
 
 fn main() -> std::process::ExitCode {
@@ -196,9 +202,7 @@ fn main() -> std::process::ExitCode {
         Ok(items) => items,
     };
 
-    solve(&grid);
-
-    println!("{:?}", grid);
+    println!("part 1: {}", solve(&grid));
 
     std::process::ExitCode::SUCCESS
 }
