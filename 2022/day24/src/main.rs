@@ -181,7 +181,7 @@ fn solve(grid: &Grid, start_minute: usize, backwards: bool) -> usize {
                     e.insert(path.len());
                 }
             },
-            Entry::Vacant(mut e) => {
+            Entry::Vacant(e) => {
                 e.insert(path.len());
             },
         }
