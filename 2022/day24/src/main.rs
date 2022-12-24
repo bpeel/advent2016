@@ -141,11 +141,18 @@ fn read_grid<I>(lines: &mut I) -> Result<Grid, String>
     Ok(grid)
 }
 
-fn solve(grid: &Grid) -> usize {
+fn solve(grid: &Grid, start_minute: usize, backwards: bool) -> usize {
     let mut visited = HashMap::<State, usize>::new();
     let mut best = usize::MAX;
 
-    walker::walk::<QuadDirection, _>((grid.start_pos as i32, -1), |path, pos| {
+    let mut start_pos = (grid.start_pos as i32, -1);
+    let mut end_pos = (grid.end_pos as i32, grid.height as i32);
+
+    if backwards {
+        std::mem::swap(&mut start_pos, &mut end_pos);
+    }
+
+    walker::walk::<QuadDirection, _>(start_pos, |path, pos| {
         if pos.0 < 0 || pos.0 as usize >= grid.width {
             return VisitResult::Backtrack;
         }
@@ -160,7 +167,7 @@ fn solve(grid: &Grid) -> usize {
             }
         } else if pos.1 < 0 || pos.1 as usize >= grid.height {
             return VisitResult::Backtrack;
-        } else if grid.occupied(path.len(), (pos.0 as usize, pos.1 as usize)) {
+        } else if grid.occupied(path.len() + start_minute, (pos.0 as usize, pos.1 as usize)) {
             return VisitResult::Backtrack;
         }
 
@@ -179,7 +186,7 @@ fn solve(grid: &Grid) -> usize {
             },
         }
 
-        if pos.1 >= 0 && pos.1 as usize == grid.height {
+        if pos == end_pos {
             if path.len() < best {
                 best = path.len();
                 println!("{}", path.len());
@@ -202,7 +209,12 @@ fn main() -> std::process::ExitCode {
         Ok(items) => items,
     };
 
-    println!("part 1: {}", solve(&grid));
+    let part1 = solve(&grid, 0, false);
+    println!("part 1: {}", part1);
+    let ret = solve(&grid, part1, true);
+    println!("ret: {}", ret);
+    let go2 = solve(&grid, part1 + ret, false);
+    println!("part 2: {}", part1 + ret + go2);
 
     std::process::ExitCode::SUCCESS
 }
