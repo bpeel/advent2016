@@ -60,6 +60,31 @@ impl Grid {
 
         return false;
     }
+    
+    fn flip(&self) -> Grid {
+        let mut grid = Grid {
+            start_pos: self.end_pos,
+            end_pos: self.start_pos,
+            width: self.width,
+            height: self.height,
+            lcm: self.lcm,
+            blizzards: Vec::new(),
+        };
+
+        for blizzard in self.blizzards.iter() {
+            grid.blizzards.push(Blizzard {
+                x: blizzard.x,
+                y: self.height - 1 - blizzard.y,
+                direction: match blizzard.direction {
+                    BlizzardDirection::Up => BlizzardDirection::Down,
+                    BlizzardDirection::Down => BlizzardDirection::Up,
+                    d => d,
+                },
+            });
+        }
+
+        grid
+    }
 }
 
 fn lcm(a: usize, b: usize) -> usize {
@@ -141,16 +166,12 @@ fn read_grid<I>(lines: &mut I) -> Result<Grid, String>
     Ok(grid)
 }
 
-fn solve(grid: &Grid, start_minute: usize, backwards: bool) -> usize {
+fn solve(grid: &Grid, start_minute: usize) -> usize {
     let mut visited = HashMap::<State, usize>::new();
     let mut best = usize::MAX;
 
-    let mut start_pos = (grid.start_pos as i32, -1);
-    let mut end_pos = (grid.end_pos as i32, grid.height as i32);
-
-    if backwards {
-        std::mem::swap(&mut start_pos, &mut end_pos);
-    }
+    let start_pos = (grid.start_pos as i32, -1);
+    let end_pos = (grid.end_pos as i32, grid.height as i32);
 
     walker::walk::<QuadDirection, _>(start_pos, |path, pos| {
         if pos.0 < 0 || pos.0 as usize >= grid.width {
@@ -209,11 +230,11 @@ fn main() -> std::process::ExitCode {
         Ok(items) => items,
     };
 
-    let part1 = solve(&grid, 0, false);
+    let part1 = solve(&grid, 0);
     println!("part 1: {}", part1);
-    let ret = solve(&grid, part1, true);
+    let ret = solve(&grid.flip(), part1);
     println!("ret: {}", ret);
-    let go2 = solve(&grid, part1 + ret, false);
+    let go2 = solve(&grid, part1 + ret);
     println!("part 2: {}", part1 + ret + go2);
 
     std::process::ExitCode::SUCCESS
