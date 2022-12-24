@@ -19,15 +19,15 @@ impl Direction for QuadDirection {
     type Pos = (i32, i32);
 
     fn first_direction() -> QuadDirection {
-        QuadDirection::Up
+        QuadDirection::Down
     }
 
     fn next_direction(self) -> Option<QuadDirection> {
         match self {
-            QuadDirection::Up => Some(QuadDirection::Down),
-            QuadDirection::Down => Some(QuadDirection::Left),
-            QuadDirection::Left => Some(QuadDirection::Right),
-            QuadDirection::Right => Some(QuadDirection::Wait),
+            QuadDirection::Up => Some(QuadDirection::Right),
+            QuadDirection::Down => Some(QuadDirection::Up),
+            QuadDirection::Left => Some(QuadDirection::Wait),
+            QuadDirection::Right => Some(QuadDirection::Left),
             QuadDirection::Wait => None,
         }
     }
