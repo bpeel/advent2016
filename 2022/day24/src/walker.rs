@@ -24,11 +24,11 @@ impl Direction for QuadDirection {
 
     fn next_direction(self) -> Option<QuadDirection> {
         match self {
-            QuadDirection::Up => Some(QuadDirection::Right),
-            QuadDirection::Down => Some(QuadDirection::Up),
+            QuadDirection::Up => None,
+            QuadDirection::Down => Some(QuadDirection::Right),
             QuadDirection::Left => Some(QuadDirection::Wait),
             QuadDirection::Right => Some(QuadDirection::Left),
-            QuadDirection::Wait => None,
+            QuadDirection::Wait => Some(QuadDirection::Up),
         }
     }
 
