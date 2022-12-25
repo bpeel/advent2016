@@ -174,6 +174,10 @@ fn solve(grid: &Grid, start_minute: usize) -> usize {
     let end_pos = (grid.end_pos as i32, grid.height as i32);
 
     walker::walk::<QuadDirection, _>(start_pos, |path, pos| {
+        if path.len() + 1 >= best {
+            return VisitResult::Backtrack;
+        }
+
         if pos.0 < 0 || pos.0 as usize >= grid.width {
             return VisitResult::Backtrack;
         }
