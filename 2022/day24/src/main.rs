@@ -63,8 +63,8 @@ impl Grid {
     
     fn flip(&self) -> Grid {
         let mut grid = Grid {
-            start_pos: self.end_pos,
-            end_pos: self.start_pos,
+            start_pos: self.width - 1 - self.end_pos,
+            end_pos: self.width - 1 - self.start_pos,
             width: self.width,
             height: self.height,
             lcm: self.lcm,
@@ -73,12 +73,13 @@ impl Grid {
 
         for blizzard in self.blizzards.iter() {
             grid.blizzards.push(Blizzard {
-                x: blizzard.x,
+                x: self.width - 1 - blizzard.x,
                 y: self.height - 1 - blizzard.y,
                 direction: match blizzard.direction {
                     BlizzardDirection::Up => BlizzardDirection::Down,
                     BlizzardDirection::Down => BlizzardDirection::Up,
-                    d => d,
+                    BlizzardDirection::Left => BlizzardDirection::Right,
+                    BlizzardDirection::Right => BlizzardDirection::Left,
                 },
             });
         }
