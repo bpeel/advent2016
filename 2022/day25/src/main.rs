@@ -1,10 +1,10 @@
-fn parse_snafu(s: &str) -> Result<i32, String> {
+fn parse_snafu(s: &str) -> Result<i64, String> {
     let mut digit_value = 1;
     let mut total = 0;
 
     for ch in s.chars().rev() {
         let mult = match ch {
-            '0'..='2' => ch as i32 - '0' as i32,
+            '0'..='2' => ch as i64 - '0' as i64,
             '-' => -1,
             '=' => -2,
             _ => return Err("invalid char in snafu".to_string()),
@@ -17,7 +17,7 @@ fn parse_snafu(s: &str) -> Result<i32, String> {
     Ok(total)
 }
 
-fn to_snafu(mut value: i32) -> String {
+fn to_snafu(mut value: i64) -> String {
     let mut carry = 0;
     let mut digits = String::new();
 
