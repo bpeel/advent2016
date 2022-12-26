@@ -39,7 +39,7 @@ impl<'a> State<'a> {
             Action::Right => self.direction = (self.direction + 1) % 4,
             Action::Forward(n) => {
                 for _ in 0..n {
-                    let pos = next_pos(self.grid, self.pos, self.direction);
+                    let pos = self.next_pos();
                     match self.grid.get(pos).unwrap() {
                         b'.' => self.pos = pos,
                         _ => break,
@@ -52,6 +52,37 @@ impl<'a> State<'a> {
     fn password(&self) -> i32 {
         (self.pos.1 + 1) * 1000 + (self.pos.0 + 1) * 4 + self.direction as i32
     }
+
+    fn next_pos(&self) -> (i32, i32) {
+        let offset = OFFSETS[self.direction];
+        let next_pos = (self.pos.0 + offset.0, self.pos.1 + offset.1);
+
+        match self.grid.get(next_pos) {
+            None | Some(b' ') => self.first_pos(),
+            _ => next_pos,
+        }
+    }
+
+    fn first_pos(&self) -> (i32, i32) {
+        let mut pos = match self.direction {
+            0 => (0, self.pos.1),
+            1 => (self.pos.0, 0),
+            2 => (self.grid.width as i32 - 1, self.pos.1),
+            3 => (self.pos.0, self.grid.height as i32 - 1),
+            _ => panic!("impossible direction"),
+        };
+
+        let offset = OFFSETS[self.direction];
+
+        loop {
+            if self.grid.get(pos).unwrap() != b' ' {
+                break pos;
+            }
+            
+            pos.0 += offset.0;
+            pos.1 += offset.1;
+        }
+    }
 }
 
 fn find_start_pos(grid: &Grid) -> Option<(i32, i32)> {
@@ -62,39 +93,7 @@ fn find_start_pos(grid: &Grid) -> Option<(i32, i32)> {
 
     Some(((pos % grid.width) as i32, (pos / grid.width) as i32))
 }
-
-fn first_pos(grid: &Grid, start_pos: (i32, i32), dir: usize) -> (i32, i32) {
-    let mut pos = match dir {
-        0 => (0, start_pos.1),
-        1 => (start_pos.0, 0),
-        2 => (grid.width as i32 - 1, start_pos.1),
-        3 => (start_pos.0, grid.height as i32 - 1),
-        _ => panic!("impossible direction"),
-    };
-
-    let offset = OFFSETS[dir];
-
-    loop {
-        if grid.get(pos).unwrap() != b' ' {
-            break pos;
-        }
-        
-        pos.0 += offset.0;
-        pos.1 += offset.1;
-    }
-}
-
-        
-fn next_pos(grid: &Grid, start_pos: (i32, i32), dir: usize) -> (i32, i32) {
-    let offset = OFFSETS[dir];
-    let next_pos = (start_pos.0 + offset.0, start_pos.1 + offset.1);
-
-    match grid.get(next_pos) {
-        None | Some(b' ') => first_pos(grid, start_pos, dir),
-        _ => next_pos,
-    }
-}
-
+ 
 fn parse_password(s: &str) -> Result<Box<[Action]>, String> {
     let mut parts = Vec::<Action>::new();
     let mut num = 0;
