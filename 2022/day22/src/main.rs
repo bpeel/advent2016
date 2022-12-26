@@ -17,6 +17,121 @@ static OFFSETS: [(i32, i32); 4] = [
     (0, -1),
 ];
 
+const X_FACES: usize = 4;
+const Y_FACES: usize = 3;
+const N_FACES: usize = X_FACES * Y_FACES;
+
+struct FaceLink {
+    next_face: usize,
+    direction: usize,
+    flip: bool,
+}
+
+struct Face {
+    links: [Option<FaceLink>; 4],
+}
+
+static FACES: [Face; N_FACES] = [
+    Face { links: [None, None, None, None] },
+    Face { links: [None, None, None, None] },
+    Face { links: [
+        Some(FaceLink {
+            next_face: 11,
+            direction: 2,
+            flip: true,
+        }),
+        None,
+        Some(FaceLink {
+            next_face: 5,
+            direction: 1,
+            flip: false,
+        }),
+        Some(FaceLink {
+            next_face: 4,
+            direction: 1,
+            flip: true,
+        }),
+    ]},
+    Face { links: [None, None, None, None] },
+    Face { links: [
+        None,
+        Some(FaceLink {
+            next_face: 10,
+            direction: 3,
+            flip: true,
+        }),
+        Some(FaceLink {
+            next_face: 11,
+            direction: 3,
+            flip: true,
+        }),
+        Some(FaceLink {
+            next_face: 2,
+            direction: 1,
+            flip: true,
+        }),
+    ]},
+    Face { links: [
+        None,
+        Some(FaceLink {
+            next_face: 10,
+            direction: 0,
+            flip: true,
+        }),
+        None,
+        Some(FaceLink {
+            next_face: 2,
+            direction: 0,
+            flip: false,
+        }),
+    ]},
+    Face { links: [
+        Some(FaceLink {
+            next_face: 11,
+            direction: 1,
+            flip: true,
+        }),
+        None,
+        None,
+        None,
+    ]},
+    Face { links: [None, None, None, None] },
+    Face { links: [None, None, None, None] },
+    Face { links: [None, None, None, None] },
+    Face { links: [
+        None,
+        Some(FaceLink {
+            next_face: 4,
+            direction: 3,
+            flip: true,
+        }),
+        Some(FaceLink {
+            next_face: 5,
+            direction: 3,
+            flip: true,
+        }),
+        None,
+    ]},
+    Face { links: [
+        Some(FaceLink {
+            next_face: 2,
+            direction: 2,
+            flip: true,
+        }),
+        Some(FaceLink {
+            next_face: 4,
+            direction: 0,
+            flip: true,
+        }),
+        None,
+        Some(FaceLink {
+            next_face: 6,
+            direction: 2,
+            flip: true,
+        }),
+    ]},
+];
+
 #[derive(Clone, Debug)]
 struct State<'a> {
     pos: (i32, i32),
@@ -140,7 +255,52 @@ fn read_input<I: BufRead>(input: &mut I) -> Result<(Grid, Box<[Action]>), String
     Ok((grid, parse_password(password.trim_end())?))
 }
 
+fn validate_links() -> bool {
+    for (face_num, face) in FACES.iter().enumerate() {
+        for (direction, link) in face.links.iter().enumerate() {
+            let link = match link {
+                None => continue,
+                Some(l) => l,
+            };
+
+            let other = match &FACES[link.next_face].links[link.direction ^ 2] {
+                None => {
+                    eprintln!("{} {} has no return link", face_num, direction);
+                    return false;
+                },
+                Some(o) => o,
+            };
+
+            if other.next_face != face_num {
+                eprintln!("link from {} {} to {} links back to {}",
+                          face_num, direction,
+                          link.next_face,
+                          other.next_face);
+                return false;
+            }
+
+            if other.direction != direction ^ 2 {
+                eprintln!("link from {} {} doesn’t have right return direction",
+                          face_num, direction);
+                return false;
+            }
+
+            if other.flip != link.flip {
+                eprintln!("link from {} {} doesn’t have matching flip",
+                          face_num, direction);
+                return false;
+            }
+        }
+    }
+
+    true
+}
+
 fn main() -> std::process::ExitCode {
+    if !(validate_links()) {
+        return std::process::ExitCode::FAILURE;
+    }
+
     let (grid, password) = match read_input(&mut std::io::stdin().lock()) {
         Err(e) => {
             eprintln!("{}", e);
