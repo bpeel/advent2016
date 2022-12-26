@@ -137,14 +137,18 @@ struct State<'a> {
     pos: (i32, i32),
     direction: usize,
     grid: &'a Grid,
+    face_length: usize,
+    cube: bool,
 }
 
 impl<'a> State<'a> {
-    fn new(grid: &'a Grid, pos: (i32, i32)) -> State {
+    fn new(grid: &'a Grid, cube: bool, pos: (i32, i32)) -> State {
         State {
             pos,
             direction: 0,
             grid,
+            face_length: grid.width / X_FACES,
+            cube,
         }
     }
 
@@ -154,9 +158,12 @@ impl<'a> State<'a> {
             Action::Right => self.direction = (self.direction + 1) % 4,
             Action::Forward(n) => {
                 for _ in 0..n {
-                    let pos = self.next_pos();
+                    let (pos, direction) = self.next_pos();
                     match self.grid.get(pos).unwrap() {
-                        b'.' => self.pos = pos,
+                        b'.' => {
+                            self.pos = pos;
+                            self.direction = direction;
+                        },
                         _ => break,
                     }
                 }
@@ -168,17 +175,57 @@ impl<'a> State<'a> {
         (self.pos.1 + 1) * 1000 + (self.pos.0 + 1) * 4 + self.direction as i32
     }
 
-    fn next_pos(&self) -> (i32, i32) {
+    fn next_pos(&self) -> ((i32, i32), usize) {
         let offset = OFFSETS[self.direction];
         let next_pos = (self.pos.0 + offset.0, self.pos.1 + offset.1);
 
         match self.grid.get(next_pos) {
             None | Some(b' ') => self.first_pos(),
-            _ => next_pos,
+            _ => (next_pos, self.direction),
         }
     }
 
-    fn first_pos(&self) -> (i32, i32) {
+    fn first_pos(&self) -> ((i32, i32), usize) {
+        if !self.cube {
+            return self.simple_first_pos();
+        }
+
+        let face_x = self.pos.0 as usize / self.face_length;
+        let face_y = self.pos.1 as usize / self.face_length;
+        let face_num = face_y * X_FACES + face_x;
+
+        let link = match &FACES[face_num].links[self.direction] {
+            None => return self.simple_first_pos(),
+            Some(l) => l,
+        };
+
+        let face_pos = match self.direction {
+            0 | 2 => self.pos.1 % self.face_length as i32,
+            1 | 3 => self.pos.0 % self.face_length as i32,
+            _ => panic!("impossible direction"),
+        };
+
+        let face_pos = if link.flip {
+            self.face_length as i32 - 1 - face_pos
+        } else {
+            face_pos
+        };
+
+        let face_x = (link.next_face % X_FACES * self.face_length) as i32;
+        let face_y = (link.next_face / X_FACES * self.face_length) as i32;
+
+        let pos = match link.direction {
+            0 => (face_x, face_y + face_pos),
+            1 => (face_x + face_pos, face_y),
+            2 => (face_x + self.face_length as i32 - 1, face_y + face_pos),
+            3 => (face_x + face_pos, face_y + self.face_length as i32 - 1),
+            _ => panic!("impossible direction"),
+        };
+
+        (pos, link.direction)
+    }
+
+    fn simple_first_pos(&self) -> ((i32, i32), usize) {
         let mut pos = match self.direction {
             0 => (0, self.pos.1),
             1 => (self.pos.0, 0),
@@ -191,7 +238,7 @@ impl<'a> State<'a> {
 
         loop {
             if self.grid.get(pos).unwrap() != b' ' {
-                break pos;
+                break (pos, self.direction);
             }
             
             pos.0 += offset.0;
@@ -317,18 +364,21 @@ fn main() -> std::process::ExitCode {
         Some(p) => p,
     };
 
-    let mut state = State::new(&grid, start_pos);
+    let mut state = State::new(&grid, false, start_pos);
 
     for &action in password.iter() {
         state.act(action)
     }
 
-    println!("{}", grid);
-    println!("{:?}", start_pos);
-    println!("{:?}", password);
-    println!("{:?}", state);
-
     println!("part 1: {}", state.password());
+
+    let mut state = State::new(&grid, true, start_pos);
+
+    for &action in password.iter() {
+        state.act(action)
+    }
+
+    println!("part 2: {}", state.password());
 
     std::process::ExitCode::SUCCESS
 }
