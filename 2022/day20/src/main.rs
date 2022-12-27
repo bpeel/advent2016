@@ -1,6 +1,6 @@
 #[derive(Debug, Clone)]
 struct Num {
-    value: i32,
+    value: i64,
     prev: usize,
     next: usize,
 }
@@ -16,7 +16,7 @@ fn read_nums<I>(lines: &mut I) -> Result<Vec<Num>, String>
             Ok(line) => line,
         };
 
-        let value = match line.parse::<i32>() {
+        let value = match line.parse::<i64>() {
             Ok(v) => v,
             Err(e) => return Err(format!("line {}: {}", line_num + 1, e)),
         };
@@ -78,7 +78,7 @@ fn move_nums(nums: &mut [Num]) -> usize {
         nums[nums[i].next].prev = nums[i].prev;
 
         let offset = if nums[i].value < 0 {
-            nums.len() - 1 - (-nums[i].value % (nums.len() as i32 - 1)) as usize
+            nums.len() - 1 - (-nums[i].value % (nums.len() as i64 - 1)) as usize
         } else {
             nums[i].value as usize % (nums.len() - 1)
         };
@@ -102,7 +102,7 @@ fn move_nums(nums: &mut [Num]) -> usize {
     start
 }
 
-fn get_grove_coordinates(nums: &[Num]) -> i32 {
+fn get_grove_coordinates(nums: &[Num]) -> i64 {
     let start_pos = nums.iter().position(|n| n.value == 0).unwrap();
     let mut pos = start_pos;
     let mut count = 0;
