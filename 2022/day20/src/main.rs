@@ -127,9 +127,26 @@ fn get_grove_coordinates(nums: &[Num]) -> i64 {
     sum
 }
 
+fn part1(mut nums: Vec<Num>) {
+    move_nums(&mut nums);
+
+    println!("part 1: {}", get_grove_coordinates(&nums));
+}
+
+fn part2(mut nums: Vec<Num>) {
+    for num in nums.iter_mut() {
+        num.value *= 811589153;
+    }
+
+    for _ in 0..10 {
+        move_nums(&mut nums);
+    }
+
+    println!("part 2: {}", get_grove_coordinates(&nums));
+}
 
 fn main() -> std::process::ExitCode {
-    let mut nums = match read_nums(&mut std::io::stdin().lines()) {
+    let nums = match read_nums(&mut std::io::stdin().lines()) {
         Ok(nums) => nums,
         Err(e) => {
             eprintln!("{}", e);
@@ -137,9 +154,8 @@ fn main() -> std::process::ExitCode {
         },
     };
 
-    move_nums(&mut nums);
-
-    println!("part 1: {}", get_grove_coordinates(&nums));
+    part1(nums.clone());
+    part2(nums);
 
     std::process::ExitCode::SUCCESS
 }
