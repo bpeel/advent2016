@@ -150,7 +150,9 @@ impl<'a> State<'a> {
             match self.grid.get(pos) {
                 Some(b) if b != b' ' => {
                     let link = &FACES[face].links[direction];
-                    self.add_face(link.next_face, pos, (rotation + link.rotation) % 4);
+                    self.add_face(link.next_face,
+                                  pos,
+                                  (rotation + link.rotation) % 4);
                 },
                 _ => (),
             };
@@ -215,7 +217,7 @@ impl<'a> State<'a> {
             if self.grid.get(pos).unwrap() != b' ' {
                 break (pos, self.direction);
             }
-            
+
             pos.0 += offset.0;
             pos.1 += offset.1;
         }
@@ -226,8 +228,12 @@ impl<'a> State<'a> {
 
         'found_face: {
             for (i, f) in self.face_map.iter().enumerate() {
-                if (f.top_left.0..f.top_left.0 + self.face_length as i32).contains(&self.pos.0) &&
-                    (f.top_left.1..f.top_left.1 + self.face_length as i32).contains(&self.pos.1) {
+                if (f.top_left.0..
+                    f.top_left.0 +
+                    self.face_length as i32).contains(&self.pos.0) &&
+                    (f.top_left.1..
+                     f.top_left.1 +
+                     self.face_length as i32).contains(&self.pos.1) {
                     face_num = i;
                     break 'found_face;
                 }
@@ -238,8 +244,14 @@ impl<'a> State<'a> {
 
         let link = &FACES[face_num].links[self.direction];
         let offset = OFFSETS[self.direction];
-        let face_x = (self.pos.0 + offset.0 + self.face_length as i32) % self.face_length as i32;
-        let face_y = (self.pos.1 + offset.1 + self.face_length as i32) % self.face_length as i32;
+        let face_x = (self.pos.0 +
+                      offset.0 +
+                      self.face_length as i32) %
+            self.face_length as i32;
+        let face_y = (self.pos.1 +
+                      offset.1 +
+                      self.face_length as i32) %
+            self.face_length as i32;
         let rotation = (self.face_map[face_num].rotation + link.rotation) % 4;
 
         let (face_x, face_y) = match rotation {
@@ -274,7 +286,7 @@ fn find_start_pos(grid: &Grid) -> Option<(i32, i32)> {
 
     Some(((pos % grid.width) as i32, (pos / grid.width) as i32))
 }
- 
+
 fn parse_password(s: &str) -> Result<Box<[Action]>, String> {
     let mut parts = Vec::<Action>::new();
     let mut num = 0;
@@ -303,7 +315,9 @@ fn parse_password(s: &str) -> Result<Box<[Action]>, String> {
     Ok(parts.into_boxed_slice())
 }
 
-fn read_input<I: BufRead>(input: &mut I) -> Result<(Grid, Box<[Action]>), String> {
+fn read_input<I: BufRead>(input: &mut I) ->
+    Result<(Grid, Box<[Action]>), String>
+{
     let grid = match Grid::load(input) {
         Err(e) => return Err(e.to_string()),
         Ok(grid) => grid,
