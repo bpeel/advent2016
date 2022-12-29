@@ -14,7 +14,7 @@ struct Blueprint {
 }
 
 #[derive(Debug, Clone)]
-struct State {
+struct StackEntry {
     n_robots: [usize; N_ROBOTS],
     n_materials: [usize; N_MATERIALS],
     robot_created: Option<u8>,
@@ -110,7 +110,7 @@ fn robot_is_pointless(blueprint: &Blueprint,
 }
 
 fn apply_next_robot(blueprint: &Blueprint,
-                    stack: &mut Vec<State>,
+                    stack: &mut Vec<StackEntry>,
                     start_robot: u8) {
     let mut top = stack.last().unwrap().clone();
 
@@ -145,7 +145,7 @@ fn apply_next_robot(blueprint: &Blueprint,
 }
 
 fn backtrack(blueprint: &Blueprint,
-             stack: &mut Vec<State>) -> bool {
+             stack: &mut Vec<StackEntry>) -> bool {
     loop {
         let top = match stack.pop() {
             Some(t) => t,
@@ -168,7 +168,7 @@ fn backtrack(blueprint: &Blueprint,
 
 fn try_blueprint(blueprint: &Blueprint,
                  n_minutes: usize) -> usize {
-    let mut stack = vec![State {
+    let mut stack = vec![StackEntry {
         n_robots: [0; N_ROBOTS],
         n_materials: [0; N_MATERIALS],
         robot_created: None,
