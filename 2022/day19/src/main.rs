@@ -1,4 +1,5 @@
 use std::io::Read;
+use std::cmp::Ordering;
 
 const N_MATERIALS: usize = 4;
 const N_ROBOTS: usize = N_MATERIALS;
@@ -18,6 +19,41 @@ struct StackEntry {
     n_robots: [usize; N_ROBOTS],
     n_materials: [usize; N_MATERIALS],
     robot_created: Option<u8>,
+}
+
+#[derive(Debug, Clone)]
+struct State {
+    n_robots: [usize; N_ROBOTS],
+    n_materials: [usize; N_MATERIALS],
+    minutes_used: usize,
+}
+
+impl State {
+    fn better_than(&self, other: &State) -> bool {
+        match self.minutes_used.cmp(&other.minutes_used) {
+            Ordering::Less => return true,
+            Ordering::Greater => return false,
+            Ordering::Equal => (),
+        }
+
+        for robot in (0..N_ROBOTS).rev() {
+            match self.n_robots[robot].cmp(&other.n_robots[robot]) {
+                Ordering::Less => return false,
+                Ordering::Greater => return true,
+                Ordering::Equal => (),
+            }
+        }
+
+        for material in (0..N_MATERIALS).rev() {
+            match self.n_materials[material].cmp(&other.n_materials[material]) {
+                Ordering::Less => return false,
+                Ordering::Greater => return true,
+                Ordering::Equal => (),
+            }
+        }
+
+        false
+    }
 }
 
 fn read_blueprints<R>(input: &mut R) -> Result<Vec<Blueprint>, String>
@@ -166,26 +202,26 @@ fn backtrack(blueprint: &Blueprint,
     }
 }
 
-fn try_blueprint(blueprint: &Blueprint,
-                 n_minutes: usize) -> usize {
+fn make_geode_robot(blueprint: &Blueprint,
+                    start_state: &State,
+                    n_minutes: usize) -> Option<State> {
     let mut stack = vec![StackEntry {
-        n_robots: [0; N_ROBOTS],
-        n_materials: [0; N_MATERIALS],
+        n_robots: start_state.n_robots,
+        n_materials: start_state.n_materials,
         robot_created: None,
     }; 1];
-    let mut best_score = 0;
-
-    // Start with an ore robot
-    stack[0].n_robots[0] = 1;
+    let mut best_state = State {
+        n_robots: Default::default(),
+        n_materials: Default::default(),
+        minutes_used: usize::MAX,
+    };
 
     loop {
-        if stack.len() >= n_minutes + 1 {
-            let n_geodes = stack.last().unwrap().n_materials[N_MATERIALS - 1];
+        let minutes_used = stack.len() - 1 + start_state.minutes_used;
 
-            if n_geodes > best_score {
-                best_score = n_geodes;
-            }
-
+        // If we’ve gone over the maximum time or if this solution is
+        // longer than the current best solution then stop looking
+        if minutes_used > std::cmp::min(n_minutes, best_state.minutes_used) {
             if !backtrack(blueprint, &mut stack) {
                 break;
             } else {
@@ -193,10 +229,56 @@ fn try_blueprint(blueprint: &Blueprint,
             }
         }
 
+        let entry = stack.last().unwrap();
+
+        match entry.robot_created {
+            Some(r) if r as usize == N_ROBOTS - 1 => {
+                // We’ve successfully made a geode robot. Is this the
+                // best path so far?
+
+                let new_state = State {
+                    minutes_used,
+                    n_robots: entry.n_robots,
+                    n_materials: entry.n_materials,
+                };
+
+                if new_state.better_than(&best_state) {
+                    best_state = new_state;
+                }
+            },
+            _ => (),
+        }
+
         apply_next_robot(blueprint, &mut stack, 0);
     }
 
-    best_score
+    if best_state.minutes_used < usize::MAX {
+        Some(best_state)
+    } else {
+        None
+    }
+}
+
+fn try_blueprint(blueprint: &Blueprint,
+                 n_minutes: usize) -> usize {
+    let mut state = State {
+        n_robots: [0; N_ROBOTS],
+        n_materials: [0; N_MATERIALS],
+        minutes_used: 0,
+    };
+
+    // Start with an ore robot
+    state.n_robots[0] = 1;
+
+    // Keep building geode robots until we run out of time
+    while let Some(next_state) = make_geode_robot(blueprint,
+                                                  &state,
+                                                  n_minutes) {
+        state = next_state;
+    }
+
+    state.n_materials[N_MATERIALS - 1] +
+        state.n_robots[N_MATERIALS - 1] * (n_minutes - state.minutes_used)
 }
 
 fn main() -> std::process::ExitCode {
