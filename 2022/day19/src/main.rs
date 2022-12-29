@@ -1,7 +1,7 @@
 use std::io::Read;
 
-const N_MATERIALS: usize = 3;
-const N_ROBOTS: usize = N_MATERIALS + 1;
+const N_MATERIALS: usize = 4;
+const N_ROBOTS: usize = N_MATERIALS;
 
 #[derive(Debug, Clone, Copy)]
 struct Costs {
@@ -17,7 +17,6 @@ struct Blueprint {
 struct State {
     n_robots: [usize; N_ROBOTS],
     n_materials: [usize; N_MATERIALS],
-    n_geodes: usize,
     robot_created: Option<u8>,
 }
 
@@ -55,10 +54,10 @@ fn read_blueprints<R>(input: &mut R) -> Result<Vec<Blueprint>, String>
 
         blueprints.push(Blueprint {
             costs: [
-                Costs { material: [ ints[1], 0, 0 ] },
-                Costs { material: [ ints[2], 0, 0 ] },
-                Costs { material: [ ints[3], ints[4], 0 ] },
-                Costs { material: [ ints[5], 0, ints[6] ] },
+                Costs { material: [ ints[1], 0, 0, 0 ] },
+                Costs { material: [ ints[2], 0, 0, 0 ] },
+                Costs { material: [ ints[3], ints[4], 0, 0 ] },
+                Costs { material: [ ints[5], 0, ints[6], 0 ] },
             ],
         });
     }
@@ -94,7 +93,7 @@ fn robot_is_pointless(blueprint: &Blueprint,
     let robot_index = robot_type as usize;
 
     // It’s never pointless to build the geode robot
-    if robot_index >= N_MATERIALS {
+    if robot_index >= N_ROBOTS - 1 {
         return false;
     }
 
@@ -138,8 +137,6 @@ fn apply_next_robot(blueprint: &Blueprint,
         top.n_materials[material] += top.n_robots[material];
     }
 
-    top.n_geodes += top.n_robots.last().unwrap();
-
     if let Some(r) = top.robot_created {
         top.n_robots[r as usize] += 1;
     }
@@ -174,7 +171,6 @@ fn try_blueprint(blueprint: &Blueprint,
     let mut stack = vec![State {
         n_robots: [0; N_ROBOTS],
         n_materials: [0; N_MATERIALS],
-        n_geodes: 0,
         robot_created: None,
     }; 1];
     let mut best_score = 0;
@@ -184,7 +180,7 @@ fn try_blueprint(blueprint: &Blueprint,
 
     loop {
         if stack.len() >= n_minutes + 1 {
-            let n_geodes = stack.last().unwrap().n_geodes;
+            let n_geodes = stack.last().unwrap().n_materials[N_MATERIALS - 1];
 
             if n_geodes > best_score {
                 best_score = n_geodes;
