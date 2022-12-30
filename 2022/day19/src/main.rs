@@ -166,6 +166,15 @@ fn backtrack(blueprint: &Blueprint,
     }
 }
 
+fn calc_max_geodes(state: &StackEntry, minutes_remaining: usize) -> usize {
+    state.n_materials[N_MATERIALS - 1] +
+        (0..minutes_remaining).map(|minute| {
+            // At each minute, assume we produced a geode robot the last minute
+            // and add all of the geodes produced by the robots
+            state.n_robots[N_ROBOTS - 1] + minute
+        }).sum::<usize>()
+}
+
 fn try_blueprint(blueprint: &Blueprint,
                  n_minutes: usize) -> usize {
     let mut stack = vec![StackEntry {
@@ -186,6 +195,18 @@ fn try_blueprint(blueprint: &Blueprint,
                 best_score = n_geodes;
             }
 
+            if !backtrack(blueprint, &mut stack) {
+                break;
+            } else {
+                continue;
+            }
+        }
+
+        // Don’t continue if the maximum number of geodes we could
+        // build from here on is worse than the best solution
+        let max_geodes = calc_max_geodes(stack.last().unwrap(),
+                                         n_minutes + 1 - stack.len());
+        if max_geodes <= best_score {
             if !backtrack(blueprint, &mut stack) {
                 break;
             } else {
