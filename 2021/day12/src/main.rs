@@ -10,16 +10,6 @@ enum CaveSize {
     Big,
 }
 
-impl CaveSize {
-    fn max_visits(self, part2: bool) -> usize {
-        match self {
-            CaveSize::Endpoint => 1,
-            CaveSize::Small => if part2 { 2 } else { 1 },
-            CaveSize::Big => usize::MAX,
-        }
-    }
-}
-
 #[derive(Debug)]
 struct Cave {
     name: String,
@@ -120,6 +110,34 @@ impl<'a> Searcher<'a> {
         }
     }
 
+    fn route_is_valid(&self, last_cave: usize) -> bool {
+        let mut visited_caves = 1u64 << last_cave;
+        let mut found_double = false;
+
+        for &StackEntry { cave, .. } in self.stack.iter() {
+            if visited_caves & (1 << cave) != 0 {
+                match self.map.caves[cave].size {
+                    CaveSize::Endpoint => return false,
+                    CaveSize::Big => (),
+                    CaveSize::Small => {
+                        if self.part2 {
+                            if found_double {
+                                return false;
+                            }
+                            found_double = true;
+                        } else {
+                            return false;
+                        }
+                    },
+                }
+            }
+
+            visited_caves |= 1 << cave;
+        }
+
+        true
+    }
+
     fn backtrack(&mut self) {
         loop {
             let mut entry = match self.stack.pop() {
@@ -155,9 +173,7 @@ impl<'a> Iterator for Searcher<'a> {
                     break Some(route);
                 },
                 Some(e) => {
-                    let max_visits = self.map.caves[e.cave].size.max_visits(self.part2);
-                    let visits = self.stack.iter().filter(|o| o.cave == e.cave).count();
-                    if visits >= max_visits {
+                    if !self.route_is_valid(e.cave) {
                         continue 'outer;
                     }
                     self.stack.push(e);
