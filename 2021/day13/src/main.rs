@@ -120,6 +120,44 @@ fn main() {
         }
     }
 
-    paper.fold(folds[0]);
-    println!("part 1: {}", paper.points.len());
+    for (i, fold) in folds.into_iter().enumerate() {
+        paper.fold(fold);
+
+        if i == 0 {
+            println!("part 1: {}", paper.points.len());
+        }
+    }
+
+    let mut min_x = i32::MAX;
+    let mut max_x = i32::MIN;
+    let mut min_y = i32::MAX;
+    let mut max_y = i32::MIN;
+
+    for &point in paper.points.iter() {
+        if point.x < min_x {
+            min_x = point.x;
+        }
+        if point.x > max_x {
+            max_x = point.x;
+        }
+        if point.y < min_y {
+            min_y = point.y;
+        }
+        if point.y > max_y {
+            max_y = point.y;
+        }
+    }
+
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
+            let point = Point { x, y };
+            let ch = if paper.points.contains(&point) {
+                '#'
+            } else {
+                ' '
+            };
+            print!("{}", ch);
+        }
+        println!("");
+    }
 }
