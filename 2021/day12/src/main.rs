@@ -5,8 +5,19 @@ use std::process::ExitCode;
 
 #[derive(Clone, Copy, Debug)]
 enum CaveSize {
+    Endpoint,
     Small,
     Big,
+}
+
+impl CaveSize {
+    fn max_visits(self, part2: bool) -> usize {
+        match self {
+            CaveSize::Endpoint => 1,
+            CaveSize::Small => if part2 { 2 } else { 1 },
+            CaveSize::Big => usize::MAX,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -42,20 +53,24 @@ impl Map {
                 let index = self.caves.len();
 
                 self.cave_names.insert(name.to_owned(), index);
-                self.caves.push(Cave {
-                    name: name.to_owned(),
-                    size: match name.chars().next() {
-                        Some(ch) if ch.is_uppercase() => CaveSize::Big,
-                        _ => CaveSize::Small,
-                    },
-                    links: HashSet::new(),
-                });
-
-                if name == "start" {
+                let size = if name == "start" {
                     self.start = index;
+                    CaveSize::Endpoint
                 } else if name == "end" {
                     self.end = index;
-                }
+                    CaveSize::Endpoint
+                } else {
+                    match name.chars().next() {
+                        Some(ch) if ch.is_uppercase() => CaveSize::Big,
+                        _ => CaveSize::Small,
+                    }
+                };
+
+                self.caves.push(Cave {
+                    name: name.to_owned(),
+                    size,
+                    links: HashSet::new(),
+                });
 
                 index
             },
@@ -84,6 +99,7 @@ impl Map {
 
 struct Searcher<'a> {
     map: &'a Map,
+    part2: bool,
     stack: Vec<StackEntry<'a>>,
 }
 
@@ -93,9 +109,10 @@ struct StackEntry<'a> {
 }
 
 impl<'a> Searcher<'a> {
-    fn new<'m> (map: &'m Map) -> Searcher<'m> {
+    fn new<'m> (map: &'m Map, part2: bool) -> Searcher<'m> {
         Searcher {
             map,
+            part2,
             stack: vec![StackEntry::<'m> {
                 cave: map.start,
                 links: map.caves[map.start].links.iter(),
@@ -138,13 +155,10 @@ impl<'a> Iterator for Searcher<'a> {
                     break Some(route);
                 },
                 Some(e) => {
-                    if let CaveSize::Small = self.map.caves[e.cave].size {
-                        for o in self.stack[0..self.stack.len()].iter() {
-                            if o.cave == e.cave {
-                                self.backtrack();
-                                continue 'outer;
-                            }
-                        }
+                    let max_visits = self.map.caves[e.cave].size.max_visits(self.part2);
+                    let visits = self.stack.iter().filter(|o| o.cave == e.cave).count();
+                    if visits >= max_visits {
+                        continue 'outer;
                     }
                     self.stack.push(e);
                     self.backtrack();
@@ -152,6 +166,17 @@ impl<'a> Iterator for Searcher<'a> {
             }
         }
     }
+}
+
+fn count_routes(map: &Map, part2: bool) -> usize {
+    let mut count = 0usize;
+
+    for solution in Searcher::new(&map, part2) {
+        println!("{:?}", solution.into_iter().map(|c| &map.caves[c].name).collect::<Vec<&String>>());
+        count += 1;
+    }
+
+    count
 }
 
 fn main() -> ExitCode {
@@ -172,14 +197,13 @@ fn main() -> ExitCode {
         }
     }
 
-    let mut count = 0usize;
+    println!("== part 1");
+    let part1 = count_routes(&map, false);
+    println!("== part 2");
+    let part2 = count_routes(&map, true);
 
-    for solution in Searcher::new(&map) {
-        println!("{:?}", solution.into_iter().map(|c| &map.caves[c].name).collect::<Vec<&String>>());
-        count += 1;
-    }
-
-    println!("part 1: {}", count);
+    println!("part 1: {}", part1);
+    println!("part 2: {}", part2);
 
     ExitCode::SUCCESS
 }
