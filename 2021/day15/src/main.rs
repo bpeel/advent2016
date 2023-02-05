@@ -1,7 +1,7 @@
 mod util;
 mod walker;
 use util::Grid;
-use walker::StackEntry;
+use walker::{QuadDirection, StackEntry};
 
 const GRID_MULTIPLIER: usize = 5;
 
@@ -62,7 +62,22 @@ fn solve(grid: &Grid) -> u64 {
             return walker::VisitResult::Goal;
         }
 
-        walker::VisitResult::Continue
+        let mut dirs = [
+            QuadDirection::Down,
+            QuadDirection::Right,
+            QuadDirection::Up,
+            QuadDirection::Left,
+        ];
+
+        dirs.sort_by_key(|d| match grid.get(d.move_pos(pos)) {
+            None => u8::MAX,
+            Some(cost) => match d {
+                QuadDirection::Up | QuadDirection::Left => cost + 30,
+                _ => cost,
+            },
+        });
+
+        walker::VisitResult::Continue(dirs)
     });
 
     best_cost

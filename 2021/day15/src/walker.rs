@@ -22,9 +22,9 @@ impl QuadDirection {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub enum VisitResult {
-    Continue,
+    Continue([QuadDirection; 4]),
     Backtrack,
     Goal,
 }
@@ -43,15 +43,10 @@ pub fn walk<F>(start_pos: (i32, i32), mut visit_func: F)
 
     loop {
         match visit_func(&stack, pos) {
-            VisitResult::Continue => {
+            VisitResult::Continue(dirs) => {
                 let entry = StackEntry {
                     pos,
-                    dirs: [
-                        QuadDirection::Right,
-                        QuadDirection::Down,
-                        QuadDirection::Up,
-                        QuadDirection::Left,
-                    ],
+                    dirs,
                     next_dir: 1,
                 };
 
