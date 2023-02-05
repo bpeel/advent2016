@@ -57,12 +57,17 @@ impl PolymerTemplate {
     }
 
     fn apply(&self, polymer: &PairCount) -> PairCount {
-        let mut result = polymer.clone();
+        let mut result = HashMap::new();
 
-        for (k, &v) in self.rules.iter() {
-            if let Some(&count) = polymer.get(k) {
-                *result.entry(PolymerPair { a: k.a, b: v }).or_default() += count; 
-                *result.entry(PolymerPair { a: v, b: k.b }).or_default() += count; 
+        for (pair, &count) in polymer {
+            match self.rules.get(pair) {
+                Some(&v) => {
+                    *result.entry(PolymerPair { a: pair.a, b: v }).or_default() += count; 
+                    *result.entry(PolymerPair { a: v, b: pair.b }).or_default() += count; 
+                },
+                None => {
+                    result.insert(pair.clone(), count);
+                },
             }
         }
 
@@ -99,6 +104,14 @@ fn count_chars(polymer: &PairCount) -> HashMap<char, usize> {
     result
 }
 
+fn format_result(polymer: &PairCount) -> String {
+    let counts = count_chars(&polymer);
+    let min = counts.values().map(|&v| v).min().unwrap();
+    let max = counts.values().map(|&v| v).max().unwrap();
+    format!("{} - {} = {}", max, min, max - min)
+}
+
+
 fn main() {
     let mut lines = std::io::stdin().lines();
 
@@ -113,13 +126,12 @@ fn main() {
 
     let mut polymer = count_pairs(&base_polymer);
 
-    for _ in 0..10 {
-        println!("{:?}", polymer);
+    for i in 0..40 {
+        if i == 10 {
+            println!("part 1: {}", format_result(&polymer));
+        }
         polymer = template.apply(&polymer);
     }
 
-    let counts = count_chars(&polymer);
-    let min = counts.values().map(|&v| v).min().unwrap();
-    let max = counts.values().map(|&v| v).max().unwrap();
-    println!("part 1: {} - {} = {}", max, min, max - min);
+    println!("part 2: {}", format_result(&polymer));
 }
