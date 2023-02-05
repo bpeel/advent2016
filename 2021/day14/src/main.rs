@@ -16,6 +16,8 @@ struct PolymerRule {
     insert: char,
 }
 
+type PairCount = HashMap<PolymerPair, usize>;
+
 impl FromStr for PolymerRule {
     type Err = String;
 
@@ -54,20 +56,13 @@ impl PolymerTemplate {
         self.rules.insert(rule.pair, rule.insert);
     }
 
-    fn apply(&self, polymer: &str) -> String {
-        let mut result = String::new();
-        let mut chars = polymer.chars();
+    fn apply(&self, polymer: &PairCount) -> PairCount {
+        let mut result = polymer.clone();
 
-        while let Some(left) = chars.next() {
-            result.push(left);
-
-            let right = match chars.clone().next() {
-                Some(c) => c,
-                None => break,
-            };
-
-            if let Some(&insert) = self.rules.get(&PolymerPair { a: left, b: right }) {
-                result.push(insert);
+        for (k, &v) in self.rules.iter() {
+            if let Some(&count) = polymer.get(k) {
+                *result.entry(PolymerPair { a: k.a, b: v }).or_default() += count; 
+                *result.entry(PolymerPair { a: v, b: k.b }).or_default() += count; 
             }
         }
 
@@ -75,19 +70,33 @@ impl PolymerTemplate {
     }
 }
 
-fn count_values<I>(iter: I) -> HashMap<I::Item, usize>
-where
-    I: IntoIterator, I::Item: Eq + Hash
-{
-    let mut counts = HashMap::new();
+fn count_pairs(s: &str) -> PairCount {
+    let mut counts = PairCount::new();
+    let mut chars = s.chars();
 
-    for value in iter {
-        counts.entry(value)
-            .and_modify(|c| *c += 1)
-            .or_insert(1);
+    while let Some(a) = chars.next() {
+        let b = match chars.clone().next() {
+            Some(b) => b,
+            None => {
+                counts.insert(PolymerPair { a, b: 0 as char }, 1);
+                break;
+            },
+        };
+
+        *counts.entry(PolymerPair { a, b }).or_default() += 1;
     }
 
     counts
+}
+
+fn count_chars(polymer: &PairCount) -> HashMap<char, usize> {
+    let mut result = HashMap::new();
+
+    for (&PolymerPair { a, .. }, count) in polymer.iter() {
+        *result.entry(a).or_default() += count;
+    }
+
+    result
 }
 
 fn main() {
@@ -102,14 +111,14 @@ fn main() {
         template.add_rule(&line.unwrap().parse().unwrap());
     }
 
-    let mut polymer = base_polymer.clone();
+    let mut polymer = count_pairs(&base_polymer);
 
     for _ in 0..10 {
+        println!("{:?}", polymer);
         polymer = template.apply(&polymer);
-        println!("{}", polymer);
     }
 
-    let counts = count_values(polymer.chars());
+    let counts = count_chars(&polymer);
     let min = counts.values().map(|&v| v).min().unwrap();
     let max = counts.values().map(|&v| v).max().unwrap();
     println!("part 1: {} - {} = {}", max, min, max - min);
