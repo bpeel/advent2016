@@ -1,7 +1,5 @@
 mod util;
 mod walker;
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 use util::Grid;
 
 const GRID_MULTIPLIER: usize = 5;
@@ -34,7 +32,7 @@ fn multiply_grid(old: &Grid) -> Grid {
 }
 
 fn solve(grid: &Grid) -> u64 {
-    let mut best_costs = HashMap::<(i32, i32), u64>::new();
+    let mut best_costs = vec![u64::MAX; grid.width * grid.height];
     let mut best_cost = u64::MAX;
 
     walker::walk::<walker::QuadDirection, _>((0, 0), |path, pos| {
@@ -51,17 +49,11 @@ fn solve(grid: &Grid) -> u64 {
             return walker::VisitResult::Backtrack;
         }
 
-        match best_costs.entry(pos) {
-            Entry::Occupied(mut e) => {
-                if *e.get() <= cost {
-                    return walker::VisitResult::Backtrack;
-                }
-                e.insert(cost);
-            },
-            Entry::Vacant(e) => {
-                e.insert(cost);
-            },
+        let index = pos.1 as usize * grid.width + pos.0 as usize;
+        if best_costs[index] <= cost {
+            return walker::VisitResult::Backtrack;
         }
+        best_costs[index] = cost;
 
         if pos == (grid.width as i32 - 1, grid.height as i32 - 1) {
             println!("{}", cost);
