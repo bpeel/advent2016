@@ -2,18 +2,38 @@ mod util;
 mod walker;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use util::Grid;
 
-fn main() -> std::process::ExitCode {
-    let grid = match util::Grid::load(&mut std::io::stdin().lock()) {
-        Err(e) => {
-            eprintln!("{}", e);
-            return std::process::ExitCode::FAILURE;
-        },
-        Ok(grid) => grid,
+const GRID_MULTIPLIER: usize = 5;
+
+fn multiply_grid(old: &Grid) -> Grid {
+    let width = old.width * GRID_MULTIPLIER;
+    let height = old.height * GRID_MULTIPLIER;
+
+    let mut new = Grid {
+        width,
+        height,
+        values: vec![0; width * height].into_boxed_slice(),
     };
 
-    println!("{}", grid);
+    for y in 0..old.height {
+        for x in 0..old.width {
+            let old_value = old.values[y * old.width + x] - b'1';
+            for outer_y in 0..GRID_MULTIPLIER {
+                for outer_x in 0..GRID_MULTIPLIER {
+                    let offset = (outer_x + outer_y) as u8;
+                    let new_value = (old_value + offset) % 9 + b'1';
+                    new.values[(outer_x * old.width + x)
+                        + (outer_y * old.height + y) * new.width] = new_value;
+                }
+            }
+        }
+    }
 
+    new
+}
+
+fn solve(grid: &Grid) -> u64 {
     let mut best_costs = HashMap::<(i32, i32), u64>::new();
     let mut best_cost = u64::MAX;
 
@@ -51,6 +71,28 @@ fn main() -> std::process::ExitCode {
 
         walker::VisitResult::Continue
     });
+
+    best_cost
+}
+
+fn main() -> std::process::ExitCode {
+    let grid = match util::Grid::load(&mut std::io::stdin().lock()) {
+        Err(e) => {
+            eprintln!("{}", e);
+            return std::process::ExitCode::FAILURE;
+        },
+        Ok(grid) => grid,
+    };
+
+    println!("{}", grid);
+
+    let part1 = solve(&grid);
+
+    let grid = multiply_grid(&grid);
+    let part2 = solve(&grid);
+
+    println!("part 1: {}", part1);
+    println!("part 2: {}", part2);
 
     std::process::ExitCode::SUCCESS
 }
