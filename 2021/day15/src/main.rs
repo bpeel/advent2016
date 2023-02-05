@@ -1,6 +1,7 @@
 mod util;
 mod walker;
 use util::Grid;
+use walker::StackEntry;
 
 const GRID_MULTIPLIER: usize = 5;
 
@@ -35,14 +36,14 @@ fn solve(grid: &Grid) -> u64 {
     let mut best_costs = vec![u64::MAX; grid.width * grid.height];
     let mut best_cost = u64::MAX;
 
-    walker::walk::<walker::QuadDirection, _>((0, 0), |path, pos| {
+    walker::walk((0, 0), |path, pos| {
         if grid.get(pos).is_none() {
             return walker::VisitResult::Backtrack;
         }
 
         let mut cost = grid.get(pos).unwrap() as u64 - b'0' as u64;
         if path.len() > 1 {
-            cost += path[1..].iter().map(|&(_, pos)| grid.get(pos).unwrap() as u64 - b'0' as u64).sum::<u64>();
+            cost += path[1..].iter().map(|&StackEntry { pos, .. }| grid.get(pos).unwrap() as u64 - b'0' as u64).sum::<u64>();
         }
 
         if cost >= best_cost {

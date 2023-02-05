@@ -1,11 +1,3 @@
-pub trait Direction: Sized + Clone + Copy {
-    type Pos: Clone + Copy;
-
-    fn first_direction() -> Self;
-    fn next_direction(self) -> Option<Self>;
-    fn move_pos(self, pos: Self::Pos) -> Self::Pos;
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum QuadDirection {
     Up,
@@ -14,29 +6,12 @@ pub enum QuadDirection {
     Right,
 }
 
-impl Direction for QuadDirection {
-    type Pos = (i32, i32);
-
-    fn first_direction() -> QuadDirection {
-        QuadDirection::Down
-    }
-
-    fn next_direction(self) -> Option<QuadDirection> {
-        match self {
-            QuadDirection::Up => Some(QuadDirection::Left),
-            QuadDirection::Down => Some(QuadDirection::Right),
-            QuadDirection::Left => None,
-            QuadDirection::Right => Some(QuadDirection::Up),
-        }
-    }
-
-    fn move_pos(self, (x, y): (i32, i32)) -> (i32, i32) {
+impl QuadDirection {
+    pub fn move_pos(self, (x, y): (i32, i32)) -> (i32, i32) {
         let (dx, dy) = self.offset();
         (x + dx, y + dy)
     }
-}
 
-impl QuadDirection {
     pub fn offset(self) -> (i32, i32) {
         match self {
             QuadDirection::Up => (0, -1),
@@ -54,32 +29,49 @@ pub enum VisitResult {
     Goal,
 }
 
-pub fn walk<D, F>(start_pos: D::Pos, mut visit_func: F)
-    where F: FnMut(&[(D, D::Pos)], D::Pos) -> VisitResult,
-          D: Direction
+pub struct StackEntry {
+    pub pos: (i32, i32),
+    pub dirs: [QuadDirection; 4],
+    pub next_dir: usize,
+}
+
+pub fn walk<F>(start_pos: (i32, i32), mut visit_func: F)
+    where F: FnMut(&[StackEntry], (i32, i32)) -> VisitResult
 {
-    let mut stack = Vec::<(D, D::Pos)>::new();
+    let mut stack = Vec::<StackEntry>::new();
     let mut pos = start_pos;
 
     loop {
         match visit_func(&stack, pos) {
             VisitResult::Continue => {
-                let first_direction = D::first_direction();
-                stack.push((D::first_direction(), pos));
-                pos = first_direction.move_pos(pos);
+                let entry = StackEntry {
+                    pos,
+                    dirs: [
+                        QuadDirection::Right,
+                        QuadDirection::Down,
+                        QuadDirection::Up,
+                        QuadDirection::Left,
+                    ],
+                    next_dir: 1,
+                };
+
+                pos = entry.dirs[0].move_pos(pos);
+                stack.push(entry);
             },
             VisitResult::Goal | VisitResult::Backtrack => {
                 loop {
-                    let (last_direction, last_pos) = match stack.pop() {
+                    let mut entry = match stack.pop() {
                         Some(s) => s,
                         None => return,
                     };
 
-                    pos = last_pos;
+                    pos = entry.pos;
 
-                    if let Some(d) = last_direction.next_direction() {
-                        stack.push((d, last_pos));
-                        pos = d.move_pos(pos);
+                    if entry.next_dir < entry.dirs.len() {
+                        let dir = entry.dirs[entry.next_dir];
+                        entry.next_dir += 1;
+                        pos = dir.move_pos(pos);
+                        stack.push(entry);
                         break;
                     }
                 }
