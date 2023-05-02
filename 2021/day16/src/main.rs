@@ -3,24 +3,26 @@ mod bitvec;
 use bitvec::BitVec;
 
 #[derive(Copy, Clone, Debug)]
-enum PacketIterRemaining {
+enum TreeIterRemaining {
     EndPos(usize),
     PacketsRemaining(usize),
 }
 
 #[derive(Clone, Debug)]
-struct PacketIter<'a> {
+struct TreeIter<'a> {
     bv: &'a BitVec,
     pos: usize,
-    stack: Vec<PacketIterRemaining>,
+    stack: Vec<TreeIterRemaining>,
+    is_first_child: bool,
 }
 
-impl<'a> PacketIter<'a> {
-    fn new(bv: &BitVec) -> PacketIter {
-        PacketIter {
+impl<'a> TreeIter<'a> {
+    fn new(bv: &BitVec) -> TreeIter {
+        TreeIter {
             bv,
             pos: 0,
-            stack: vec![PacketIterRemaining::EndPos(bv.size())],
+            stack: vec![TreeIterRemaining::EndPos(bv.size())],
+            is_first_child: true,
         }
     }
 
@@ -57,11 +59,11 @@ impl<'a> PacketIter<'a> {
             PacketData::Literal(self.read_literal())
         } else if self.read_bits(1) == 0 {
             let remaining = self.read_bits(15) as usize;
-            self.stack.push(PacketIterRemaining::EndPos(self.pos + remaining));
+            self.stack.push(TreeIterRemaining::EndPos(self.pos + remaining));
             PacketData::BitOperator(remaining)
         } else {
             let remaining = self.read_bits(11) as usize;
-            self.stack.push(PacketIterRemaining::PacketsRemaining(remaining));
+            self.stack.push(TreeIterRemaining::PacketsRemaining(remaining));
             PacketData::PacketOperator(remaining)
         };
 
@@ -87,34 +89,85 @@ struct Packet {
     data: PacketData,
 }
 
-impl<'a> Iterator for PacketIter<'a> {
-    type Item = Packet;
+#[derive(Clone, Copy, Debug)]
+enum TreeDirection {
+    Up,
+    Right(Packet),
+    Down(Packet),
+}
 
-    fn next(&mut self) -> Option<Packet> {
-        while let Some(tail) = self.stack.pop() {
-            match tail {
-                PacketIterRemaining::EndPos(end_pos) => {
+impl<'a> Iterator for TreeIter<'a> {
+    type Item = TreeDirection;
+
+    fn next(&mut self) -> Option<TreeDirection> {
+        if let Some(tail) = self.stack.pop() {
+            let is_end = match tail {
+                TreeIterRemaining::EndPos(end_pos) => {
                     if self.pos < end_pos &&
                         (!self.stack.is_empty() ||
                          !self.bv.is_trailing_zeroes(self.pos))
                     {
-                        self.stack.push(PacketIterRemaining::EndPos(end_pos));
-
-                        return Some(self.read_packet());
+                        self.stack.push(TreeIterRemaining::EndPos(end_pos));
+                        false
+                    } else {
+                        true
                     }
                 },
-                PacketIterRemaining::PacketsRemaining(remaining) => {
+                TreeIterRemaining::PacketsRemaining(remaining) => {
                     if remaining > 0 {
-                        self.stack.push(PacketIterRemaining::PacketsRemaining(
+                        self.stack.push(TreeIterRemaining::PacketsRemaining(
                             remaining - 1
                         ));
-                        return Some(self.read_packet());
+                        false
+                    } else {
+                        true
                     }
                 },
+            };
+
+            Some(if is_end {
+                self.is_first_child = false;
+                TreeDirection::Up
+            } else {
+                let packet = self.read_packet();
+
+                if self.is_first_child {
+                    self.is_first_child = false;
+                    TreeDirection::Down(packet)
+                } else {
+                    TreeDirection::Right(packet)
+                }
+            })
+        } else {
+            None
+        }
+    }
+}
+
+struct PacketIter<'a> {
+    base: TreeIter<'a>,
+}
+
+impl<'a> Iterator for PacketIter<'a> {
+    type Item = Packet;
+
+    fn next(&mut self) -> Option<Packet> {
+        loop {
+            match self.base.next() {
+                None => break None,
+                Some(TreeDirection::Up) => (),
+                Some(TreeDirection::Right(packet)) => break Some(packet),
+                Some(TreeDirection::Down(packet)) => break Some(packet),
             }
         }
+    }
+}
 
-        None
+impl<'a> PacketIter<'a> {
+    fn new(bv: &BitVec) -> PacketIter {
+        PacketIter {
+            base: TreeIter::new(bv),
+        }
     }
 }
 
