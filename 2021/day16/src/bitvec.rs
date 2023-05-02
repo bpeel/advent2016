@@ -45,27 +45,6 @@ impl BitVec {
         Ok(BitVec { bits, n_bits })
     }
 
-    pub fn add_bits(&mut self, mut bits: u64, n_bits: usize) {
-        let mask = 1 << (n_bits - 1);
-
-        for _ in 0..n_bits {
-            self.add_bit(bits & mask != 0);
-            bits <<= 1;
-        }
-    }
-
-    fn add_bit(&mut self, value: bool) {
-        if self.n_bits & 7 == 0 {
-            self.bits.push(0);
-        }
-
-        if value {
-            *self.bits.last_mut().unwrap() = 1 << (self.n_bits & 7);
-        }
-
-        self.n_bits += 1;
-    }
-
     pub fn read_bit(&self, pos: usize) -> bool {
         assert!(pos < self.n_bits);
         self.bits[pos / 8] & (1 << (pos & 7)) != 0
