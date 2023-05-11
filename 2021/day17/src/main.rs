@@ -93,6 +93,22 @@ fn part1(ta: &TargetArea) -> Option<i32> {
     max_height
 }
 
+fn part2(ta: &TargetArea) -> u32 {
+    let mut count = 0;
+
+    for vx in 1..=(ta.x_max + 1) {
+        let v_max = ta.y_min.abs() + 1;
+
+        for vy in -v_max..v_max {
+            if let Some(_) = max_height_with_target(vx, vy, ta) {
+                count += 1;
+            }
+        }
+    }
+
+    count
+}
+
 fn process_lines<I>(lines: I) -> std::process::ExitCode
     where I: Iterator<Item = Result<String, std::io::Error>>
 {
@@ -111,10 +127,8 @@ fn process_lines<I>(lines: I) -> std::process::ExitCode
                         ret = std::process::ExitCode::FAILURE;
                     },
                     Ok(ta) => {
-                        println!(
-                            "part 1: {:?}",
-                            part1(&ta),
-                        );
+                        println!("part 1: {:?}", part1(&ta));
+                        println!("part 2: {}", part2(&ta));
                     },
                 };
             },
