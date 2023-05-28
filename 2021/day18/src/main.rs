@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::num::ParseIntError;
 use std::fmt;
 
+#[derive(Debug)]
 enum SnailFishNumber {
     Integer(i32),
     Pair(Box<SnailFishNumber>, Box<SnailFishNumber>),
@@ -107,7 +108,7 @@ impl fmt::Display for SnailFishError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum SnailFishError {
     InvalidCharacter,
     UnmatchedBracket,
@@ -150,5 +151,38 @@ mod test {
                 test
             );
         }
+    }
+
+    #[test]
+    fn error() {
+        assert_eq!(
+            "[".parse::<SnailFishNumber>().unwrap_err(),
+            SnailFishError::UnexpectedEnd,
+        );
+
+        assert_eq!(
+            "[a".parse::<SnailFishNumber>().unwrap_err(),
+            SnailFishError::InvalidCharacter,
+        );
+
+        let SnailFishError::InvalidInteger(int_error) =
+            "[999999999999999,9]".parse::<SnailFishNumber>().unwrap_err()
+        else { unreachable!() };
+        assert_eq!(*int_error.kind(), std::num::IntErrorKind::PosOverflow);
+
+        assert_eq!(
+            "[9,1,3]".parse::<SnailFishNumber>().unwrap_err(),
+            SnailFishError::UnmatchedBracket,
+        );
+
+        assert_eq!(
+            "[9]".parse::<SnailFishNumber>().unwrap_err(),
+            SnailFishError::MissingComma,
+        );
+
+        assert_eq!(
+            "[9,1]yes".parse::<SnailFishNumber>().unwrap_err(),
+            SnailFishError::TrailingData,
+        );
     }
 }
