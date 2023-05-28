@@ -2,101 +2,70 @@ use std::str::FromStr;
 use std::num::ParseIntError;
 use std::fmt;
 
-enum SnailFishElement {
-    Number(i32),
-    Node(Box<SnailFishNumber>),
-}
-
-struct SnailFishNumber {
-    a: SnailFishElement,
-    b: SnailFishElement,
+enum SnailFishNumber {
+    Integer(i32),
+    Pair(Box<SnailFishNumber>, Box<SnailFishNumber>),
 }
 
 struct StackEntry {
-    a: Option<SnailFishElement>,
+    a: Option<SnailFishNumber>,
 }
 
 impl FromStr for SnailFishNumber {
     type Err = SnailFishError;
 
-    fn from_str(s: &str) -> Result<SnailFishNumber, SnailFishError> {
-        let mut iter = s.chars();
+    fn from_str(mut s: &str) -> Result<SnailFishNumber, SnailFishError> {
         let mut stack = Vec::<StackEntry>::new();
 
         let num = 'parse_loop: loop {
-            match iter.next() {
-                None => {
-                    return Err(SnailFishError::UnexpectedEnd);
-                },
-                Some('[') => (),
-                Some(_) => {
-                    return Err(SnailFishError::InvalidCharacter);
-                },
+            let number_end = s.find(|c: char| !c.is_numeric())
+                .unwrap_or_else(|| s.len());
+
+            if number_end == 0 {
+                match s.chars().next() {
+                    None => {
+                        return Err(SnailFishError::UnexpectedEnd);
+                    },
+                    Some('[') => (),
+                    _ => {
+                        return Err(SnailFishError::InvalidCharacter);
+                    },
+                }
+
+                s = &s[1..];
+
+                stack.push(StackEntry { a: None });
+
+                continue;
             }
 
-            let a_start = iter.as_str();
+            let mut num = SnailFishNumber::Integer(s[0..number_end].parse()?);
 
-            let a = match iter.next() {
-                None => {
-                    return Err(SnailFishError::UnexpectedEnd);
-                },
-                Some('[') => {
-                    stack.push(StackEntry { a: None });
-                    iter = a_start.chars();
-                    continue;
-                }
-                _ => {
-                    let Some((number, b_start)) = a_start.split_once(',')
-                    else {
-                        return Err(SnailFishError::MissingComma);
-                    };
-
-                    iter = b_start.chars();
-
-                    SnailFishElement::Number(number.parse::<i32>()?)
-                },
-            };
-
-            let b_start = iter.as_str();
-
-            let b = match iter.next() {
-                None => {
-                    return Err(SnailFishError::UnexpectedEnd);
-                },
-                Some('[') => {
-                    stack.push(StackEntry { a: Some(a) });
-                    iter = b_start.chars();
-                    continue;
-                }
-                _ => {
-                    let Some((number, tail)) = b_start.split_once(']')
-                    else {
-                        return Err(SnailFishError::UnmatchedBracket);
-                    };
-
-                    iter = tail.chars();
-
-                    SnailFishElement::Number(number.parse::<i32>()?)
-                },
-            };
-
-            let mut num = SnailFishNumber { a, b };
+            s = &s[number_end..];
 
             loop {
                 match stack.pop() {
-                    Some(StackEntry { a: Some(outer_a) }) => {
-                        num = SnailFishNumber {
-                            a: outer_a,
-                            b: SnailFishElement::Node(Box::new(num)),
-                        };
+                    Some(StackEntry { a: Some(a) }) => {
+                        if let Some(tail) = s.strip_prefix(']') {
+                            s = tail;
+                        } else {
+                            return Err(SnailFishError::UnmatchedBracket);
+                        }
+
+                        num = SnailFishNumber::Pair(
+                            Box::new(a),
+                            Box::new(num),
+                        );
                     },
                     Some(StackEntry { a: None }) => {
-                        if !matches!(iter.next(), Some(',')) {
+                        if let Some(tail) = s.strip_prefix(',') {
+                            s = tail;
+                        } else {
                             return Err(SnailFishError::MissingComma);
                         }
 
                         stack.push(StackEntry {
-                            a: Some(SnailFishElement::Node(Box::new(num)))
+                            a: Some(num),
                         });
 
                         continue 'parse_loop;
@@ -108,7 +77,7 @@ impl FromStr for SnailFishNumber {
             }
         };
 
-        if iter.next().is_some() {
+        if !s.is_empty() {
             Err(SnailFishError::TrailingData)
         } else {
             Ok(num)
@@ -118,15 +87,9 @@ impl FromStr for SnailFishNumber {
 
 impl fmt::Display for SnailFishNumber {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[{},{}]", self.a, self.b)
-    }
-}
-
-impl fmt::Display for SnailFishElement {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            SnailFishElement::Number(num) => num.fmt(f),
-            SnailFishElement::Node(node) => node.fmt(f),
+            SnailFishNumber::Integer(num) => num.fmt(f),
+            SnailFishNumber::Pair(a, b) => write!(f, "[{},{}]", a, b),
         }
     }
 }
