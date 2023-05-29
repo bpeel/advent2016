@@ -3,13 +3,19 @@ use std::num::ParseIntError;
 use std::fmt;
 
 #[derive(Debug)]
-enum SnailFishNumber {
+struct SnailFishNumber {
+    items: Vec<SnailFishItem>,
+    root: usize,
+}
+
+#[derive(Debug)]
+enum SnailFishItem {
     Integer(i32),
-    Pair(Box<SnailFishNumber>, Box<SnailFishNumber>),
+    Pair(usize, usize),
 }
 
 struct StackEntry {
-    a: Option<SnailFishNumber>,
+    a: Option<usize>,
 }
 
 impl FromStr for SnailFishNumber {
@@ -17,8 +23,9 @@ impl FromStr for SnailFishNumber {
 
     fn from_str(mut s: &str) -> Result<SnailFishNumber, SnailFishError> {
         let mut stack = Vec::<StackEntry>::new();
+        let mut items = Vec::<SnailFishItem>::new();
 
-        let num = 'parse_loop: loop {
+        'parse_loop: loop {
             let number_end = s.find(|c: char| !c.is_numeric())
                 .unwrap_or_else(|| s.len());
 
@@ -40,7 +47,7 @@ impl FromStr for SnailFishNumber {
                 continue;
             }
 
-            let mut num = SnailFishNumber::Integer(s[0..number_end].parse()?);
+            items.push(SnailFishItem::Integer(s[0..number_end].parse()?));
 
             s = &s[number_end..];
 
@@ -53,10 +60,7 @@ impl FromStr for SnailFishNumber {
                             return Err(SnailFishError::UnmatchedBracket);
                         }
 
-                        num = SnailFishNumber::Pair(
-                            Box::new(a),
-                            Box::new(num),
-                        );
+                        items.push(SnailFishItem::Pair(a, items.len() - 1));
                     },
                     Some(StackEntry { a: None }) => {
                         if let Some(tail) = s.strip_prefix(',') {
@@ -66,32 +70,86 @@ impl FromStr for SnailFishNumber {
                         }
 
                         stack.push(StackEntry {
-                            a: Some(num),
+                            a: Some(items.len() - 1),
                         });
 
                         continue 'parse_loop;
                     },
                     None => {
-                        break 'parse_loop num;
+                        break 'parse_loop;
                     }
                 }
             }
-        };
+        }
 
         if !s.is_empty() {
             Err(SnailFishError::TrailingData)
         } else {
-            Ok(num)
+            let root = items.len() - 1;
+
+            Ok(SnailFishNumber { items, root })
         }
     }
 }
 
+enum DisplayEntryPos {
+    A,
+    B,
+    BRACKET,
+}
+
+struct DisplayEntry {
+    num: usize,
+    pos: DisplayEntryPos,
+}
+
 impl fmt::Display for SnailFishNumber {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            SnailFishNumber::Integer(num) => num.fmt(f),
-            SnailFishNumber::Pair(a, b) => write!(f, "[{},{}]", a, b),
+        let mut stack = vec![DisplayEntry {
+            num: self.root,
+            pos: DisplayEntryPos::A,
+        }];
+
+        while let Some(entry) = stack.pop() {
+            let item = &self.items[entry.num];
+
+            match &item {
+                SnailFishItem::Integer(value) => {
+                    value.fmt(f)?;
+                },
+                SnailFishItem::Pair(a, b) => {
+                    match entry.pos {
+                        DisplayEntryPos::A => {
+                            write!(f, "[")?;
+                            stack.push(DisplayEntry {
+                                num: entry.num,
+                                pos: DisplayEntryPos::B,
+                            });
+                            stack.push(DisplayEntry {
+                                num: *a,
+                                pos: DisplayEntryPos::A,
+                            });
+                        },
+                        DisplayEntryPos::B => {
+                            write!(f, ",")?;
+                            stack.push(DisplayEntry {
+                                num: entry.num,
+                                pos: DisplayEntryPos::BRACKET,
+                            });
+                            stack.push(DisplayEntry {
+                                num: *b,
+                                pos: DisplayEntryPos::A,
+                            });
+                        },
+                        DisplayEntryPos::BRACKET => {
+                            write!(f, "]")?;
+                        },
+                    }
+                },
+            }
         }
+
+        Ok(())
     }
 }
 
