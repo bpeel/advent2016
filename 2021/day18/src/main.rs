@@ -37,6 +37,12 @@ struct ActionStackEntry {
     direction: DescendDirection,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct MagnitudeStackEntry {
+    pos: usize,
+    a: Option<i32>,
+}
+
 impl SnailFishNumber {
     fn add_item(&mut self, item: SnailFishItem) -> usize {
         match self.magazine {
@@ -255,6 +261,48 @@ impl SnailFishNumber {
         }
 
         false
+    }
+
+    fn magnitude(&self) -> i32 {
+        let mut stack = vec![MagnitudeStackEntry {
+            pos: self.root,
+            a: None,
+        }];
+
+        'outer_loop: while let Some(entry) = stack.pop() {
+            match self.items[entry.pos] {
+                SnailFishItem::Pair(a, b) => {
+                    let child = match entry.a {
+                        None => a,
+                        Some(_) => b,
+                    };
+
+                    stack.push(entry);
+                    stack.push(MagnitudeStackEntry { pos: child, a: None });
+                },
+
+                SnailFishItem::Integer(mut value) => {
+                    while let Some(entry) = stack.pop() {
+                        match entry.a {
+                            Some(a) => value = a * 3 + value * 2,
+                            None => {
+                                stack.push(MagnitudeStackEntry {
+                                    pos: entry.pos,
+                                    a: Some(value),
+                                });
+                                continue 'outer_loop;
+                            },
+                        }
+                    }
+
+                    return value;
+                },
+
+                SnailFishItem::Deleted(_) => unreachable!(),
+            }
+        }
+
+        unreachable!();
     }
 }
 
@@ -543,5 +591,26 @@ mod test {
         }
 
         assert!(!"[1,2]".parse::<SnailFishNumber>().unwrap().try_split());
+    }
+
+    #[test]
+    fn magnitude() {
+        let tests = [
+            ("12", 12),
+            ("[9,1]", 29),
+            ("[1,9]", 21),
+            ("[[9,1],[1,9]]", 129),
+            ("[[1,2],[[3,4],5]]", 143),
+            ("[[[[0,7],4],[[7,8],[6,0]]],[8,1]]", 1384),
+            ("[[[[1,1],[2,2]],[3,3]],[4,4]]", 445),
+            ("[[[[3,0],[5,3]],[4,4]],[5,5]]", 791),
+            ("[[[[5,0],[7,4]],[5,5]],[6,6]]", 1137),
+            ("[[[[8,7],[7,7]],[[8,6],[7,7]]],[[[0,7],[6,6]],[8,7]]]", 3488),
+        ];
+
+        for &(number, magnitude) in tests.iter() {
+            let number = number.parse::<SnailFishNumber>().unwrap();
+            assert_eq!(number.magnitude(), magnitude);
+        }
     }
 }
