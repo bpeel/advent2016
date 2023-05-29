@@ -6,12 +6,14 @@ use std::fmt;
 struct SnailFishNumber {
     items: Vec<SnailFishItem>,
     root: usize,
+    magazine: Option<usize>,
 }
 
 #[derive(Debug)]
 enum SnailFishItem {
     Integer(i32),
     Pair(usize, usize),
+    Deleted(Option<usize>),
 }
 
 const EXPLODE_DEPTH: usize = 4;
@@ -54,6 +56,7 @@ impl SnailFishNumber {
                         AddDirection::Right => a,
                     };
                 },
+                SnailFishItem::Deleted(..) => unreachable!(),
             }
         }
     }
@@ -85,6 +88,11 @@ impl SnailFishNumber {
         }
     }
 
+    fn delete_item(&mut self, item: usize) {
+        self.items[item] = SnailFishItem::Deleted(self.magazine);
+        self.magazine = Some(item);
+    }
+
     fn explode_item(
         &mut self,
         stack: &[ExplodeStackEntry; EXPLODE_DEPTH],
@@ -93,16 +101,20 @@ impl SnailFishNumber {
         let SnailFishItem::Pair(a, b) = self.items[child]
         else { unreachable!() };
 
-        let SnailFishItem::Integer(a) = self.items[a]
+        let SnailFishItem::Integer(a_value) = self.items[a]
         else { unreachable!() };
 
-        let SnailFishItem::Integer(b) = self.items[b]
+        self.delete_item(a);
+
+        let SnailFishItem::Integer(b_value) = self.items[b]
         else { unreachable!() };
+
+        self.delete_item(b);
 
         self.items[child] = SnailFishItem::Integer(0);
 
-        self.add_to_neighbour(&stack, AddDirection::Left, a);
-        self.add_to_neighbour(&stack, AddDirection::Right, b);
+        self.add_to_neighbour(&stack, AddDirection::Left, a_value);
+        self.add_to_neighbour(&stack, AddDirection::Right, b_value);
     }
 
     fn try_explode(&mut self) -> bool {
@@ -235,7 +247,7 @@ impl FromStr for SnailFishNumber {
         } else {
             let root = items.len() - 1;
 
-            Ok(SnailFishNumber { items, root })
+            Ok(SnailFishNumber { items, root, magazine: None })
         }
     }
 }
@@ -294,6 +306,7 @@ impl fmt::Display for SnailFishNumber {
                         },
                     }
                 },
+                SnailFishItem::Deleted(..) => unreachable!(),
             }
         }
 
@@ -412,6 +425,19 @@ mod test {
             let mut number = number.parse::<SnailFishNumber>().unwrap();
             assert!(number.try_explode());
             assert_eq!(&number.to_string(), exploded);
+
+            // The magazine should contain exactly two items, ie, the
+            // integer items deleted from the pair
+            let Some(deleted) = number.magazine
+            else { unreachable!(); };
+
+            let SnailFishItem::Deleted(Some(deleted)) = number.items[deleted]
+            else { unreachable!(); };
+
+            assert!(matches!(
+                number.items[deleted],
+                SnailFishItem::Deleted(None),
+            ));
         }
 
         assert!(!"[1,2]".parse::<SnailFishNumber>().unwrap().try_explode());
