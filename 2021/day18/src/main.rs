@@ -14,6 +14,154 @@ enum SnailFishItem {
     Pair(usize, usize),
 }
 
+const EXPLODE_DEPTH: usize = 4;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum DescendDirection {
+    Start,
+    Left,
+    Right,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum AddDirection {
+    Left,
+    Right,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ExplodeStackEntry {
+    pos: usize,
+    direction: DescendDirection,
+}
+
+impl SnailFishNumber {
+    fn add_to_child(
+        &mut self,
+        mut child: usize,
+        direction: AddDirection,
+        amount: i32,
+    ) {
+        loop {
+            match self.items[child] {
+                SnailFishItem::Integer(ref mut value) => {
+                    *value += amount;
+                    break;
+                },
+                SnailFishItem::Pair(a, b) => {
+                    child = match direction {
+                        AddDirection::Left => b,
+                        AddDirection::Right => a,
+                    };
+                },
+            }
+        }
+    }
+
+    fn add_to_neighbour(
+        &mut self,
+        stack: &[ExplodeStackEntry; EXPLODE_DEPTH],
+        direction: AddDirection,
+        amount: i32,
+    ) {
+        for entry in stack.iter().rev() {
+            let SnailFishItem::Pair(a, b) = self.items[entry.pos]
+            else { unreachable!(); };
+
+            match direction {
+                AddDirection::Left => {
+                    if entry.direction == DescendDirection::Right {
+                        self.add_to_child(a, AddDirection::Left, amount);
+                        break;
+                    }
+                },
+                AddDirection::Right => {
+                    if entry.direction == DescendDirection::Left {
+                        self.add_to_child(b, AddDirection::Right, amount);
+                        break;
+                    }
+                },
+            }
+        }
+    }
+
+    fn explode_item(
+        &mut self,
+        stack: &[ExplodeStackEntry; EXPLODE_DEPTH],
+        child: usize,
+    ) {
+        let SnailFishItem::Pair(a, b) = self.items[child]
+        else { unreachable!() };
+
+        let SnailFishItem::Integer(a) = self.items[a]
+        else { unreachable!() };
+
+        let SnailFishItem::Integer(b) = self.items[b]
+        else { unreachable!() };
+
+        self.items[child] = SnailFishItem::Integer(0);
+
+        self.add_to_neighbour(&stack, AddDirection::Left, a);
+        self.add_to_neighbour(&stack, AddDirection::Right, b);
+    }
+
+    fn try_explode(&mut self) -> bool {
+        if !matches!(self.items[self.root], SnailFishItem::Pair(..)) {
+            return false;
+        }
+
+        let mut stack = [ExplodeStackEntry {
+            pos: self.root,
+            direction: DescendDirection::Start,
+        }; EXPLODE_DEPTH];
+
+        let mut depth = 1;
+
+        while depth > 0 {
+            let entry = &mut stack[depth - 1];
+            let item = &self.items[entry.pos];
+            depth -= 1;
+
+            let &SnailFishItem::Pair(a, b) = item
+            else { unreachable!(); };
+
+            let child = match entry.direction {
+                DescendDirection::Start => {
+                    entry.direction = DescendDirection::Left;
+                    a
+                },
+                DescendDirection::Left => {
+                    entry.direction = DescendDirection::Right;
+                    b
+                },
+                DescendDirection::Right => {
+                    continue;
+                },
+            };
+
+            depth += 1;
+
+            if !matches!(self.items[child], SnailFishItem::Pair(..)) {
+                continue;
+            }
+
+            if depth >= EXPLODE_DEPTH {
+                self.explode_item(&stack, child);
+                return true;
+            }
+
+            stack[depth] = ExplodeStackEntry {
+                pos: child,
+                direction: DescendDirection::Start,
+            };
+
+            depth += 1;
+        }
+
+        false
+    }
+}
+
 struct StackEntry {
     a: Option<usize>,
 }
@@ -242,5 +390,31 @@ mod test {
             "[9,1]yes".parse::<SnailFishNumber>().unwrap_err(),
             SnailFishError::TrailingData,
         );
+    }
+
+    #[test]
+    fn explode() {
+        let tests = [
+            ("[[[[[9,8],1],2],3],4]", "[[[[0,9],2],3],4]"),
+            ("[7,[6,[5,[4,[3,2]]]]]", "[7,[6,[5,[7,0]]]]"),
+            ("[[6,[5,[4,[3,2]]]],1]", "[[6,[5,[7,0]]],3]"),
+            (
+                "[[3,[2,[1,[7,3]]]],[6,[5,[4,[3,2]]]]]",
+                "[[3,[2,[8,0]]],[9,[5,[4,[3,2]]]]]"
+            ),
+            (
+                "[[3,[2,[8,0]]],[9,[5,[4,[3,2]]]]]",
+                "[[3,[2,[8,0]]],[9,[5,[7,0]]]]"
+            ),
+        ];
+
+        for (number, exploded) in tests.iter() {
+            let mut number = number.parse::<SnailFishNumber>().unwrap();
+            assert!(number.try_explode());
+            assert_eq!(&number.to_string(), exploded);
+        }
+
+        assert!(!"[1,2]".parse::<SnailFishNumber>().unwrap().try_explode());
+        assert!(!"12".parse::<SnailFishNumber>().unwrap().try_explode());
     }
 }
