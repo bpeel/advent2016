@@ -326,6 +326,11 @@ impl SnailFishNumber {
             }
         }));
     }
+
+    fn reduce(&mut self) {
+        while self.try_explode() || self.try_split() {
+        }
+    }
 }
 
 struct StackEntry {
@@ -497,8 +502,46 @@ impl From<ParseIntError> for SnailFishError {
     }
 }
 
-fn main() {
-    println!("Hello, world!");
+fn main() -> std::process::ExitCode {
+    let mut part1: Option<SnailFishNumber> = None;
+
+    for (line_num, line) in std::io::stdin().lines().enumerate() {
+        let line = match line {
+            Ok(line) => line,
+            Err(e) => {
+                eprintln!("{}", e);
+                return std::process::ExitCode::FAILURE;
+            },
+        };
+
+        let number = match line.parse::<SnailFishNumber>() {
+            Ok(number) => number,
+            Err(e) => {
+                eprintln!("line {}: {}", line_num + 1, e);
+                return std::process::ExitCode::FAILURE;
+            }
+        };
+
+        match part1.as_mut() {
+            Some(part1) => {
+                part1.add(&number);
+                part1.reduce();
+            },
+            None => part1 = Some(number),
+        }
+    }
+
+    match part1 {
+        None => println!("Empty input"),
+        Some(v) => println!(
+            "result: {}\n\
+             part 1: {}",
+            v,
+            v.magnitude()
+        ),
+    }
+
+    std::process::ExitCode::SUCCESS
 }
 
 #[cfg(test)]
