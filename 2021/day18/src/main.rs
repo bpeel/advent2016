@@ -32,12 +32,31 @@ enum AddDirection {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct ExplodeStackEntry {
+struct ActionStackEntry {
     pos: usize,
     direction: DescendDirection,
 }
 
 impl SnailFishNumber {
+    fn add_item(&mut self, item: SnailFishItem) -> usize {
+        match self.magazine {
+            Some(deleted) => {
+                let SnailFishItem::Deleted(next) = self.items[deleted]
+                else { unreachable!(); };
+
+                self.items[deleted] = item;
+
+                self.magazine = next;
+
+                deleted
+            },
+            None => {
+                self.items.push(item);
+                self.items.len() - 1
+            },
+        }
+    }
+
     fn add_to_child(
         &mut self,
         mut child: usize,
@@ -63,7 +82,7 @@ impl SnailFishNumber {
 
     fn add_to_neighbour(
         &mut self,
-        stack: &[ExplodeStackEntry; EXPLODE_DEPTH],
+        stack: &[ActionStackEntry; EXPLODE_DEPTH],
         direction: AddDirection,
         amount: i32,
     ) {
@@ -95,7 +114,7 @@ impl SnailFishNumber {
 
     fn explode_item(
         &mut self,
-        stack: &[ExplodeStackEntry; EXPLODE_DEPTH],
+        stack: &[ActionStackEntry; EXPLODE_DEPTH],
         child: usize,
     ) {
         let SnailFishItem::Pair(a, b) = self.items[child]
@@ -122,7 +141,7 @@ impl SnailFishNumber {
             return false;
         }
 
-        let mut stack = [ExplodeStackEntry {
+        let mut stack = [ActionStackEntry {
             pos: self.root,
             direction: DescendDirection::Start,
         }; EXPLODE_DEPTH];
@@ -162,12 +181,77 @@ impl SnailFishNumber {
                 return true;
             }
 
-            stack[depth] = ExplodeStackEntry {
+            stack[depth] = ActionStackEntry {
                 pos: child,
                 direction: DescendDirection::Start,
             };
 
             depth += 1;
+        }
+
+        false
+    }
+
+    fn split_item(&mut self, item: usize) {
+        let SnailFishItem::Integer(value) = self.items[item]
+        else { unreachable!(); };
+
+        let a_value = value / 2;
+        let b_value = (value + 1) / 2;
+
+        let a = self.add_item(SnailFishItem::Integer(a_value));
+        let b = self.add_item(SnailFishItem::Integer(b_value));
+
+        self.items[item] = SnailFishItem::Pair(a, b);
+    }
+
+    fn try_split(&mut self) -> bool {
+        let mut stack = [ActionStackEntry {
+            pos: self.root,
+            direction: DescendDirection::Start,
+        }; EXPLODE_DEPTH + 1];
+
+        let mut depth = 1;
+
+        while depth > 0 {
+            let entry = &mut stack[depth - 1];
+            depth -= 1;
+
+            match self.items[entry.pos] {
+                SnailFishItem::Pair(a, b) => {
+                    let child = match entry.direction {
+                        DescendDirection::Start => {
+                            entry.direction = DescendDirection::Left;
+                            a
+                        },
+                        DescendDirection::Left => {
+                            entry.direction = DescendDirection::Right;
+                            b
+                        },
+                        DescendDirection::Right => {
+                            continue;
+                        },
+                    };
+
+                    depth += 1;
+
+                    stack[depth] = ActionStackEntry {
+                        pos: child,
+                        direction: DescendDirection::Start,
+                    };
+
+                    depth += 1;
+                },
+
+                SnailFishItem::Integer(value) => {
+                    if value >= 10 {
+                        self.split_item(entry.pos);
+                        return true;
+                    }
+                },
+
+                SnailFishItem::Deleted(_) => unreachable!(),
+            }
         }
 
         false
@@ -442,5 +526,22 @@ mod test {
 
         assert!(!"[1,2]".parse::<SnailFishNumber>().unwrap().try_explode());
         assert!(!"12".parse::<SnailFishNumber>().unwrap().try_explode());
+    }
+
+    #[test]
+    fn split() {
+        let tests = [
+            ("[11,5]", "[[5,6],5]"),
+            ("[[[[10,5],1],1],1]", "[[[[[5,5],5],1],1],1]"),
+            ("[1,[[[10,5],1],1]]", "[1,[[[[5,5],5],1],1]]"),
+        ];
+
+        for (number, split) in tests.iter() {
+            let mut number = number.parse::<SnailFishNumber>().unwrap();
+            assert!(number.try_split());
+            assert_eq!(&number.to_string(), split);
+        }
+
+        assert!(!"[1,2]".parse::<SnailFishNumber>().unwrap().try_split());
     }
 }
