@@ -2,14 +2,14 @@ use std::str::FromStr;
 use std::num::ParseIntError;
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SnailFishNumber {
     items: Vec<SnailFishItem>,
     root: usize,
     magazine: Option<usize>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum SnailFishItem {
     Integer(i32),
     Pair(usize, usize),
@@ -502,8 +502,43 @@ impl From<ParseIntError> for SnailFishError {
     }
 }
 
+fn part1(numbers: &[SnailFishNumber]) -> i32 {
+    let mut value = numbers[0].clone();
+
+    for other in numbers[1..].iter() {
+        value.add(other);
+        value.reduce();
+    }
+
+    value.magnitude()
+}
+
+fn part2(numbers: &[SnailFishNumber]) -> i32 {
+    let mut best = i32::MIN;
+
+    for a in 0..numbers.len() {
+        for b in 0..numbers.len() {
+            if a == b {
+                continue;
+            }
+
+            let mut value = numbers[a].clone();
+            value.add(&numbers[b]);
+            value.reduce();
+
+            let magnitude = value.magnitude();
+
+            if best < magnitude {
+                best = magnitude;
+            }
+        }
+    }
+
+    best
+}
+
 fn main() -> std::process::ExitCode {
-    let mut part1: Option<SnailFishNumber> = None;
+    let mut numbers = Vec::<SnailFishNumber>::new();
 
     for (line_num, line) in std::io::stdin().lines().enumerate() {
         let line = match line {
@@ -522,24 +557,16 @@ fn main() -> std::process::ExitCode {
             }
         };
 
-        match part1.as_mut() {
-            Some(part1) => {
-                part1.add(&number);
-                part1.reduce();
-            },
-            None => part1 = Some(number),
-        }
+        numbers.push(number);
     }
 
-    match part1 {
-        None => println!("Empty input"),
-        Some(v) => println!(
-            "result: {}\n\
-             part 1: {}",
-            v,
-            v.magnitude()
-        ),
+    if numbers.is_empty() {
+        eprintln!("Empty input");
+        return std::process::ExitCode::FAILURE;
     }
+
+    println!("part 1: {}", part1(&numbers));
+    println!("part 2: {}", part2(&numbers));
 
     std::process::ExitCode::SUCCESS
 }
