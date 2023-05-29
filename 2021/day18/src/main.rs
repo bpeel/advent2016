@@ -304,6 +304,28 @@ impl SnailFishNumber {
 
         unreachable!();
     }
+
+    fn add(&mut self, other: &SnailFishNumber) {
+        let offset = self.items.len() + 1;
+
+        self.items.push(SnailFishItem::Pair(self.root, other.root + offset));
+        self.root = self.items.len() - 1;
+
+        self.items.extend(other.items.iter().enumerate().map(|(pos, item)| {
+            match item {
+                SnailFishItem::Deleted(_) => {
+                    let old_next = self.magazine;
+                    self.magazine = Some(pos + offset);
+                    SnailFishItem::Deleted(old_next)
+                },
+                &SnailFishItem::Integer(value) => SnailFishItem::Integer(value),
+                SnailFishItem::Pair(a, b) => SnailFishItem::Pair(
+                    a + offset,
+                    b + offset,
+                ),
+            }
+        }));
+    }
 }
 
 struct StackEntry {
@@ -611,6 +633,23 @@ mod test {
         for &(number, magnitude) in tests.iter() {
             let number = number.parse::<SnailFishNumber>().unwrap();
             assert_eq!(number.magnitude(), magnitude);
+        }
+    }
+
+    #[test]
+    fn add() {
+        let tests = [
+            ("[1,2]", "[[3,4],5]", "[[1,2],[[3,4],5]]"),
+            ("5", "6", "[5,6]"),
+        ];
+
+        for &(a, b, result) in tests.iter() {
+            let mut a = a.parse::<SnailFishNumber>().unwrap();
+            let b = b.parse::<SnailFishNumber>().unwrap();
+
+            a.add(&b);
+
+            assert_eq!(&a.to_string(), result);
         }
     }
 }
