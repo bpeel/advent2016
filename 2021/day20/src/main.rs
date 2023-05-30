@@ -194,11 +194,15 @@ fn main() -> ExitCode {
         },
     };
 
-    for _ in 0..2 {
+    for i in 0..50 {
         image = image.enhance(&key);
+
+        if i == 2 {
+            println!("part 1: {}", image.pixels.len());
+        }
     }
 
-    println!("part 1: {}", image.pixels.len());
+    println!("part 2: {}", image.pixels.len());
 
     ExitCode::SUCCESS
 }
