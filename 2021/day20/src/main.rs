@@ -36,8 +36,6 @@ impl FromStr for ImageKey {
 
         if i != IMAGE_KEY_BITS {
             Err("Not enough bits in image key")
-        } else if key.get(0) {
-            Err("Bit 0 in key is true!")
         } else {
             Ok(key)
         }
@@ -58,6 +56,8 @@ struct Image {
     max_x: i32,
     min_y: i32,
     max_y: i32,
+    // The value returned for pixels outside of the range
+    other_pixels: bool,
 }
 
 impl Image {
@@ -68,6 +68,19 @@ impl Image {
             max_x: 0,
             min_y: 0,
             max_y: 0,
+            other_pixels: false,
+        }
+    }
+
+    fn get(&self, x: i32, y: i32) -> bool {
+        if x >= self.min_x
+            && x <= self.max_x
+            && y >= self.min_y
+            && y <= self.max_y
+        {
+            self.pixels.contains(&(x, y))
+        } else {
+            self.other_pixels
         }
     }
 
@@ -102,9 +115,7 @@ impl Image {
 
         for y_off in -1..=1 {
             for x_off in -1..=1 {
-                let bit = self.pixels.contains(
-                    &(x + x_off, y + y_off)
-                ) as usize;
+                let bit = self.get(x + x_off, y + y_off) as usize;
 
                 key = (key << 1) | bit;
             }
@@ -125,6 +136,14 @@ impl Image {
                 }
             }
         }
+
+        let other_key = if self.other_pixels {
+            0b111111111
+        } else {
+            0b000000000
+        };
+
+        result.other_pixels = key.get(other_key);
 
         result
     }
