@@ -13,29 +13,34 @@ struct Player {
 }
 
 #[derive(Clone, Debug)]
-struct Game {
-    n_die_rolls: u32,
+struct Game<D: Die> {
     next_player: usize,
     players: [Player; N_PLAYERS],
     winning_score: u32,
+    die: D,
 }
 
 #[derive(Clone, Debug)]
-struct FinalScores {
+struct FinalScores<D: Die> {
     losing_score: u32,
-    n_die_rolls: u32,
+    die: D,
 }
 
-impl Game {
+trait Die {
+    fn roll_die(&mut self) -> u32;
+}
+
+impl<D: Die> Game<D> {
     fn new(
         starting_positions: [u32; N_PLAYERS as usize],
         winning_score: u32,
-    ) -> Game {
+        die: D,
+    ) -> Game<D> {
         let mut game = Game {
-            n_die_rolls: 0,
             next_player: 0,
             players: [Player { position: 0, score: 0 }; N_PLAYERS],
             winning_score,
+            die,
         };
 
         for (i, &pos) in starting_positions.iter().enumerate() {
@@ -46,14 +51,10 @@ impl Game {
     }
 
     fn roll_die(&mut self) -> u32 {
-        let result = self.n_die_rolls % N_DIE_SIDES + 1;
-
-        self.n_die_rolls += 1;
-
-        result
+        self.die.roll_die()
     }
 
-    fn take_turn(&mut self) -> Option<FinalScores> {
+    fn take_turn(&mut self) -> bool {
         let dice_score: u32 =
             (0..DIE_ROLLS_PER_TURN).map(|_| self.roll_die()).sum();
 
@@ -62,22 +63,46 @@ impl Game {
         player.position = (player.position + dice_score) % N_POSITIONS;
         player.score += player.position + 1;
 
-        let result = if player.score >= self.winning_score {
-            Some(FinalScores {
-                n_die_rolls: self.n_die_rolls,
-                losing_score: self.players.iter().enumerate().map(|(i, p)| {
-                    if i == self.next_player {
-                        0
-                    } else {
-                        p.score
-                    }
-                }).sum(),
-            })
+        if player.score >= self.winning_score {
+            true
         } else {
-            None
-        };
+            self.next_player = (self.next_player + 1) % N_PLAYERS;
 
-        self.next_player = (self.next_player + 1) % N_PLAYERS;
+            false
+        }
+    }
+
+    fn finalise(self) -> FinalScores<D> {
+        FinalScores {
+            losing_score: self.players.iter().enumerate().map(|(i, p)| {
+                if i == self.next_player {
+                    0
+                } else {
+                    p.score
+                }
+            }).sum(),
+            die: self.die,
+        }
+    }
+}
+
+struct DeterministicDie {
+    n_die_rolls: u32,
+}
+
+impl DeterministicDie {
+    fn new() -> DeterministicDie {
+        DeterministicDie {
+            n_die_rolls: 0,
+        }
+    }
+}
+
+impl Die for DeterministicDie {
+    fn roll_die(&mut self) -> u32 {
+        let result = self.n_die_rolls % N_DIE_SIDES + 1;
+
+        self.n_die_rolls += 1;
 
         result
     }
@@ -107,16 +132,25 @@ fn main() -> ExitCode {
         };
     }
 
-    let mut game = Game::new(starting_positions, WINNING_SCORE_PART1);
+    let die = DeterministicDie::new();
+
+    let mut game = Game::new(starting_positions, WINNING_SCORE_PART1, die);
 
     loop {
-        if let Some(scores) = game.take_turn() {
+        if game.take_turn() {
+            let scores = game.finalise();
+
             println!(
                 "losing_score = {}, n_die_rolls = {}",
                 scores.losing_score,
-                scores.n_die_rolls,
+                scores.die.n_die_rolls,
             );
-            println!("part 1: {}", scores.losing_score * scores.n_die_rolls);
+
+            println!(
+                "part 1: {}",
+                scores.losing_score * scores.die.n_die_rolls
+            );
+
             break;
         }
     }
