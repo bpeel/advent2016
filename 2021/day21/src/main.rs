@@ -3,6 +3,7 @@ use std::process::ExitCode;
 const N_DIE_SIDES: u32 = 100;
 const N_POSITIONS: u32 = 10;
 const WINNING_SCORE_PART1: u32 = 1000;
+const WINNING_SCORE_PART2: u32 = 21;
 const DIE_ROLLS_PER_TURN: u32 = 3;
 const N_PLAYERS: usize = 2;
 
@@ -23,6 +24,7 @@ struct Game<D: Die> {
 #[derive(Clone, Debug)]
 struct FinalScores<D: Die> {
     losing_score: u32,
+    winning_player: usize,
     die: D,
 }
 
@@ -32,7 +34,7 @@ trait Die {
 
 impl<D: Die> Game<D> {
     fn new(
-        starting_positions: [u32; N_PLAYERS as usize],
+        starting_positions: &[u32; N_PLAYERS as usize],
         winning_score: u32,
         die: D,
     ) -> Game<D> {
@@ -82,6 +84,7 @@ impl<D: Die> Game<D> {
                 }
             }).sum(),
             die: self.die,
+            winning_player: self.next_player,
         }
     }
 }
@@ -105,6 +108,93 @@ impl Die for DeterministicDie {
         self.n_die_rolls += 1;
 
         result
+    }
+}
+
+fn part1(starting_positions: &[u32; N_PLAYERS]) -> u32 {
+    let die = DeterministicDie::new();
+
+    let mut game = Game::new(starting_positions, WINNING_SCORE_PART1, die);
+
+    loop {
+        if game.take_turn() {
+            let scores = game.finalise();
+
+            println!(
+                "losing_score = {}, n_die_rolls = {}",
+                scores.losing_score,
+                scores.die.n_die_rolls,
+            );
+
+
+            break scores.losing_score * scores.die.n_die_rolls;
+        }
+    }
+}
+
+struct QuantumDie {
+    rolls: Vec<u8>,
+    n_rolls: usize,
+}
+
+impl QuantumDie {
+    fn new() -> QuantumDie {
+        QuantumDie {
+            rolls: Vec::new(),
+            n_rolls: 0,
+        }
+    }
+
+    fn next_universe(&mut self) -> bool {
+        self.rolls.truncate(self.n_rolls);
+        self.n_rolls = 0;
+
+        for roll in self.rolls.iter_mut().rev() {
+            if *roll >= 3 {
+                *roll = 1;
+            } else {
+                *roll += 1;
+                return true;
+            }
+        }
+
+        false
+    }
+}
+
+impl Die for QuantumDie {
+    fn roll_die(&mut self) -> u32 {
+        if self.n_rolls >= self.rolls.len() {
+            self.rolls.push(1);
+        }
+
+        self.n_rolls += 1;
+
+        *self.rolls.last().unwrap() as u32
+    }
+}
+
+fn part2(starting_positions: &[u32; N_PLAYERS]) -> u64 {
+    let mut die = QuantumDie::new();
+    let mut wins = [0u64; N_PLAYERS];
+
+    loop {
+        let mut game = Game::new(starting_positions, WINNING_SCORE_PART2, die);
+
+        loop {
+            if game.take_turn() {
+                let scores = game.finalise();
+
+                die = scores.die;
+                wins[scores.winning_player] += 1;
+
+                break;
+            }
+        }
+
+        if !die.next_universe() {
+            break wins.iter().map(|&a| a).max().unwrap()
+        }
     }
 }
 
@@ -132,28 +222,8 @@ fn main() -> ExitCode {
         };
     }
 
-    let die = DeterministicDie::new();
-
-    let mut game = Game::new(starting_positions, WINNING_SCORE_PART1, die);
-
-    loop {
-        if game.take_turn() {
-            let scores = game.finalise();
-
-            println!(
-                "losing_score = {}, n_die_rolls = {}",
-                scores.losing_score,
-                scores.die.n_die_rolls,
-            );
-
-            println!(
-                "part 1: {}",
-                scores.losing_score * scores.die.n_die_rolls
-            );
-
-            break;
-        }
-    }
+    println!("part 1: {}", part1(&starting_positions));
+    println!("part 2: {}", part2(&starting_positions));
 
     ExitCode::SUCCESS
 }
