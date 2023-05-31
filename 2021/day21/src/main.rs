@@ -2,7 +2,7 @@ use std::process::ExitCode;
 
 const N_DIE_SIDES: u32 = 100;
 const N_POSITIONS: u32 = 10;
-const WINNING_SCORE: u32 = 1000;
+const WINNING_SCORE_PART1: u32 = 1000;
 const DIE_ROLLS_PER_TURN: u32 = 3;
 const N_PLAYERS: usize = 2;
 
@@ -17,6 +17,7 @@ struct Game {
     n_die_rolls: u32,
     next_player: usize,
     players: [Player; N_PLAYERS],
+    winning_score: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -26,11 +27,15 @@ struct FinalScores {
 }
 
 impl Game {
-    fn new(starting_positions: [u32; N_PLAYERS as usize]) -> Game {
+    fn new(
+        starting_positions: [u32; N_PLAYERS as usize],
+        winning_score: u32,
+    ) -> Game {
         let mut game = Game {
             n_die_rolls: 0,
             next_player: 0,
             players: [Player { position: 0, score: 0 }; N_PLAYERS],
+            winning_score,
         };
 
         for (i, &pos) in starting_positions.iter().enumerate() {
@@ -57,7 +62,7 @@ impl Game {
         player.position = (player.position + dice_score) % N_POSITIONS;
         player.score += player.position + 1;
 
-        let result = if player.score >= WINNING_SCORE {
+        let result = if player.score >= self.winning_score {
             Some(FinalScores {
                 n_die_rolls: self.n_die_rolls,
                 losing_score: self.players.iter().enumerate().map(|(i, p)| {
@@ -102,7 +107,7 @@ fn main() -> ExitCode {
         };
     }
 
-    let mut game = Game::new(starting_positions);
+    let mut game = Game::new(starting_positions, WINNING_SCORE_PART1);
 
     loop {
         if let Some(scores) = game.take_turn() {
