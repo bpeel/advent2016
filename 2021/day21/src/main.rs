@@ -1,4 +1,5 @@
 use std::process::ExitCode;
+use std::collections::HashMap;
 
 const N_DIE_SIDES: u32 = 100;
 const N_POSITIONS: u32 = 10;
@@ -132,28 +133,79 @@ fn part1(starting_positions: &[u32; N_PLAYERS]) -> u32 {
     }
 }
 
+// Stats about a set of DIE_ROLLS_PER_TURN dice rolls
+struct QuantumDieScore {
+    // Any example set of die rolls that gives the score
+    rolls: [u32; DIE_ROLLS_PER_TURN as usize],
+    // The number of combinations that can achieve that score
+    combinations: u32,
+}
+
 struct QuantumDie {
-    rolls: Vec<u8>,
+    possible_scores: Vec<QuantumDieScore>,
+    score_sequence: Vec<u8>,
     n_rolls: usize,
 }
 
 impl QuantumDie {
     fn new() -> QuantumDie {
+        let mut possible_scores = HashMap::<u32, QuantumDieScore>::new();
+        let mut dice = [1u32; DIE_ROLLS_PER_TURN as usize];
+
+        'score_loop: loop {
+            let score = dice.iter().map(|&a| a).sum();
+
+            possible_scores.entry(score)
+                .and_modify(|score| score.combinations += 1)
+                .or_insert_with(|| QuantumDieScore {
+                    rolls: dice,
+                    combinations: 1,
+                });
+
+            for die in dice.iter_mut() {
+                if *die >= 3 {
+                    *die = 1;
+                } else {
+                    *die += 1;
+                    continue 'score_loop;
+                }
+            }
+
+            break;
+        }
+
         QuantumDie {
-            rolls: Vec::new(),
+            possible_scores: possible_scores.into_values().collect(),
+            score_sequence: Vec::new(),
             n_rolls: 0,
         }
     }
 
+    fn count_equivalent_universes(&self) -> u64 {
+        let n_scores = self.n_rolls / DIE_ROLLS_PER_TURN as usize;
+
+        // Count the number of universes that would have the same result
+        let mut n_universes = 1;
+
+        for &score in self.score_sequence[0..n_scores].iter() {
+            let score = &self.possible_scores[score as usize];
+            n_universes *= score.combinations as u64;
+        }
+
+        n_universes
+    }
+
     fn next_universe(&mut self) -> bool {
-        self.rolls.truncate(self.n_rolls);
+        let n_scores = self.n_rolls / DIE_ROLLS_PER_TURN as usize;
+
+        self.score_sequence.truncate(n_scores);
         self.n_rolls = 0;
 
-        for roll in self.rolls.iter_mut().rev() {
-            if *roll >= 3 {
-                *roll = 1;
+        for score in self.score_sequence.iter_mut().rev() {
+            if *score as usize + 1 >= self.possible_scores.len() {
+                *score = 0;
             } else {
-                *roll += 1;
+                *score += 1;
                 return true;
             }
         }
@@ -164,13 +216,21 @@ impl QuantumDie {
 
 impl Die for QuantumDie {
     fn roll_die(&mut self) -> u32 {
-        if self.n_rolls >= self.rolls.len() {
-            self.rolls.push(1);
+        let n_scores = self.n_rolls / DIE_ROLLS_PER_TURN as usize;
+
+        if n_scores >= self.score_sequence.len() {
+            self.score_sequence.push(0);
         }
+
+        let roll_num = self.n_rolls % DIE_ROLLS_PER_TURN as usize;
+
+        let score_index = self.score_sequence[n_scores] as usize;
+        let score = &self.possible_scores[score_index];
+        let result = score.rolls[roll_num];
 
         self.n_rolls += 1;
 
-        *self.rolls.last().unwrap() as u32
+        result
     }
 }
 
@@ -186,7 +246,7 @@ fn part2(starting_positions: &[u32; N_PLAYERS]) -> u64 {
                 let scores = game.finalise();
 
                 die = scores.die;
-                wins[scores.winning_player] += 1;
+                wins[scores.winning_player] += die.count_equivalent_universes();
 
                 break;
             }
