@@ -39,11 +39,11 @@ impl CubeRange {
         true
     }
 
-    fn count_cubes(&self) -> u32 {
+    fn count_cubes(&self) -> u64 {
         let mut n_cubes = 1;
 
         for range in self.coords.iter() {
-            n_cubes *= (range.max - range.min) as u32;
+            n_cubes *= (range.max - range.min) as u64;
         }
 
         n_cubes
@@ -175,7 +175,7 @@ impl CubeList {
         self.ranges.extend(range.ranges);
     }
 
-    fn count_cubes(&self) -> u32 {
+    fn count_cubes(&self) -> u64 {
         self.ranges.iter().map(|range| range.count_cubes()).sum()
     }
 }
@@ -265,6 +265,7 @@ fn main() -> ExitCode {
     }
 
     println!("part 1: {}", small_region.count_cubes());
+    println!("part 2: {}", cube_list.count_cubes());
 
     ExitCode::SUCCESS
 }
