@@ -22,6 +22,9 @@ const MOVES_PER_AMPHIPOD: usize =
 // The total number of moves that we can consider from a state
 const N_MOVES: usize = MOVES_PER_AMPHIPOD * TOTAL_N_AMPHIPODS;
 
+const N_MOVE_INTS: usize =
+    (N_MOVES + u64::BITS as usize - 1) / u64::BITS as usize;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Position {
     InRoom {
@@ -95,6 +98,37 @@ impl Position {
                 0,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct MoveMask {
+    bits: [u64; N_MOVE_INTS],
+}
+
+impl MoveMask {
+    fn new() -> MoveMask {
+        MoveMask {
+            bits: [0; N_MOVE_INTS],
+        }
+    }
+
+    fn test(&self, move_num: usize) -> bool {
+        self.bits[move_num / u64::BITS as usize]
+            & (1u64 << (move_num as u64 % u64::BITS as u64))
+            != 0
+    }
+
+    fn set(&mut self, move_num: usize) {
+        self.bits[move_num / u64::BITS as usize] |=
+            1u64 << (move_num as u64 % u64::BITS as u64);
+    }
+}
+
+struct PotentialMove {
+    move_num: usize,
+    state: State,
+    cost: u64,
+    score: u32,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -200,6 +234,59 @@ impl State {
 
         true
     }
+
+    fn score(&self) -> u32 {
+        self.amphipods
+            .iter()
+            .enumerate()
+            .map(|(num, a)| a.x().abs_diff(
+                (num / N_AMPHIPODS_PER_TYPE * 2
+                 + N_SIDE_ROOMS + 1) as u32
+            ))
+            .sum()
+    }
+
+    fn next_best_move(
+        &self,
+        skip_moves: MoveMask,
+    ) -> Option<PotentialMove> {
+        let mut result = None;
+
+        for move_num in 0..N_MOVES {
+            if skip_moves.test(move_num) {
+                continue;
+            }
+
+            let amphipod_num = move_num / MOVES_PER_AMPHIPOD;
+            let pos = Position::from_move_num(move_num % MOVES_PER_AMPHIPOD);
+
+            if let Some((pos, cost)) = self.try_move(amphipod_num, &pos) {
+                let mut state = self.clone();
+
+                state.amphipods[amphipod_num] = pos;
+
+                let score = state.score();
+
+                let potential_move = PotentialMove {
+                    move_num,
+                    state,
+                    cost,
+                    score,
+                };
+
+                match result {
+                    None => result = Some(potential_move),
+                    Some(PotentialMove { score: previous_score, .. }) => {
+                        if previous_score > score {
+                            result = Some(potential_move);
+                        }
+                    },
+                }
+            }
+        }
+
+        result
+    }
 }
 
 impl FromStr for State {
@@ -284,7 +371,7 @@ impl FromStr for State {
 }
 
 struct StackEntry {
-    next_move: usize,
+    used_moves: MoveMask,
     state: State,
     cost: u64,
 }
@@ -307,7 +394,7 @@ fn solve(original_state: &State) -> u64 {
     let mut visited_states = HashMap::<State, u64>::new();
 
     let mut stack = vec![StackEntry {
-        next_move: 0,
+        used_moves: MoveMask::new(),
         state: original_state.clone(),
         cost: 0,
     }];
@@ -315,56 +402,52 @@ fn solve(original_state: &State) -> u64 {
     visited_states.insert(stack[0].state.clone(), 0);
 
     while let Some(entry) = stack.pop() {
-        for move_num in entry.next_move..N_MOVES {
-            let amphipod_num = move_num / MOVES_PER_AMPHIPOD;
-            let pos = Position::from_move_num(move_num % MOVES_PER_AMPHIPOD);
+        let mut used_moves = entry.used_moves;
 
-            if let Some((pos, cost)) = entry.state.try_move(amphipod_num, &pos)
-            {
-                let mut state = entry.state.clone();
+        while let Some(PotentialMove { move_num, state, cost, .. })
+            = entry.state.next_best_move(used_moves)
+        {
+            used_moves.set(move_num);
 
-                state.amphipods[amphipod_num] = pos;
+            let next_cost = cost + entry.cost;
 
-                let next_cost = entry.cost + cost;
-
-                if next_cost >= best_solution {
-                    continue;
-                }
-
-                match visited_states.entry(state.clone()) {
-                    Entry::Occupied(mut e) => {
-                        if *e.get() <= next_cost {
-                            continue;
-                        }
-
-                        e.insert(next_cost);
-                    },
-
-                    Entry::Vacant(e) => {
-                        e.insert(next_cost);
-                    },
-                }
-
-                if state.is_solved() {
-                    best_solution = next_cost;
-                    println!("{}", next_cost);
-                    continue;
-                }
-
-                stack.push(StackEntry {
-                    next_move: move_num + 1,
-                    state: entry.state,
-                    cost: entry.cost
-                });
-
-                stack.push(StackEntry {
-                    next_move: 0,
-                    state,
-                    cost: next_cost,
-                });
-
-                break;
+            if next_cost >= best_solution {
+                continue;
             }
+
+            match visited_states.entry(state.clone()) {
+                Entry::Occupied(mut e) => {
+                    if *e.get() <= next_cost {
+                        continue;
+                    }
+
+                    e.insert(next_cost);
+                },
+
+                Entry::Vacant(e) => {
+                    e.insert(next_cost);
+                },
+            }
+
+            if state.is_solved() {
+                best_solution = next_cost;
+                println!("{}", next_cost);
+                continue;
+            }
+
+            stack.push(StackEntry {
+                used_moves,
+                state: entry.state,
+                cost: entry.cost
+            });
+
+            stack.push(StackEntry {
+                used_moves: MoveMask::new(),
+                state,
+                cost: next_cost,
+            });
+
+            break;
         }
     }
 
