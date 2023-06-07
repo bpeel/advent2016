@@ -287,6 +287,33 @@ impl State {
 
         result
     }
+
+    fn print(&self) {
+        const N_COLUMNS: usize = N_SIDE_ROOMS * 2 + 1 + N_AMPHIPOD_TYPES * 2;
+
+        for _ in 0..(N_COLUMNS + 2) {
+            print!("#");
+        }
+        println!();
+
+        let mut grid = [' '; N_COLUMNS * (N_AMPHIPODS_PER_TYPE + 1)];
+
+        for (amphipod_num, pos) in self.amphipods.iter().enumerate() {
+            let amphipod_type = amphipod_num / N_AMPHIPODS_PER_TYPE;
+            let ch = (amphipod_type as u8 + 'A' as u8) as char;
+            grid[pos.x() as usize + pos.y() as usize * N_COLUMNS] = ch;
+        }
+
+        for (pos, ch) in grid.into_iter().enumerate() {
+            print!("{}", ch);
+
+            if (pos + 1) % N_COLUMNS == 0 {
+                println!();
+            }
+        }
+
+        println!();
+    }
 }
 
 impl FromStr for State {
@@ -430,6 +457,11 @@ fn solve(original_state: &State) -> u64 {
             }
 
             if state.is_solved() {
+                for StackEntry { state, .. } in stack.iter() {
+                    state.print();
+                }
+                entry.state.print();
+                state.print();
                 best_solution = next_cost;
                 println!("{}", next_cost);
                 continue;
