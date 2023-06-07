@@ -128,7 +128,7 @@ struct PotentialMove {
     move_num: usize,
     state: State,
     cost: u64,
-    score: u32,
+    score: i32,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -235,14 +235,26 @@ impl State {
         true
     }
 
-    fn score(&self) -> u32 {
+    fn score(&self) -> i32 {
         self.amphipods
             .iter()
             .enumerate()
-            .map(|(num, a)| a.x().abs_diff(
-                (num / N_AMPHIPODS_PER_TYPE * 2
-                 + N_SIDE_ROOMS + 1) as u32
-            ))
+            .map(|(num, a)| {
+                 let amphipod_type = num / N_AMPHIPODS_PER_TYPE;
+
+                 match a {
+                     &Position::InRoom { room_num, .. } => {
+                         if room_num as usize == amphipod_type {
+                             10
+                         } else {
+                             -15
+                         }
+                     },
+                     Position::OutsideRoom(_) => -1,
+                     Position::LeftSideRoom(_) |
+                     Position::RightSideRoom(_) => -2,
+                 }
+            })
             .sum()
     }
 
@@ -277,7 +289,7 @@ impl State {
                 match result {
                     None => result = Some(potential_move),
                     Some(PotentialMove { score: previous_score, .. }) => {
-                        if previous_score > score {
+                        if previous_score < score {
                             result = Some(potential_move);
                         }
                     },
@@ -312,7 +324,7 @@ impl State {
             }
         }
 
-        println!();
+        println!("{}", self.score());
     }
 }
 
