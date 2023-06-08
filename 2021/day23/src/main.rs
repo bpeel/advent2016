@@ -143,6 +143,18 @@ impl State {
                     .checked_sub(self.n_amphipods_in_room(room_num))
                 else { return None; };
 
+                for (num, amphipod) in self.amphipods.iter().enumerate() {
+                    if let &Position::InRoom { room_num: amphipod_room, .. } =
+                        amphipod
+                    {
+                        if amphipod_room == room_num
+                            && num / N_AMPHIPODS_PER_TYPE != amphipod_type
+                        {
+                            return None;
+                        }
+                    }
+                }
+
                 Position::InRoom { room_num, room_pos: room_pos as u8 }
             },
             _ => {
