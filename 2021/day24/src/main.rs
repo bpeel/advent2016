@@ -10,7 +10,7 @@ enum OpArg {
     Literal(i64),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 enum ArithmeticOpcode {
     Add,
     Mul,
@@ -226,6 +226,41 @@ impl fmt::Display for SearchError {
     }
 }
 
+fn count_inps(program: &[Op]) -> usize {
+    program.iter().filter(|op| matches!(op.opcode, Opcode::Inp)).count()
+}
+
+fn inputs_for_register(program: &[Op], reg: u8) -> u16 {
+    // Find the last instruction that writes to the register
+    for (instruction_num, op) in program.iter().enumerate().rev() {
+        if op.a == reg {
+            return inputs_for_op(&program[0..instruction_num], op)
+        }
+    }
+
+    0
+}
+
+fn inputs_for_op(program: &[Op], op: &Op) -> u16 {
+    match &op.opcode {
+        Opcode::Inp => 1u16 << (count_inps(program) as u16),
+        Opcode::Arithmetic(opcode, arg) => {
+            let inputs = match arg {
+                OpArg::Literal(value) => {
+                    // Multiplying by zero ignores the register
+                    if *value == 0 && *opcode == ArithmeticOpcode::Mul {
+                        return 0;
+                    }
+                    0
+                },
+                OpArg::Register(b) => inputs_for_register(program, *b),
+            };
+
+            inputs | inputs_for_register(program, op.a)
+        }
+    }
+}
+
 fn part1(program: &[Op]) -> Result<Option<Monad>, SearchError> {
     let mut monad = Monad::highest();
 
@@ -272,6 +307,11 @@ fn main() -> ExitCode {
             Ok(op) => op,
         });
     }
+
+    println!(
+        "z inputs: {:x}",
+        inputs_for_register(&program, N_REGISTERS as u8 - 1)
+    );
 
     match part1(&program) {
         Ok(Some(monad)) => println!("part 1: {}", monad),
