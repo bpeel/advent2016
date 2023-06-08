@@ -6,7 +6,10 @@ use std::collections::hash_map::Entry;
 use std::collections::BinaryHeap;
 
 const N_AMPHIPOD_TYPES: usize = 4;
+#[cfg(not(feature = "part2"))]
 const N_AMPHIPODS_PER_TYPE: usize = 2;
+#[cfg(feature = "part2")]
+const N_AMPHIPODS_PER_TYPE: usize = 4;
 const TOTAL_N_AMPHIPODS: usize = N_AMPHIPOD_TYPES * N_AMPHIPODS_PER_TYPE;
 const N_SIDE_ROOMS: usize = 1;
 
@@ -342,7 +345,14 @@ fn read_state() -> Result<State, String> {
             Err(e) => return Err(e.to_string()),
             Ok(line) => lines.push(line),
         }
+
+        if cfg!(feature = "part2") && lines.len() == 3 {
+            lines.push("  #D#C#B#A#".to_string());
+            lines.push("  #D#B#A#C#".to_string());
+        }
     }
+
+    println!("{}", lines.join("\n"));
 
     lines.join("\n").parse::<State>()
 }
