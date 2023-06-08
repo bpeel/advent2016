@@ -26,7 +26,7 @@ const MOVES_PER_AMPHIPOD: usize =
 // The total number of moves that we can consider from a state
 const N_MOVES: usize = MOVES_PER_AMPHIPOD * TOTAL_N_AMPHIPODS;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 enum Position {
     InRoom {
         room_num: u8,
@@ -227,6 +227,19 @@ impl State {
             })
             .sum()
     }
+
+    fn normalise_amphipod_type(&mut self, amphipod_type: usize) {
+        self.amphipods[
+            amphipod_type * N_AMPHIPODS_PER_TYPE..
+                (amphipod_type + 1) * N_AMPHIPODS_PER_TYPE
+        ].sort_unstable();
+    }
+
+    fn normalise(&mut self) {
+        for amphipod_type in 0..N_AMPHIPOD_TYPES {
+            self.normalise_amphipod_type(amphipod_type);
+        }
+    }
 }
 
 impl FromStr for State {
@@ -305,6 +318,8 @@ impl FromStr for State {
 
             line_pos += 1;
         }
+
+        state.normalise();
 
         Ok(state)
     }
@@ -404,6 +419,9 @@ fn solve(original_state: &State) -> u64 {
                 let mut state = entry.state.clone();
 
                 state.amphipods[amphipod_num] = pos;
+                state.normalise_amphipod_type(
+                    amphipod_num / N_AMPHIPODS_PER_TYPE
+                );
 
                 let score = state.score();
 
