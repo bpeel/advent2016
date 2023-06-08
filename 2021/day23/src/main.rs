@@ -1,8 +1,9 @@
 use std::str::FromStr;
 use std::process::ExitCode;
-use std::cmp::{min, max};
+use std::cmp::{min, max, Ordering};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::BinaryHeap;
 
 const N_AMPHIPOD_TYPES: usize = 4;
 const N_AMPHIPODS_PER_TYPE: usize = 2;
@@ -21,9 +22,6 @@ const MOVES_PER_AMPHIPOD: usize =
 
 // The total number of moves that we can consider from a state
 const N_MOVES: usize = MOVES_PER_AMPHIPOD * TOTAL_N_AMPHIPODS;
-
-const N_MOVE_INTS: usize =
-    (N_MOVES + u64::BITS as usize - 1) / u64::BITS as usize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Position {
@@ -98,37 +96,6 @@ impl Position {
                 0,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct MoveMask {
-    bits: [u64; N_MOVE_INTS],
-}
-
-impl MoveMask {
-    fn new() -> MoveMask {
-        MoveMask {
-            bits: [0; N_MOVE_INTS],
-        }
-    }
-
-    fn test(&self, move_num: usize) -> bool {
-        self.bits[move_num / u64::BITS as usize]
-            & (1u64 << (move_num as u64 % u64::BITS as u64))
-            != 0
-    }
-
-    fn set(&mut self, move_num: usize) {
-        self.bits[move_num / u64::BITS as usize] |=
-            1u64 << (move_num as u64 % u64::BITS as u64);
-    }
-}
-
-struct PotentialMove {
-    move_num: usize,
-    state: State,
-    cost: u64,
-    score: i32,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -257,75 +224,6 @@ impl State {
             })
             .sum()
     }
-
-    fn next_best_move(
-        &self,
-        skip_moves: MoveMask,
-    ) -> Option<PotentialMove> {
-        let mut result = None;
-
-        for move_num in 0..N_MOVES {
-            if skip_moves.test(move_num) {
-                continue;
-            }
-
-            let amphipod_num = move_num / MOVES_PER_AMPHIPOD;
-            let pos = Position::from_move_num(move_num % MOVES_PER_AMPHIPOD);
-
-            if let Some((pos, cost)) = self.try_move(amphipod_num, &pos) {
-                let mut state = self.clone();
-
-                state.amphipods[amphipod_num] = pos;
-
-                let score = state.score();
-
-                let potential_move = PotentialMove {
-                    move_num,
-                    state,
-                    cost,
-                    score,
-                };
-
-                match result {
-                    None => result = Some(potential_move),
-                    Some(PotentialMove { score: previous_score, .. }) => {
-                        if previous_score < score {
-                            result = Some(potential_move);
-                        }
-                    },
-                }
-            }
-        }
-
-        result
-    }
-
-    fn print(&self) {
-        const N_COLUMNS: usize = N_SIDE_ROOMS * 2 + 1 + N_AMPHIPOD_TYPES * 2;
-
-        for _ in 0..(N_COLUMNS + 2) {
-            print!("#");
-        }
-        println!();
-
-        let mut grid = [' '; N_COLUMNS * (N_AMPHIPODS_PER_TYPE + 1)];
-
-        for (amphipod_num, pos) in self.amphipods.iter().enumerate() {
-            let amphipod_type = amphipod_num / N_AMPHIPODS_PER_TYPE;
-            let ch = (amphipod_type as u8 + 'A' as u8) as char;
-            grid[pos.x() as usize + pos.y() as usize * N_COLUMNS] = ch;
-        }
-
-        for (pos, ch) in grid.into_iter().enumerate() {
-            print!("{}", ch);
-
-            if (pos + 1) % N_COLUMNS == 0 {
-                println!();
-            }
-        }
-
-        println!("{}", self.score());
-    }
 }
 
 impl FromStr for State {
@@ -409,10 +307,31 @@ impl FromStr for State {
     }
 }
 
-struct StackEntry {
-    used_moves: MoveMask,
+#[derive(Clone, Eq)]
+struct HeapEntry {
     state: State,
     cost: u64,
+    score: i32,
+}
+
+impl Ord for HeapEntry {
+    fn cmp(&self, other: &HeapEntry) -> Ordering {
+        self.score.cmp(&other.score)
+            // Order swapped to minimise cost
+            .then_with(|| other.cost.cmp(&self.cost))
+    }
+}
+
+impl PartialOrd for HeapEntry {
+    fn partial_cmp(&self, other: &HeapEntry) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for HeapEntry {
+    fn eq(&self, other: &HeapEntry) -> bool {
+        self.cmp(other).is_eq()
+    }
 }
 
 fn read_state() -> Result<State, String> {
@@ -432,66 +351,58 @@ fn solve(original_state: &State) -> u64 {
     let mut best_solution = u64::MAX;
     let mut visited_states = HashMap::<State, u64>::new();
 
-    let mut stack = vec![StackEntry {
-        used_moves: MoveMask::new(),
+    let mut heap = BinaryHeap::new();
+
+    heap.push(HeapEntry {
         state: original_state.clone(),
         cost: 0,
-    }];
+        score: original_state.score(),
+    });
 
-    visited_states.insert(stack[0].state.clone(), 0);
+    while let Some(entry) = heap.pop() {
+        if entry.cost >= best_solution {
+            continue;
+        }
 
-    while let Some(entry) = stack.pop() {
-        let mut used_moves = entry.used_moves;
-
-        while let Some(PotentialMove { move_num, state, cost, .. })
-            = entry.state.next_best_move(used_moves)
-        {
-            used_moves.set(move_num);
-
-            let next_cost = cost + entry.cost;
-
-            if next_cost >= best_solution {
-                continue;
-            }
-
-            match visited_states.entry(state.clone()) {
-                Entry::Occupied(mut e) => {
-                    if *e.get() <= next_cost {
-                        continue;
-                    }
-
-                    e.insert(next_cost);
-                },
-
-                Entry::Vacant(e) => {
-                    e.insert(next_cost);
-                },
-            }
-
-            if state.is_solved() {
-                for StackEntry { state, .. } in stack.iter() {
-                    state.print();
+        match visited_states.entry(entry.state.clone()) {
+            Entry::Occupied(mut e) => {
+                if *e.get() <= entry.cost {
+                    continue;
                 }
-                entry.state.print();
-                state.print();
-                best_solution = next_cost;
-                println!("{}", next_cost);
-                continue;
+
+                e.insert(entry.cost);
+            },
+
+            Entry::Vacant(e) => {
+                e.insert(entry.cost);
+            },
+        }
+
+        if entry.state.is_solved() {
+            best_solution = entry.cost;
+            println!("{}", entry.cost);
+            continue;
+        }
+
+        for move_num in 0..N_MOVES {
+            let amphipod_num = move_num / MOVES_PER_AMPHIPOD;
+            let pos = Position::from_move_num(move_num % MOVES_PER_AMPHIPOD);
+
+            if let Some((pos, cost)) =
+                entry.state.try_move(amphipod_num, &pos)
+            {
+                let mut state = entry.state.clone();
+
+                state.amphipods[amphipod_num] = pos;
+
+                let score = state.score();
+
+                heap.push(HeapEntry {
+                    state,
+                    cost: entry.cost + cost,
+                    score,
+                });
             }
-
-            stack.push(StackEntry {
-                used_moves,
-                state: entry.state,
-                cost: entry.cost
-            });
-
-            stack.push(StackEntry {
-                used_moves: MoveMask::new(),
-                state,
-                cost: next_cost,
-            });
-
-            break;
         }
     }
 
