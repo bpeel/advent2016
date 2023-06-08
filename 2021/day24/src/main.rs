@@ -230,33 +230,61 @@ fn count_inps(program: &[Op]) -> usize {
     program.iter().filter(|op| matches!(op.opcode, Opcode::Inp)).count()
 }
 
-fn inputs_for_register(program: &[Op], reg: u8) -> u16 {
+enum Source {
+    Inputs(u16),
+    Constant(i64),
+}
+
+impl Source {
+    fn combine(&self, opcode: ArithmeticOpcode, b: &Source) -> Source {
+        match (self, b) {
+            (Source::Constant(a), Source::Constant(b)) => match opcode {
+                ArithmeticOpcode::Add => Source::Constant(a + b),
+                ArithmeticOpcode::Mul => Source::Constant(a * b),
+                ArithmeticOpcode::Div => Source::Constant(a / b),
+                ArithmeticOpcode::Mod => Source::Constant(a % b),
+                ArithmeticOpcode::Eql => Source::Constant((a == b) as i64),
+            },
+            (Source::Inputs(inputs), Source::Constant(b)) => {
+                if opcode == ArithmeticOpcode::Mul && *b == 0 {
+                    Source::Constant(0)
+                } else {
+                    Source::Inputs(*inputs)
+                }
+            },
+            (Source::Constant(_), Source::Inputs(_)) => b.combine(opcode, self),
+            (Source::Inputs(a), Source::Inputs(b)) => Source::Inputs(a | b),
+        }
+    }
+}
+
+fn source_for_register(program: &[Op], reg: u8) -> Source {
     // Find the last instruction that writes to the register
     for (instruction_num, op) in program.iter().enumerate().rev() {
         if op.a == reg {
-            return inputs_for_op(&program[0..instruction_num], op)
+            return source_for_op(&program[0..instruction_num], op)
         }
     }
 
-    0
+    Source::Constant(0)
 }
 
-fn inputs_for_op(program: &[Op], op: &Op) -> u16 {
+fn source_for_op(program: &[Op], op: &Op) -> Source {
     match &op.opcode {
-        Opcode::Inp => 1u16 << (count_inps(program) as u16),
+        Opcode::Inp => Source::Inputs(1u16 << (count_inps(program) as u16)),
         Opcode::Arithmetic(opcode, arg) => {
-            let inputs = match arg {
+            let b_input = match arg {
                 OpArg::Literal(value) => {
-                    // Multiplying by zero ignores the register
-                    if *value == 0 && *opcode == ArithmeticOpcode::Mul {
-                        return 0;
+                    if *opcode == ArithmeticOpcode::Mul && *value == 0 {
+                        return Source::Constant(0);
+                    } else {
+                        Source::Constant(*value)
                     }
-                    0
                 },
-                OpArg::Register(b) => inputs_for_register(program, *b),
+                OpArg::Register(b) => source_for_register(program, *b),
             };
 
-            inputs | inputs_for_register(program, op.a)
+            source_for_register(program, op.a).combine(*opcode, &b_input)
         }
     }
 }
@@ -308,10 +336,10 @@ fn main() -> ExitCode {
         });
     }
 
-    println!(
-        "z inputs: {:x}",
-        inputs_for_register(&program, N_REGISTERS as u8 - 1)
-    );
+    match source_for_register(&program, N_REGISTERS as u8 - 1) {
+        Source::Constant(value) => println!("z is constant: {}", value),
+        Source::Inputs(inputs) => println!("z is derived from: {:x}", inputs),
+    }
 
     match part1(&program) {
         Ok(Some(monad)) => println!("part 1: {}", monad),
