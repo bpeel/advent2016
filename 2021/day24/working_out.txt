@@ -21,7 +21,7 @@ is_right = (input != wip % 26 + mod_add)
 if mod_add < 0 {
  wip /= 26;
 }
-wip *= is_right * 25 + 1 // multiply by 25 if is_right, otherwise leave as is
+wip *= is_right * 25 + 1 // multiply by 26 if is_right, otherwise leave as is
 wip += is_right * (input + offset) // add input+offset is is_right, otherwise leave as is
 
 ***
@@ -33,5 +33,5 @@ if mod_add < 0 {
 }
 
 if input != old_wip % 26 + mod_add {
- wip = wip * 25 + input + offset;
+ wip = wip * 26 + input + offset;
 }

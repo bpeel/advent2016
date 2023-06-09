@@ -414,7 +414,7 @@ fn part1_template(mod_adds: &[i64], offsets: &[i64]) -> Option<Monad> {
             let input = monad.digits[digit] as i64;
 
             if input != old_wip % 26 + mod_add {
-                wip = wip * 25 + input + offsets[digit];
+                wip = wip * 26 + input + offsets[digit];
             }
         }
 
