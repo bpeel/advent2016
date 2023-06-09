@@ -174,6 +174,7 @@ impl<'a> Machine<'a> {
     }
 }
 
+#[derive(Clone)]
 struct Monad {
     digits: [u8; MONAD_LENGTH],
 }
@@ -443,29 +444,54 @@ fn part1_interpret(program: &[Op]) -> Result<Option<Monad>, SearchError> {
     }
 }
 
+fn try_monad(
+    mut monad: Monad,
+    mod_adds: &[i64],
+    offsets: &[i64]
+) -> Result<(Monad, i64), usize> {
+    let mut wip = 0;
+
+    for digit in 0..MONAD_LENGTH {
+        let mod_add = mod_adds[digit];
+        let old_wip = wip;
+
+        let need_to_match = old_wip % 26 + mod_add;
+
+        if mod_add < 0 {
+            if need_to_match < 1 || need_to_match > 9 {
+                return Err(digit);
+            }
+            monad.digits[digit] = need_to_match as u8;
+            wip /= 26;
+        }
+
+        let input = monad.digits[digit] as i64;
+
+        if input != need_to_match {
+            wip = wip * 26 + input + offsets[digit];
+        }
+    }
+
+    Ok((monad, wip))
+}
+
 fn part1_template(mod_adds: &[i64], offsets: &[i64]) -> Option<Monad> {
     let mut monad = Monad::highest();
 
     loop {
-        let mut wip = 0;
+        match try_monad(monad.clone(), mod_adds, offsets) {
+            Ok((monad, wip)) => if wip == 0 {
+                break Some(monad);
+            },
+            Err(fail_point) => {
+                for i in (0..MONAD_LENGTH).rev() {
+                    if i < fail_point && mod_adds[i] >= 0 {
+                        break;
+                    }
 
-        for digit in 0..MONAD_LENGTH {
-            let mod_add = mod_adds[digit];
-            let old_wip = wip;
-
-            if mod_add < 0 {
-                wip /= 26;
-            }
-
-            let input = monad.digits[digit] as i64;
-
-            if input != old_wip % 26 + mod_add {
-                wip = wip * 26 + input + offsets[digit];
-            }
-        }
-
-        if wip == 0 {
-            break Some(monad);
+                    monad.digits[i] = 1;
+                }
+            },
         }
 
         if !monad.previous() {
