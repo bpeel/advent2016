@@ -5,6 +5,12 @@ use std::process::ExitCode;
 const N_REGISTERS: usize = 4;
 const MONAD_LENGTH: usize = 14;
 
+#[derive(Clone, Copy)]
+enum SearchDirection {
+    Increasing,
+    Decreasing,
+}
+
 #[derive(Eq, PartialEq)]
 enum OpArg {
     Register(u8),
@@ -180,9 +186,22 @@ struct Monad {
 }
 
 impl Monad {
+    fn lowest() -> Monad {
+        Monad {
+            digits: [1; MONAD_LENGTH],
+        }
+    }
+
     fn highest() -> Monad {
         Monad {
             digits: [9; MONAD_LENGTH],
+        }
+    }
+
+    fn first(direction: SearchDirection) -> Monad {
+        match direction {
+            SearchDirection::Increasing => Monad::lowest(),
+            SearchDirection::Decreasing => Monad::highest(),
         }
     }
 
@@ -197,6 +216,26 @@ impl Monad {
         }
 
         false
+    }
+
+    fn next(&mut self) -> bool {
+        for digit in self.digits.iter_mut().rev() {
+            if *digit < 9 {
+                *digit += 1;
+                return true;
+            } else {
+                *digit = 1;
+            }
+        }
+
+        false
+    }
+
+    fn step(&mut self, direction: SearchDirection) -> bool {
+        match direction {
+            SearchDirection::Increasing => self.next(),
+            SearchDirection::Decreasing => self.previous(),
+        }
     }
 }
 
@@ -418,8 +457,11 @@ fn run_args(mod_adds: &[i64], offsets: &[i64]) {
     }
 }
 
-fn part1_interpret(program: &[Op]) -> Result<Option<Monad>, SearchError> {
-    let mut monad = Monad::highest();
+fn search_interpret(
+    program: &[Op],
+    direction: SearchDirection
+) -> Result<Option<Monad>, SearchError> {
+    let mut monad = Monad::first(direction);
 
     loop {
         let mut machine = Machine::new(&monad.digits);
@@ -438,7 +480,7 @@ fn part1_interpret(program: &[Op]) -> Result<Option<Monad>, SearchError> {
             break Ok(Some(monad));
         }
 
-        if !monad.previous() {
+        if !monad.step(direction) {
             break Ok(None);
         }
     }
@@ -475,8 +517,17 @@ fn try_monad(
     Ok((monad, wip))
 }
 
-fn part1_template(mod_adds: &[i64], offsets: &[i64]) -> Option<Monad> {
-    let mut monad = Monad::highest();
+fn search_template(
+    mod_adds: &[i64],
+    offsets: &[i64],
+    direction: SearchDirection,
+) -> Option<Monad> {
+    let mut monad = Monad::first(direction);
+
+    let fail_digit = match direction {
+        SearchDirection::Increasing => 9,
+        SearchDirection::Decreasing => 1,
+    };
 
     loop {
         match try_monad(monad.clone(), mod_adds, offsets) {
@@ -489,24 +540,27 @@ fn part1_template(mod_adds: &[i64], offsets: &[i64]) -> Option<Monad> {
                         break;
                     }
 
-                    monad.digits[i] = 1;
+                    monad.digits[i] = fail_digit;
                 }
             },
         }
 
-        if !monad.previous() {
+        if !monad.step(direction) {
             break None;
         }
     }
 }
 
-fn part1(program: &[Op]) -> Result<Option<Monad>, SearchError> {
+fn search(
+    program: &[Op],
+    direction: SearchDirection
+) -> Result<Option<Monad>, SearchError> {
     if let Some((mod_adds, offsets)) = match_template(program) {
         println!("template matched");
         run_args(&mod_adds, &offsets);
-        Ok(part1_template(&mod_adds, &offsets))
+        Ok(search_template(&mod_adds, &offsets, direction))
     } else {
-        part1_interpret(program)
+        search_interpret(program, direction)
     }
 }
 
@@ -676,13 +730,21 @@ fn main() -> ExitCode {
         },
     }
 
-    match part1(&program) {
-        Ok(Some(monad)) => println!("part 1: {}", monad),
-        Ok(None) => println!("no valid monad found"),
-        Err(e) => {
-            eprintln!("{}", e);
-            return ExitCode::FAILURE;
-        },
+    for part in 1..=2 {
+        let direction = if part == 1 {
+            SearchDirection::Decreasing
+        } else {
+            SearchDirection::Increasing
+        };
+
+        match search(&program, direction) {
+            Ok(Some(monad)) => println!("part {}: {}", part, monad),
+            Ok(None) => println!("no valid monad found"),
+            Err(e) => {
+                eprintln!("{}", e);
+                return ExitCode::FAILURE;
+            },
+        }
     }
 
     ExitCode::SUCCESS
