@@ -5,6 +5,7 @@ use std::process::ExitCode;
 const N_REGISTERS: usize = 4;
 const MONAD_LENGTH: usize = 14;
 
+#[derive(Eq, PartialEq)]
 enum OpArg {
     Register(u8),
     Literal(i64),
@@ -370,7 +371,7 @@ fn source_for_op(program: &[Op], op: &Op) -> Source {
     }
 }
 
-fn part1(program: &[Op]) -> Result<Option<Monad>, SearchError> {
+fn part1_interpret(program: &[Op]) -> Result<Option<Monad>, SearchError> {
     let mut monad = Monad::highest();
 
     loop {
@@ -393,6 +394,179 @@ fn part1(program: &[Op]) -> Result<Option<Monad>, SearchError> {
         if !monad.previous() {
             break Ok(None);
         }
+    }
+}
+
+fn part1_template(mod_adds: &[i64], offsets: &[i64]) -> Option<Monad> {
+    let mut monad = Monad::highest();
+
+    loop {
+        let mut wip = 0;
+
+        for digit in 0..MONAD_LENGTH {
+            let mod_add = mod_adds[digit];
+            let old_wip = wip;
+
+            if mod_add < 0 {
+                wip /= 26;
+            }
+
+            let input = monad.digits[digit] as i64;
+
+            if input != old_wip % 26 + mod_add {
+                wip = wip * 25 + input + offsets[digit];
+            }
+        }
+
+        if wip == 0 {
+            break Some(monad);
+        }
+
+        if !monad.previous() {
+            break None;
+        }
+    }
+}
+
+fn part1(program: &[Op]) -> Result<Option<Monad>, SearchError> {
+    if let Some((mod_adds, offsets)) = match_template(program) {
+        println!("template matched");
+        Ok(part1_template(&mod_adds, &offsets))
+    } else {
+        part1_interpret(program)
+    }
+}
+
+fn match_instructions<'a, T: Iterator<Item = &'a Op>>(
+    ops: &mut T,
+    template: &[(ArithmeticOpcode, u8, OpArg)],
+) -> bool {
+    for (opcode, dest, arg) in template.iter() {
+        let Some(Op { a, opcode: Opcode::Arithmetic(real_opcode, real_arg) }) =
+            ops.next()
+        else { return false; };
+
+        if opcode != real_opcode || real_arg != arg || dest != a {
+            return false;
+        }
+    }
+
+    true
+}
+
+fn match_template(program: &[Op]) -> Option<(Vec<i64>, Vec<i64>)> {
+    let mut ops = program.iter();
+    let mut mod_adds = Vec::new();
+    let mut offsets = Vec::new();
+
+    for _ in 0..MONAD_LENGTH {
+        let Some(Op { a, opcode: Opcode::Inp }) = ops.next()
+        else { return None; };
+
+        if *a != 0 {
+            return None;
+        }
+
+        if !match_instructions(
+            &mut ops,
+            &[
+                (ArithmeticOpcode::Mul, 1, OpArg::Literal(0)),
+                (ArithmeticOpcode::Add, 1, OpArg::Register(3)),
+                (ArithmeticOpcode::Mod, 1, OpArg::Literal(26)),
+            ]
+        ) {
+            return None;
+        }
+
+        let mod_add_is_negative = {
+            let Some(Op {
+                a,
+                opcode: Opcode::Arithmetic(
+                    ArithmeticOpcode::Div,
+                    OpArg::Literal(divisor),
+                ),
+            }) = ops.next()
+            else { return None; };
+
+            if *a != 3 {
+                return None;
+            }
+
+            if *divisor == 26 {
+                true
+            } else if *divisor == 1 {
+                false
+            } else {
+                return None;
+            }
+        };
+
+        let Some(Op {
+            a,
+            opcode: Opcode::Arithmetic(
+                ArithmeticOpcode::Add,
+                OpArg::Literal(mod_add),
+            ),
+        }) = ops.next()
+        else { return None; };
+
+        if *a != 1 {
+            return None;
+        }
+
+        if (*mod_add < 0) != mod_add_is_negative {
+            return None;
+        }
+
+        mod_adds.push(*mod_add);
+
+        if !match_instructions(
+            &mut ops,
+            &[
+                (ArithmeticOpcode::Eql, 1, OpArg::Register(0)),
+                (ArithmeticOpcode::Eql, 1, OpArg::Literal(0)),
+                (ArithmeticOpcode::Mul, 2, OpArg::Literal(0)),
+                (ArithmeticOpcode::Add, 2, OpArg::Literal(25)),
+                (ArithmeticOpcode::Mul, 2, OpArg::Register(1)),
+                (ArithmeticOpcode::Add, 2, OpArg::Literal(1)),
+                (ArithmeticOpcode::Mul, 3, OpArg::Register(2)),
+                (ArithmeticOpcode::Mul, 2, OpArg::Literal(0)),
+                (ArithmeticOpcode::Add, 2, OpArg::Register(0)),
+            ]
+        ) {
+            return None;
+        }
+
+        let Some(Op {
+            a,
+            opcode: Opcode::Arithmetic(
+                ArithmeticOpcode::Add,
+                OpArg::Literal(offset),
+            ),
+        }) = ops.next()
+        else { return None; };
+
+        if *a != 2 {
+            return None;
+        }
+
+        offsets.push(*offset);
+
+        if !match_instructions(
+            &mut ops,
+            &[
+                (ArithmeticOpcode::Mul, 2, OpArg::Register(1)),
+                (ArithmeticOpcode::Add, 3, OpArg::Register(2)),
+            ]
+        ) {
+            return None;
+        }
+    }
+
+    if ops.next().is_none() {
+        Some((mod_adds, offsets))
+    } else {
+        None
     }
 }
 
