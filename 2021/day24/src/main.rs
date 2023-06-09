@@ -371,6 +371,52 @@ fn source_for_op(program: &[Op], op: &Op) -> Source {
     }
 }
 
+fn run_args(mod_adds: &[i64], offsets: &[i64]) {
+    let mut args = std::env::args();
+
+    if args.next().is_none() {
+        return;
+    }
+
+    for arg in args {
+        let mut mod_adds = mod_adds.iter();
+        let mut offsets = offsets.iter();
+        let mut wip = 0;
+
+        for ch in arg.chars() {
+            let input = ch as i64 - '0' as i64;
+            let Some(mod_add) = mod_adds.next()
+            else { break; };
+            let Some(offset) = offsets.next()
+            else { break; };
+
+            let old_wip = wip;
+
+            if *mod_add < 0 {
+                wip /= 26;
+            }
+
+            let need_to_match = old_wip % 26 + mod_add;
+
+            if input != need_to_match {
+                wip = wip * 26 + input + offset;
+            }
+
+            println!(
+                "input: {:<3} mod_add: {:<3} offset: {:<3}\
+                 wip: {:<10} need to match: {}{:<4}{}",
+                input,
+                mod_add,
+                offset,
+                wip,
+                if *mod_add < 0 { '*' } else { ' ' },
+                need_to_match,
+                if input == need_to_match { '👍' } else { ' ' },
+            );
+        }
+    }
+}
+
 fn part1_interpret(program: &[Op]) -> Result<Option<Monad>, SearchError> {
     let mut monad = Monad::highest();
 
@@ -431,6 +477,7 @@ fn part1_template(mod_adds: &[i64], offsets: &[i64]) -> Option<Monad> {
 fn part1(program: &[Op]) -> Result<Option<Monad>, SearchError> {
     if let Some((mod_adds, offsets)) = match_template(program) {
         println!("template matched");
+        run_args(&mod_adds, &offsets);
         Ok(part1_template(&mod_adds, &offsets))
     } else {
         part1_interpret(program)
