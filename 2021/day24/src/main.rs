@@ -231,7 +231,7 @@ fn count_inps(program: &[Op]) -> usize {
 }
 
 enum Source {
-    Inputs(u16),
+    Inputs(u16, i64, i64),
     Constant(i64),
 }
 
@@ -245,15 +245,90 @@ impl Source {
                 ArithmeticOpcode::Mod => Source::Constant(a % b),
                 ArithmeticOpcode::Eql => Source::Constant((a == b) as i64),
             },
-            (Source::Inputs(inputs), Source::Constant(b)) => {
-                if opcode == ArithmeticOpcode::Mul && *b == 0 {
-                    Source::Constant(0)
-                } else {
-                    Source::Inputs(*inputs)
+            (&Source::Inputs(inputs, min, max), &Source::Constant(b)) => {
+                match opcode {
+                    ArithmeticOpcode::Add => {
+                        Source::Inputs(
+                            inputs,
+                            min.saturating_add(b),
+                            max.saturating_add(b),
+                        )
+                    },
+                    ArithmeticOpcode::Mul => {
+                        if b == 0 {
+                            Source::Constant(0)
+                        } else {
+                            Source::Inputs(
+                                inputs,
+                                min.saturating_mul(b),
+                                max.saturating_mul(b),
+                            )
+                        }
+                    },
+                    ArithmeticOpcode::Div => {
+                        Source::Inputs(inputs, min / b, max / b)
+                    },
+                    ArithmeticOpcode::Mod => {
+                        let max = std::cmp::min(max, b - 1);
+                        let min = std::cmp::min(min, max);
+                        Source::Inputs(inputs, min, max)
+                    },
+                    ArithmeticOpcode::Eql => {
+                        if b < min || b > max {
+                            Source::Constant(0)
+                        } else {
+                            Source::Inputs(inputs, 0, 1)
+                        }
+                    },
                 }
             },
-            (Source::Constant(_), Source::Inputs(_)) => b.combine(opcode, self),
-            (Source::Inputs(a), Source::Inputs(b)) => Source::Inputs(a | b),
+            (Source::Constant(_), Source::Inputs(..)) => match opcode {
+                ArithmeticOpcode::Add |
+                ArithmeticOpcode::Mul |
+                ArithmeticOpcode::Eql => {
+                    b.combine(opcode, self)
+                },
+                ArithmeticOpcode::Div => {
+                    // fixme
+                    unreachable!()
+                },
+                ArithmeticOpcode::Mod => {
+                    // fixme
+                    unreachable!()
+                },
+            },
+            (
+                &Source::Inputs(a, a_min, a_max),
+                &Source::Inputs(b, b_min, b_max),
+            ) => {
+                let (min, max) = match opcode {
+                    ArithmeticOpcode::Add => (a_min + b_min, a_max + b_max),
+                    ArithmeticOpcode::Mul => {
+                        let combos = [
+                            a_min.saturating_mul(b_min),
+                            a_min.saturating_mul(b_max),
+                            a_max.saturating_mul(b_min),
+                            a_max.saturating_mul(b_max),
+                        ];
+                        let min = combos.iter().map(|&a| a).min().unwrap();
+                        (
+                            min,
+                            combos.into_iter().max().unwrap(),
+                        )
+                    },
+                    ArithmeticOpcode::Eql => (0, 1),
+                    ArithmeticOpcode::Div => {
+                        // fixme
+                        unreachable!()
+                    },
+                    ArithmeticOpcode::Mod => {
+                        // fixme
+                        unreachable!()
+                    },
+                };
+
+                Source::Inputs(a | b, min, max)
+            }
         }
     }
 }
@@ -271,7 +346,13 @@ fn source_for_register(program: &[Op], reg: u8) -> Source {
 
 fn source_for_op(program: &[Op], op: &Op) -> Source {
     match &op.opcode {
-        Opcode::Inp => Source::Inputs(1u16 << (count_inps(program) as u16)),
+        Opcode::Inp => {
+            Source::Inputs(
+                1u16 << (count_inps(program) as u16),
+                1,
+                9,
+            )
+        },
         Opcode::Arithmetic(opcode, arg) => {
             let b_input = match arg {
                 OpArg::Literal(value) => {
@@ -338,7 +419,14 @@ fn main() -> ExitCode {
 
     match source_for_register(&program, N_REGISTERS as u8 - 1) {
         Source::Constant(value) => println!("z is constant: {}", value),
-        Source::Inputs(inputs) => println!("z is derived from: {:x}", inputs),
+        Source::Inputs(inputs, min, max) => {
+            println!(
+                "z is derived from inputs 0x{:x} and has range {}<=x<={}",
+                inputs,
+                min,
+                max,
+            );
+        },
     }
 
     match part1(&program) {
