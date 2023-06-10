@@ -228,6 +228,22 @@ fn read_scanners() -> Result<Vec<Scanner>, String> {
     Ok(scanners)
 }
 
+fn biggest_distance(offsets: &[[i32; 3]]) -> i32 {
+    let mut biggest = 0;
+
+    for a in offsets.iter() {
+        for b in offsets.iter() {
+            let distance = (0..3).map(|i| a[i].abs_diff(b[i]) as i32).sum();
+
+            if distance > biggest {
+                biggest = distance;
+            }
+        }
+    }
+
+    biggest
+}
+
 fn main() -> ExitCode {
     let mut scanners = match read_scanners() {
         Ok(scanners) => scanners,
@@ -238,6 +254,7 @@ fn main() -> ExitCode {
     };
 
     let mut matched_scanners = vec![scanners.swap_remove(0)];
+    let mut scanner_offsets = vec![[0, 0, 0]];
 
     'match_loop: loop {
         for (scanner_num, scanner) in scanners.iter().enumerate() {
@@ -254,6 +271,8 @@ fn main() -> ExitCode {
                         orientation,
                         offset,
                     );
+
+                    scanner_offsets.push(offset.clone());
 
                     scanner.normalise(orientation, offset);
 
@@ -278,6 +297,7 @@ fn main() -> ExitCode {
     }
 
     println!("part 1: {} unique beacons", unique_beacons.len());
+    println!("part 2: {}", biggest_distance(&scanner_offsets));
 
     ExitCode::SUCCESS
 }
