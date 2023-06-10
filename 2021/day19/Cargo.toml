@@ -1,0 +1,17 @@
+[package]
+name = "day19"
+version = "0.1.0"
+edition = "2021"
+default-run = "day19"
+
+[[bin]]
+name = "day19"
+path = "src/main.rs"
+
+[[bin]]
+name = "generate-matrices"
+path = "src/generate_matrices.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
