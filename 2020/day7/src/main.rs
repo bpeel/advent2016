@@ -186,6 +186,48 @@ impl<'a> ContainerIter<'a> {
     }
 }
 
+struct StackEntry<'a> {
+    children: std::slice::Iter<'a, BagSpace>,
+    count: u64,
+    amount: u32,
+}
+
+fn part2(bag_set: &BagSet) -> u64 {
+    let mut count: u64 = 0;
+    let mut stack = Vec::<StackEntry>::new();
+
+    if let Some(&bag_num) = bag_set.names.get("shiny gold") {
+        stack.push(StackEntry {
+            children: bag_set.bags[bag_num].contains.iter(),
+            count: 0,
+            amount: 1,
+        });
+    }
+
+    while let Some(mut entry) = stack.pop() {
+        match entry.children.next() {
+            Some(space) => {
+                stack.push(entry);
+                stack.push(StackEntry {
+                    children: bag_set.bags[space.bag].contains.iter(),
+                    count: 1,
+                    amount: space.amount,
+                });
+            },
+            None => {
+                let to_add = entry.count * entry.amount as u64;
+
+                match stack.last_mut() {
+                    Some(parent_entry) => parent_entry.count += to_add,
+                    None => count += to_add,
+                }
+            },
+        }
+    }
+
+    count
+}
+
 fn read_bag_set() -> Result<BagSet, String> {
     let mut bag_set = BagSet::new();
 
@@ -213,6 +255,7 @@ fn main() -> ExitCode {
     };
 
     println!("part 1: {}", bag_set.containers("shiny gold").count());
+    println!("part 2: {}", part2(&bag_set));
 
     ExitCode::SUCCESS
 }
