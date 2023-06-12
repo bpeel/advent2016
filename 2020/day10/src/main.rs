@@ -1,60 +1,38 @@
-fn build_tree(nums: &[u32]) -> Vec<Vec<usize>> {
-    let mut nodes = vec![Vec::new(); nums.len()];
-
-    // Add each adaptor as a child of the adaptors that it can be connected to
-    for (index, &num) in nums.iter().enumerate() {
-        for parent in index + 1..nums.len() {
-            if nums[parent] - num <= 3 {
-                nodes[parent].push(index);
-            } else {
-                break;
-            }
-        }
-    }
-
-    // Add special children for the plug socket
-    for (index, &num) in nums.iter().enumerate() {
-        if num <= 3 {
-            nodes[index].push(usize::MAX);
-        } else {
-            break;
-        }
-    }
-
-    nodes
-}
-
-struct StackEntry<'a> {
+struct StackEntry {
     count: u64,
-    children: std::slice::Iter<'a, usize>,
+    num: u32,
+    past_next_child: usize,
 }
 
-fn count_paths(nodes: &Vec<Vec<usize>>) -> u64 {
+fn count_paths(nums: &[u32]) -> u64 {
     let mut stack = vec![StackEntry {
         count: 0,
-        children: match nodes.last() {
-            Some(last) => last.iter(),
+        num: match nums.last() {
+            Some(&n) => n,
             None => return 0,
         },
+        past_next_child: nums.len() - 1,
     }];
 
     let mut count = 0u64;
 
     while let Some(mut entry) = stack.pop() {
-        match entry.children.next() {
-            Some(&child) => {
-                if child == usize::MAX {
-                    entry.count += 1;
-                    stack.push(entry);
-                } else {
-                    stack.push(entry);
-                    stack.push(StackEntry {
-                        count: 0,
-                        children: nodes[child].iter(),
-                    });
-                }
+        match entry.past_next_child.checked_sub(1) {
+            Some(child) if entry.num - nums[child] <= 3 => {
+                entry.past_next_child = child;
+                stack.push(entry);
+                stack.push(StackEntry {
+                    num: nums[child],
+                    count: 0,
+                    past_next_child: child,
+                });
             },
-            None => {
+            _ => {
+                // Take into account connecting to the socket
+                if entry.num <= 3 {
+                    entry.count += 1;
+                }
+
                 match stack.last_mut() {
                     Some(last) => last.count += entry.count,
                     None => count += entry.count,
@@ -66,10 +44,6 @@ fn count_paths(nodes: &Vec<Vec<usize>>) -> u64 {
     count
 }
 
-fn count_combinations(nums: &[u32]) -> u64 {
-    count_paths(&build_tree(nums))
-}
-
 fn main() {
     let mut nums: Vec<u32> = std::io::stdin()
         .lines()
@@ -78,5 +52,5 @@ fn main() {
 
     nums.sort_unstable();
 
-    println!("part 2: {}", count_combinations(&nums));
+    println!("part 2: {}", count_paths(&nums));
 }
