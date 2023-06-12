@@ -1,8 +1,6 @@
 use std::process::ExitCode;
 use std::fmt;
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
-use std::borrow::Borrow;
 
 enum RuleError {
     BadNumber,
@@ -27,7 +25,6 @@ impl fmt::Display for RuleError {
 }
 
 struct Bag {
-    name: BagName,
     contains: Vec<BagSpace>,
 }
 
@@ -37,29 +34,8 @@ struct BagSpace {
 }
 
 struct BagSet {
-    names: HashMap<BagName, usize>,
+    names: HashMap<String, usize>,
     bags: Vec<Bag>,
-}
-
-#[derive(Eq, Hash, PartialEq)]
-struct BagName(Rc<String>);
-
-impl Borrow<str> for BagName {
-    fn borrow(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
-impl Clone for BagName {
-    fn clone(&self) -> BagName {
-        BagName(Rc::clone(&self.0))
-    }
-}
-
-impl fmt::Display for BagName {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.0.fmt(f)
-    }
 }
 
 impl BagSet {
@@ -75,13 +51,11 @@ impl BagSet {
             return *bag_num;
         }
 
-        let name = BagName(Rc::new(name.to_string()));
         let bag_num = self.bags.len();
 
-        self.names.insert(name.clone(), bag_num);
+        self.names.insert(name.to_string(), bag_num);
 
         self.bags.push(Bag {
-            name: name,
             contains: Vec::new(),
         });
 
