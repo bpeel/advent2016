@@ -161,5 +161,28 @@ fn main() -> ExitCode {
         },
     };
 
+    for bag in bag_set.bags.iter() {
+        print!("{} bags contain ", bag.name);
+
+        if bag.contains.is_empty() {
+            print!("no other bags");
+        } else {
+            for (bag_num, contained) in bag.contains.iter().enumerate() {
+                if bag_num > 0 {
+                    print!(", ");
+                }
+
+                print!(
+                    "{} {} bag{}",
+                    contained.amount,
+                    bag_set.bags[contained.bag].name,
+                    if contained.amount == 1 { "" } else { "s" },
+                );
+            }
+        }
+
+        println!(".");
+    }
+
     ExitCode::SUCCESS
 }
