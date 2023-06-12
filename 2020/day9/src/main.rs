@@ -86,6 +86,33 @@ fn part1(n_preceding_numbers: usize, numbers: &[u64]) -> Option<u64> {
     None
 }
 
+fn part2(numbers: &[u64], target: u64) -> Option<(u64, u64)> {
+    for (index, &num) in numbers.iter().enumerate() {
+        let mut sum = num;
+        let mut min = num;
+        let mut max = num;
+
+        for &num in numbers[index + 1..].iter() {
+            if num < min {
+                min = num;
+            }
+            if num > max {
+                max = num;
+            }
+
+            sum += num;
+
+            if sum > target {
+                break;
+            } else if sum == target {
+                return Some((min, max));
+            }
+        }
+    }
+
+    None
+}
+
 fn main() -> ExitCode {
     let n_preceding_numbers = if let Some(n) = std::env::args().nth(1) {
         match n.parse::<usize>() {
@@ -117,8 +144,17 @@ fn main() -> ExitCode {
     }
 
     match part1(n_preceding_numbers, &numbers) {
-        Some(n) => println!("part 1: {}", n),
-        None => println!("par 1: All numbers were a sum of two previous nums"),
+        Some(n) => {
+            println!("part 1: {}", n);
+
+            match part2(&numbers, n) {
+                Some((min, max)) => {
+                    println!("part 2: {} + {} = {}", min, max, min + max);
+                },
+                None => println!("part 2: No range found"),
+            }
+        },
+        None => println!("part 1: All numbers were a sum of two previous nums"),
     }
 
     ExitCode::SUCCESS
