@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 use std::fmt;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::borrow::Borrow;
 
@@ -133,6 +133,57 @@ impl BagSet {
 
         Ok(())
     }
+
+    fn containers(&self, bag_name: &str) -> ContainerIter {
+        let mut iter = ContainerIter {
+            bag_set: self,
+            sub_bags: Vec::new(),
+            visited: HashSet::new(),
+        };
+
+        if let Some(bag_num) = self.names.get(bag_name) {
+            iter.queue_containers(*bag_num);
+        }
+
+        iter
+    }
+}
+
+struct ContainerIter<'a> {
+    bag_set: &'a BagSet,
+    sub_bags: Vec<usize>,
+    visited: HashSet<usize>,
+}
+
+impl<'a> Iterator for ContainerIter<'a> {
+    type Item = &'a Bag;
+
+    fn next(&mut self) -> Option<&'a Bag> {
+        if let Some(bag_num) = self.sub_bags.pop() {
+            self.queue_containers(bag_num);
+            Some(&self.bag_set.bags[bag_num])
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> ContainerIter<'a> {
+    fn queue_containers(&mut self, bag_num: usize) {
+        for (container_num, container) in self.bag_set.bags.iter().enumerate() {
+            if self.visited.contains(&container_num) {
+                continue;
+            }
+
+            for space in container.contains.iter() {
+                if space.bag == bag_num {
+                    self.visited.insert(container_num);
+                    self.sub_bags.push(container_num);
+                    break;
+                }
+            }
+        }
+    }
 }
 
 fn read_bag_set() -> Result<BagSet, String> {
@@ -161,28 +212,7 @@ fn main() -> ExitCode {
         },
     };
 
-    for bag in bag_set.bags.iter() {
-        print!("{} bags contain ", bag.name);
-
-        if bag.contains.is_empty() {
-            print!("no other bags");
-        } else {
-            for (bag_num, contained) in bag.contains.iter().enumerate() {
-                if bag_num > 0 {
-                    print!(", ");
-                }
-
-                print!(
-                    "{} {} bag{}",
-                    contained.amount,
-                    bag_set.bags[contained.bag].name,
-                    if contained.amount == 1 { "" } else { "s" },
-                );
-            }
-        }
-
-        println!(".");
-    }
+    println!("part 1: {}", bag_set.containers("shiny gold").count());
 
     ExitCode::SUCCESS
 }
