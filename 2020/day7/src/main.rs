@@ -1,6 +1,3 @@
-use std::rc::Rc;
-use std::collections::HashMap;
-
 enum RuleError {
     BadNumber,
     MissingContains,
@@ -14,24 +11,24 @@ struct Bag {
 
 struct BagSpace {
     amount: u32,
-    bag: Rc<Bag>,
+    bag: usize,
 }
 
 struct BagSet {
-    hash: HashMap<String, Rc<Bag>>,
+    bags: Vec<Bag>,
 }
 
 impl BagSet {
-    fn get_bag(&mut self, name: &str) -> Rc<Bag> {
-        match self.hash.get(name) {
-            Some(n) => n,
-            None => {
-                self.hash.insert(String::from(name),
-                                 Rc::new(Bag { name: name.to_string(),
-                                               contains: Vec::new() }));
-                self.hash.get(name).unwrap()
+    fn get_bag(&mut self, name: &str) -> usize {
+        for (bag_num, bag) in self.bags.iter().enumerate() {
+            if bag.name == name {
+                return bag_num;
             }
-        }.clone()
+        }
+
+        self.bags.push(Bag { name: name.to_string(), contains: Vec::new() });
+
+        self.bags.len() - 1
     }
 
     fn parse_rule(&mut self, rule: &str) -> Result<(), RuleError> {
@@ -68,7 +65,7 @@ impl BagSet {
 
             let sub_bag = self.get_bag(&name[num_end..name_end]);
 
-            bag.contains.push(BagSpace { amount, bag: sub_bag.clone() });
+            self.bags[bag].contains.push(BagSpace { amount, bag: sub_bag });
         }
 
         Ok(())
