@@ -1,5 +1,8 @@
 use std::process::ExitCode;
 use std::fmt;
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::borrow::Borrow;
 
 enum RuleError {
     BadNumber,
@@ -24,7 +27,7 @@ impl fmt::Display for RuleError {
 }
 
 struct Bag {
-    name: String,
+    name: BagName,
     contains: Vec<BagSpace>,
 }
 
@@ -34,24 +37,55 @@ struct BagSpace {
 }
 
 struct BagSet {
+    names: HashMap<BagName, usize>,
     bags: Vec<Bag>,
+}
+
+#[derive(Eq, Hash, PartialEq)]
+struct BagName(Rc<String>);
+
+impl Borrow<str> for BagName {
+    fn borrow(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl Clone for BagName {
+    fn clone(&self) -> BagName {
+        BagName(Rc::clone(&self.0))
+    }
+}
+
+impl fmt::Display for BagName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
 }
 
 impl BagSet {
     fn new() -> BagSet {
-        BagSet { bags: Vec::new() }
+        BagSet {
+            names: HashMap::new(),
+            bags: Vec::new(),
+        }
     }
 
     fn get_bag(&mut self, name: &str) -> usize {
-        for (bag_num, bag) in self.bags.iter().enumerate() {
-            if bag.name == name {
-                return bag_num;
-            }
+        if let Some(bag_num) = self.names.get(name) {
+            return *bag_num;
         }
 
-        self.bags.push(Bag { name: name.to_string(), contains: Vec::new() });
+        let name = BagName(Rc::new(name.to_string()));
+        let bag_num = self.bags.len();
 
-        self.bags.len() - 1
+        self.names.insert(name.clone(), bag_num);
+
+        self.bags.push(Bag {
+            name: name,
+            contains: Vec::new(),
+        });
+
+        bag_num
     }
 
     fn parse_rule(&mut self, rule: &str) -> Result<(), RuleError> {
