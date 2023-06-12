@@ -1,43 +1,32 @@
-struct StackEntry {
-    count: u64,
-    num: u32,
-    past_next_child: usize,
+use std::collections::VecDeque;
+
+fn queue_children(
+    queue: &mut VecDeque::<usize>,
+    start_index: usize,
+    base_jolts: u32,
+    nums: &[u32]
+) {
+    for index in start_index..nums.len() {
+        if nums[index] - base_jolts <= 3 {
+            queue.push_back(index);
+        } else {
+            break;
+        }
+    }
 }
 
 fn count_paths(nums: &[u32]) -> u64 {
-    let mut stack = vec![StackEntry {
-        count: 0,
-        num: match nums.last() {
-            Some(&n) => n,
-            None => return 0,
-        },
-        past_next_child: nums.len() - 1,
-    }];
+    let mut queue = VecDeque::<usize>::new();
+
+    queue_children(&mut queue, 0, 0, nums);
 
     let mut count = 0u64;
 
-    while let Some(mut entry) = stack.pop() {
-        match entry.past_next_child.checked_sub(1) {
-            Some(child) if entry.num - nums[child] <= 3 => {
-                entry.past_next_child = child;
-                stack.push(entry);
-                stack.push(StackEntry {
-                    num: nums[child],
-                    count: 0,
-                    past_next_child: child,
-                });
-            },
-            _ => {
-                // Take into account connecting to the socket
-                if entry.num <= 3 {
-                    entry.count += 1;
-                }
-
-                match stack.last_mut() {
-                    Some(last) => last.count += entry.count,
-                    None => count += entry.count,
-                }
-            },
+    while let Some(index) = queue.pop_front() {
+        if index == nums.len() - 1 {
+            count += 1;
+        } else {
+            queue_children(&mut queue, index + 1, nums[index], nums);
         }
     }
 
