@@ -191,3 +191,49 @@ fn main() -> ExitCode {
 
     ExitCode::SUCCESS
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    const POSITIONS: [(i32, i32); 4] = [
+            (1, -2),
+            (2, 1),
+            (-1, 2),
+            (-2, -1),
+    ];
+
+    #[test]
+    fn rotate_left() {
+        for i in 1..=3 {
+            let mut ferry = Ferry2::new();
+            ferry.waypoint_x = POSITIONS[0].0;
+            ferry.waypoint_y = POSITIONS[0].1;
+            ferry.apply_instruction(&Instruction {
+                action: Action::Left,
+                distance: i * 90,
+            });
+            assert_eq!(
+                (ferry.waypoint_x, ferry.waypoint_y),
+                POSITIONS[((4 - i) % 4) as usize]
+            );
+        }
+    }
+
+    #[test]
+    fn rotate_right() {
+        for i in 1..=3 {
+            let mut ferry = Ferry2::new();
+            ferry.waypoint_x = POSITIONS[0].0;
+            ferry.waypoint_y = POSITIONS[0].1;
+            ferry.apply_instruction(&Instruction {
+                action: Action::Right,
+                distance: i * 90,
+            });
+            assert_eq!(
+                (ferry.waypoint_x, ferry.waypoint_y),
+                POSITIONS[i as usize]
+            );
+        }
+    }
+}
