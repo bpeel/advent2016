@@ -70,7 +70,7 @@ impl Ferry {
             Action::North => self.y -= instruction.distance,
             Action::East => self.x += instruction.distance,
             Action::South => self.y += instruction.distance,
-            Action::West => self.y -= instruction.distance,
+            Action::West => self.x -= instruction.distance,
             Action::Left => {
                 self.direction = (self.direction
                                   + (4 - instruction.distance / 90 % 4) % 4)
@@ -129,7 +129,7 @@ impl Ferry2 {
             Action::North => self.waypoint_y -= instruction.distance,
             Action::East => self.waypoint_x += instruction.distance,
             Action::South => self.waypoint_y += instruction.distance,
-            Action::West => self.waypoint_y -= instruction.distance,
+            Action::West => self.waypoint_x -= instruction.distance,
             Action::Left => {
                 self.rotate((4 - instruction.distance / 90 % 4) % 4);
             },
