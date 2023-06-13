@@ -19,7 +19,7 @@ fn read_timetable() -> Vec<Bus> {
                 None
             } else {
                 let id = id.parse().unwrap();
-                let target_minute = (id - target_minute as u64) % id;
+                let target_minute = ((id - 1) * target_minute as u64) % id;
 
                 Some(Bus { id, target_minute })
             }
