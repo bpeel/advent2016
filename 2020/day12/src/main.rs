@@ -179,7 +179,12 @@ fn main() -> ExitCode {
         ferry.apply_instruction(instruction);
     }
 
-    println!("part 1: {}", ferry.x.abs() + ferry.y.abs());
+    println!(
+        "part 1: ({}, {}) = {}",
+        ferry.x,
+        ferry.y,
+        ferry.x.abs() + ferry.y.abs(),
+    );
 
     let mut ferry = Ferry2::new();
 
@@ -187,7 +192,13 @@ fn main() -> ExitCode {
         ferry.apply_instruction(instruction);
     }
 
-    println!("part 2: {}", ferry.x.abs() + ferry.y.abs());
+    println!(
+        "part 2: ({}, {}) = {}",
+        ferry.x,
+        ferry.y,
+        ferry.x.abs() + ferry.y.abs(),
+    );
+
 
     ExitCode::SUCCESS
 }
