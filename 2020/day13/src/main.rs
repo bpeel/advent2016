@@ -39,6 +39,9 @@ fn main() {
             t += multiplier;
         }
 
+        // This assumes the bus IDs are all different prime numbers so
+        // the multpilier will always be the lowest common multiple so
+        // far
         multiplier *= bus.id;
     }
 
