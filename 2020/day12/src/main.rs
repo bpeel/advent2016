@@ -94,6 +94,54 @@ impl Ferry {
     }
 }
 
+struct Ferry2 {
+    x: i32,
+    y: i32,
+    waypoint_x: i32,
+    waypoint_y: i32,
+}
+
+impl Ferry2 {
+    fn new() -> Ferry2 {
+        Ferry2 {
+            x: 0,
+            y: 0,
+            waypoint_x: 10,
+            waypoint_y: -1,
+        }
+    }
+
+    fn rotate(&mut self, amount: i32) {
+        let (x, y) = match amount {
+            0 => (self.waypoint_x, self.waypoint_y),
+            1 => (-self.waypoint_y, self.waypoint_x),
+            2 => (-self.waypoint_x, -self.waypoint_y),
+            3 => (self.waypoint_y, -self.waypoint_x),
+            _ => unreachable!(),
+        };
+
+        self.waypoint_x = x;
+        self.waypoint_y = y;
+    }
+
+    fn apply_instruction(&mut self, instruction: &Instruction) {
+        match instruction.action {
+            Action::North => self.waypoint_y -= instruction.distance,
+            Action::East => self.waypoint_x += instruction.distance,
+            Action::South => self.waypoint_y += instruction.distance,
+            Action::West => self.waypoint_y -= instruction.distance,
+            Action::Left => {
+                self.rotate((4 - instruction.distance / 90 % 4) % 4);
+            },
+            Action::Right => self.rotate(instruction.distance / 90 % 4),
+            Action::Forward => {
+                self.x += instruction.distance * self.waypoint_x;
+                self.y += instruction.distance * self.waypoint_y;
+            },
+        }
+    }
+}
+
 fn read_instructions() -> Result<Vec<Instruction>, String> {
     let mut instructions = Vec::new();
 
@@ -132,6 +180,14 @@ fn main() -> ExitCode {
     }
 
     println!("part 1: {}", ferry.x.abs() + ferry.y.abs());
+
+    let mut ferry = Ferry2::new();
+
+    for instruction in instructions.iter() {
+        ferry.apply_instruction(instruction);
+    }
+
+    println!("part 2: {}", ferry.x.abs() + ferry.y.abs());
 
     ExitCode::SUCCESS
 }
