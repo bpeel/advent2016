@@ -30,28 +30,32 @@ fn read_reports<I>(lines: &mut I) -> Result<Vec<Vec<i32>>, String>
     Ok(reports)
 }
 
-fn safe(report: &[i32]) -> bool {
-    let direction = report[0].cmp(&report[1]);
+fn safe<'a, I: IntoIterator<Item = &'a i32>>(report: I) -> bool {
+    let mut levels = report.into_iter();
+    let mut a = *levels.next().unwrap();
+    let mut b = *levels.next().unwrap();
+    let direction = a.cmp(&b);
 
     if direction == Ordering::Equal {
         return false;
     }
 
-    let mut last = report[0];
-
-    for &level in &report[1..] {
-        if last.cmp(&level) != direction {
+    loop {
+        if a.abs_diff(b) > 3 {
             return false;
         }
 
-        if last.abs_diff(level) > 3 {
-            return false;
-        }
+        a = b;
 
-        last = level;
+        b = match levels.next() {
+            Some(&level) => level,
+            None => break true,
+        };
+
+        if a.cmp(&b) != direction {
+            break false;
+        }
     }
-
-    true
 }
 
 fn safe2(report: &[i32]) -> bool {
@@ -112,7 +116,7 @@ fn main() -> std::process::ExitCode {
 
     println!(
         "Part 1: {:?}",
-        reports.iter().map(|report| safe(report) as u32).sum::<u32>(),
+        reports.iter().map(|report| safe(report.iter()) as u32).sum::<u32>(),
     );
 
     println!(
