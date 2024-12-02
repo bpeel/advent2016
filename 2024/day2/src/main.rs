@@ -59,44 +59,23 @@ fn safe<'a, I: IntoIterator<Item = &'a i32>>(report: I) -> bool {
 }
 
 fn safe2(report: &[i32]) -> bool {
-    let mut increases = Vec::new();
-    let mut decreases = Vec::new();
-    let mut other_bad = None;
-    let mut last = report[0];
+    if safe(report) {
+        return true;
+    }
 
-    for &level in &report[1..] {
-        let diff = last.abs_diff(level);
-
-        if diff < 1 || diff > 3 {
-            if other_bad.is_some() {
-                return false;
+    for skip in 0..report.len() {
+        if safe(report.iter().enumerate().filter_map(|(i, level)| {
+            if i == skip {
+                None
+            } else {
+                Some(level)
             }
-
-            other_bad = Some(level);
-        }
-
-        if level > last {
-            increases.push(level);
-        } else if level < last {
-            decreases.push(level);
-        }
-
-        last = level;
-    }
-
-    if increases.is_empty() || decreases.is_empty() {
-        true
-    } else if increases.len() > 1 && decreases.len() > 1 {
-        false
-    } else {
-        match other_bad {
-            None => true,
-            Some(other_bad) => {
-                (decreases.len() == 1 && other_bad == decreases[0]) ||
-                    (increases.len() == 1 && other_bad == increases[0])
-            },
+        })) {
+            return true;
         }
     }
+
+    false
 }
 
 fn main() -> std::process::ExitCode {
