@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
 fn add_mul(source: &str) -> u32 {
-    let re = regex::Regex::new(r"mul\((\d+),(\d)\)").unwrap();
+    let re = regex::Regex::new(r"mul\((\d+),(\d+)\)").unwrap();
 
     re.captures_iter(source).map(|caps| {
         let a = caps[1].parse::<u32>().unwrap();
