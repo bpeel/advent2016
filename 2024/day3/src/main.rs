@@ -12,17 +12,13 @@ fn add_mul(source: &str) -> u32 {
 }
 
 fn main() -> ExitCode {
-    for line in std::io::stdin().lines() {
-        let line = match line {
-            Ok(line) => line,
-            Err(e) => {
-                eprintln!("{}", e);
-                return ExitCode::FAILURE;
-            },
-        };
+    match std::io::read_to_string(std::io::stdin()) {
+        Ok(source) => println!("part 1: {}", add_mul(&source)),
+        Err(e) => {
+            eprintln!("{}", e);
+            return ExitCode::FAILURE;
+        },
+    };
 
-        println!("part 1: {}", add_mul(&line));
-    }
-
-   ExitCode::SUCCESS
+    ExitCode::SUCCESS
 }
