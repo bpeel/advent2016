@@ -24,6 +24,22 @@ fn is_word<D: walker::Direction<Pos = (i32, i32)>>(
     true
 }
 
+fn part1(grid: &util::Grid) -> u32 {
+    let mut count = 0;
+
+    for y in 0..grid.height {
+        for x in 0..grid.width {
+            for dir in walker::direction_iter::<QuadDirection>() {
+                if is_word(&grid, x, y, dir) {
+                    count += 1;
+                }
+            }
+        }
+    }
+
+    count
+}
+
 fn main() -> std::process::ExitCode {
     let grid = {
         let mut input = std::io::stdin().lock();
@@ -37,19 +53,7 @@ fn main() -> std::process::ExitCode {
         }
     };
 
-    let mut part1 = 0;
-
-    for y in 0..grid.height {
-        for x in 0..grid.width {
-            for dir in walker::direction_iter::<QuadDirection>() {
-                if is_word(&grid, x, y, dir) {
-                    part1 += 1;
-                }
-            }
-        }
-    }
-
-    println!("Part 1: {}", part1);
+    println!("Part 1: {}", part1(&grid));
 
     std::process::ExitCode::SUCCESS
 }
