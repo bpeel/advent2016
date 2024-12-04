@@ -23,13 +23,9 @@ fn begins_with_digit_or_name(s: &str) -> Option<u32> {
         }
     }
 
-    for (i, &name) in DIGIT_NAMES.iter().enumerate() {
-        if s.starts_with(name) {
-            return Some(i as u32 + 1);
-        }
-    }
-
-    None
+    DIGIT_NAMES.iter().enumerate().find_map(|(i, &name)| {
+        s.starts_with(name).then(|| i as u32 + 1)
+    })
 }
 
 fn main() -> std::process::ExitCode {
