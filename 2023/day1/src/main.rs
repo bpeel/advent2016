@@ -12,20 +12,15 @@ static DIGIT_NAMES: [&'static str; 9] = [
     "nine",
 ];
 
-fn is_digit(ch: char) -> bool {
-    ch.is_ascii_digit()
-}
-
 fn begins_with_digit_or_name(s: &str) -> Option<u32> {
-    if let Some(digit) = s.chars().next() {
-        if digit.is_ascii_digit() {
-            return Some(digit as u32 - '0' as u32);
-        }
-    }
-
-    DIGIT_NAMES.iter().enumerate().find_map(|(i, &name)| {
-        s.starts_with(name).then(|| i as u32 + 1)
-    })
+    s.chars()
+        .next()
+        .and_then(|ch| ch.to_digit(10))
+        .or_else(|| {
+            DIGIT_NAMES.iter().enumerate().find_map(|(i, &name)| {
+                s.starts_with(name).then(|| i as u32 + 1)
+            })
+        })
 }
 
 fn main() -> std::process::ExitCode {
@@ -39,18 +34,17 @@ fn main() -> std::process::ExitCode {
             return ExitCode::FAILURE;
         };
 
-        let Some(first) = line.find(is_digit)
+        let digit_map = |ch: char| ch.to_digit(10);
+
+        let Some(first) = line.chars().find_map(digit_map)
         else {
             eprintln!("line {} contains no digit", line_num + 1);
             return ExitCode::FAILURE;
         };
 
-        let last = line.rfind(is_digit).unwrap();
+        let last = line.chars().rev().find_map(digit_map).unwrap();
 
-        let calibration_value =
-            (line.as_bytes()[first] as u32 - '0' as u32) * 10 +
-            line.as_bytes()[last] as u32 -
-            '0' as u32;
+        let calibration_value = first * 10 + last;
 
         part1 += calibration_value;
 
