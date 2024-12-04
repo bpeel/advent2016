@@ -2,11 +2,13 @@
 
 set -eu
 
-template_dir=$(cd $(dirname "$0") && pwd)/template
+root_dir=$(cd $(dirname "$0") && pwd)
+template_dir="$root_dir/template"
 
 if test "$#" -ge 1; then
     src_dir="$1"
 else
+    year=$(date +%-Y)
     day=$(date +%-d)
     hour=$(date +%-H)
 
@@ -15,7 +17,7 @@ else
         echo "Preparing for tomorrow"
     fi
 
-    src_dir="day$day"
+    src_dir="$root_dir/$year/day$day"
 fi
 
 cargo new "$src_dir"
