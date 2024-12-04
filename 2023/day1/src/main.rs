@@ -32,36 +32,6 @@ fn begins_with_digit_or_name(s: &str) -> Option<u32> {
     None
 }
 
-fn first_digit(s: &str) -> Option<u32> {
-    let mut chars = s.chars();
-
-    loop {
-        if let Some(digit) = begins_with_digit_or_name(chars.as_str()) {
-            break Some(digit);
-        }
-
-        if chars.next().is_none() {
-            break None;
-        }
-    }
-}
-
-fn last_digit(s: &str) -> Option<u32> {
-    let mut chars = s.chars();
-
-    loop {
-        if chars.next_back().is_none() {
-            break None;
-        }
-
-        let tail = &s[chars.as_str().len()..];
-
-        if let Some(digit) = begins_with_digit_or_name(tail) {
-            break Some(digit);
-        }
-    }
-}
-
 fn main() -> std::process::ExitCode {
     let mut part1 = 0;
     let mut part2 = 0;
@@ -88,8 +58,10 @@ fn main() -> std::process::ExitCode {
 
         part1 += calibration_value;
 
-        let first = first_digit(&line).unwrap();
-        let last = last_digit(&line).unwrap();
+        let digit_map = |(pos, _)| begins_with_digit_or_name(&line[pos..]);
+
+        let first = line.char_indices().find_map(digit_map).unwrap();
+        let last = line.char_indices().rev().find_map(digit_map).unwrap();
 
         let calibration_value = first * 10 + last;
 
