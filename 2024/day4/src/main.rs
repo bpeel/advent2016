@@ -40,6 +40,42 @@ fn part1(grid: &util::Grid) -> u32 {
     count
 }
 
+fn is_ms(a: u8, b: u8) -> bool {
+    if a == b'M' {
+        b == b'S'
+    } else if a == b'S' {
+        b == b'M'
+    } else {
+        false
+    }
+}
+
+fn part2(grid: &util::Grid) -> u32 {
+    let mut count = 0;
+
+    for y in 1..grid.height - 1 {
+        for x in 1..grid.width - 1 {
+            if grid.values[y * grid.width + x] != b'A' {
+                continue;
+            }
+
+            if is_ms(
+                grid.values[(y + 1) * grid.width + x + 1],
+                grid.values[(y - 1) * grid.width + x - 1],
+            ) &&
+                is_ms(
+                    grid.values[(y + 1) * grid.width + x - 1],
+                    grid.values[(y - 1) * grid.width + x + 1],
+                )
+            {
+                count += 1
+            }
+        }
+    }
+
+    count
+}
+
 fn main() -> std::process::ExitCode {
     let grid = {
         let mut input = std::io::stdin().lock();
@@ -54,6 +90,7 @@ fn main() -> std::process::ExitCode {
     };
 
     println!("Part 1: {}", part1(&grid));
+    println!("Part 2: {}", part2(&grid));
 
     std::process::ExitCode::SUCCESS
 }
