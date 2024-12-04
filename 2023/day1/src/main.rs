@@ -15,11 +15,13 @@ static DIGIT_NAMES: [&'static str; 9] = [
 fn begins_with_digit_or_name(s: &str) -> Option<u32> {
     s.chars()
         .next()
-        .and_then(|ch| ch.to_digit(10))
-        .or_else(|| {
-            DIGIT_NAMES.iter().enumerate().find_map(|(i, &name)| {
-                s.starts_with(name).then(|| i as u32 + 1)
-            })
+        .and_then(|ch| {
+            ch.to_digit(10)
+                .or_else(|| {
+                    DIGIT_NAMES.iter().enumerate().find_map(|(i, &name)| {
+                        s.starts_with(name).then(|| i as u32 + 1)
+                    })
+                })
         })
 }
 
