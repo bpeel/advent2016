@@ -183,74 +183,26 @@ fn rule_bits_for_update(rules: &[Rule], update: &[u8]) -> RuleBits {
     fill_befores(&rule_bits)
 }
 
-fn debug_update(
+fn validate_update(
     rule_bits: &RuleBits,
     update: &[u8],
-) {
-    println!("update: {:?}", update);
-
-    let mut correct_order = update.to_vec();
-    correct_order.sort_by_key(|page| {
-        u32::MAX -
-            rule_bits
-            .get(page)
-            .map(|bits| bits.count_ones())
-            .unwrap_or(0)
-    });
-
-    print!("correct order for update:");
-
-    for page in correct_order.iter() {
-        print!(
-            " {}({})",
-            page,
-            rule_bits.get(page).map(|bits| bits.count_ones()).unwrap_or(0),
-        );
-    }
-
-    println!();
-
-    let mut afters = 0u128;
-
-    for page in correct_order.iter().rev() {
-        let rule_afters = rule_bits.get(page).cloned().unwrap_or(0);
-
-        if rule_afters != afters {
-            println!(
-                "pages after {} are {:x} but rules say {:x}",
-                page,
-                afters,
-                rule_afters,
-            );
-        }
-
-        afters |= 1u128 << page;
-    }
-}
-
-fn validate_update(
-    rules: &[Rule],
-    update: &[u8],
 ) -> Result<(), ValidationError> {
-    let Some(&(mut next)) = update.last()
-    else {
-        return Ok(());
-    };
-
-    let rule_bits = rule_bits_for_update(rules, update);
-
     for (&rule, &bits) in rule_bits.iter() {
         if bits & (1u128 << rule) != 0 {
             return Err(ValidationError::Cycle(rule));
         }
     }
 
+    let Some(&(mut next)) = update.last()
+    else {
+        return Ok(());
+    };
+
     for &page in update.iter().rev().skip(1) {
         rule_bits
             .get(&page)
             .and_then(|bits| (bits & (1u128 << next) != 0).then_some(()))
             .ok_or_else(|| {
-                debug_update(&rule_bits, update);
                 ValidationError::NoRule(page, next)
             })?;
 
@@ -270,11 +222,25 @@ fn main() -> ExitCode {
     };
 
     let mut part1 = 0;
+    let mut part2 = 0;
 
     for (update_num, update) in data.updates.iter().enumerate() {
-        match validate_update(&data.rules, update) {
+        let rule_bits = rule_bits_for_update(&data.rules, update);
+
+        match validate_update(&rule_bits, update) {
             Err(e) => {
                 println!("update {}: {}", update_num + 1, e);
+
+                let mut correct_order = update.to_vec();
+                correct_order.sort_by_key(|page| {
+                    u32::MAX -
+                        rule_bits
+                        .get(page)
+                        .map(|bits| bits.count_ones())
+                        .unwrap_or(0)
+                });
+
+                part2 += correct_order[update.len() / 2] as u32;
             },
             Ok(()) => {
                 println!("update {}: OK", update_num + 1);
@@ -283,7 +249,12 @@ fn main() -> ExitCode {
         }
     }
 
-    println!("Part 1: {}", part1);
+    println!(
+        "Part 1: {}\n\
+         Part 2: {}",
+        part1,
+        part2,
+    );
 
     ExitCode::SUCCESS
 }
