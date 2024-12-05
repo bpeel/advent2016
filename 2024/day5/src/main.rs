@@ -1,6 +1,7 @@
 use std::process::ExitCode;
 use std::str::FromStr;
 use std::collections::HashMap;
+use std::fmt;
 
 struct Rule {
     before: u8,
@@ -10,6 +11,33 @@ struct Rule {
 struct Data {
     rules: Vec<Rule>,
     updates: Vec<Vec<u8>>,
+}
+
+enum ValidationError {
+    NoRule(u8, u8),
+    Cycle(u8),
+}
+
+impl fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            ValidationError::NoRule(before, after) => {
+                write!(
+                    f,
+                    "no rule to put {} before {}",
+                    before,
+                    after
+                )
+            },
+            ValidationError::Cycle(page) => {
+                write!(
+                    f,
+                    "page {} is before itself",
+                    page,
+                )
+            },
+        }
+    }
 }
 
 type RuleBits = HashMap<u8, u128>;
@@ -89,7 +117,7 @@ fn read_data<I>(lines: I) -> Result<Data, String>
     Ok(Data { rules, updates })
 }
 
-fn rules_to_bitset(rules: &[Rule]) -> RuleBits {
+fn rules_to_bitset<'a, I: IntoIterator<Item = &'a Rule>>(rules: I) -> RuleBits {
     let mut rule_bits = HashMap::new();
 
     for rule in rules {
@@ -130,20 +158,46 @@ fn fill_befores(rule_bits: &RuleBits) -> RuleBits {
         .collect::<RuleBits>()
 }
 
+fn rule_bits_for_update(rules: &[Rule], update: &[u8]) -> RuleBits {
+    // Get a bitmask of all pages in the update
+    let page_mask = update.iter().fold(0u128, {
+        |mask, rule| mask | 1u128 << rule
+    });
+
+    let rule_bits = rules_to_bitset(
+        rules.iter()
+        // Filter out rules that don’t concern the pages in the update
+            .filter(|rule| {
+                page_mask & (1u128 << rule.before) != 0 &&
+                    page_mask & (1u128 << rule.after) != 0
+            })
+    );
+
+    fill_befores(&rule_bits)
+}
+
 fn validate_update(
-    rule_bits: &RuleBits,
+    rules: &[Rule],
     update: &[u8],
-) -> Result<(), (u8, u8)> {
+) -> Result<(), ValidationError> {
     let Some(&(mut next)) = update.last()
     else {
         return Ok(());
     };
 
+    let rule_bits = rule_bits_for_update(rules, update);
+
+    for (&rule, &bits) in rule_bits.iter() {
+        if bits & (1u128 << rule) != 0 {
+            return Err(ValidationError::Cycle(rule));
+        }
+    }
+
     for &page in update.iter().rev().skip(1) {
         rule_bits
             .get(&page)
             .and_then(|bits| (bits & (1u128 << next) != 0).then_some(()))
-            .ok_or_else(|| (page, next))?;
+            .ok_or_else(|| ValidationError::NoRule(page, next))?;
 
         next = page;
     }
@@ -160,19 +214,12 @@ fn main() -> ExitCode {
         },
     };
 
-    let rule_bits = fill_befores(&rules_to_bitset(&data.rules));
-
     let mut part1 = 0;
 
     for (update_num, update) in data.updates.iter().enumerate() {
-        match validate_update(&rule_bits, update) {
-            Err((before, after)) => {
-                println!(
-                    "update {}: no rule to put {} before {}",
-                    update_num + 1,
-                    before,
-                    after,
-                );
+        match validate_update(&data.rules, update) {
+            Err(e) => {
+                println!("update {}: {}", update_num + 1, e);
             },
             Ok(()) => {
                 println!("update {}: OK", update_num + 1);
