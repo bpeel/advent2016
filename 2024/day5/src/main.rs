@@ -183,6 +183,34 @@ fn rule_bits_for_update(rules: &[Rule], update: &[u8]) -> RuleBits {
     fill_befores(&rule_bits)
 }
 
+fn debug_update(
+    rule_bits: &RuleBits,
+    update: &[u8],
+) {
+    println!("update: {:?}", update);
+
+    let mut correct_order = update.to_vec();
+    correct_order.sort_by_key(|page| {
+        u32::MAX -
+            rule_bits
+            .get(page)
+            .map(|bits| bits.count_ones())
+            .unwrap_or(0)
+    });
+
+    print!("correct order for update:");
+
+    for page in correct_order.iter() {
+        print!(
+            " {}({})",
+            page,
+            rule_bits.get(page).map(|bits| bits.count_ones()).unwrap_or(0),
+        );
+    }
+
+    println!();
+}
+
 fn validate_update(
     rules: &[Rule],
     update: &[u8],
@@ -204,7 +232,10 @@ fn validate_update(
         rule_bits
             .get(&page)
             .and_then(|bits| (bits & (1u128 << next) != 0).then_some(()))
-            .ok_or_else(|| ValidationError::NoRule(page, next))?;
+            .ok_or_else(|| {
+                debug_update(&rule_bits, update);
+                ValidationError::NoRule(page, next)
+            })?;
 
         next = page;
     }
