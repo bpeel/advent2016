@@ -151,6 +151,47 @@ fn validate_update(
     Ok(())
 }
 
+fn check_page_ordering(rule_bits: &RuleBits) -> bool {
+    let mut pages = rule_bits.keys().cloned().collect::<Vec<_>>();
+    let mut result = true;
+
+    pages.sort_by_key(|page| {
+        u32::MAX -
+            rule_bits.get(page).map(|bits| bits.count_ones()).unwrap_or(0)
+    });
+
+    for (index, page) in pages.iter().enumerate() {
+        let pages_after_bits = rule_bits.get(page).cloned().unwrap_or(0);
+        let n_pages_after = pages_after_bits.count_ones();
+
+        if n_pages_after as usize != pages.len() - index {
+            if result {
+                eprintln!("page order: {:?}", pages);
+                result = false;
+            }
+
+            eprint!(
+                "page {} at index {} has {} pages after:",
+                page,
+                index,
+                n_pages_after,
+            );
+
+            let mut afters = pages_after_bits;
+
+            while afters != 0 {
+                let page = afters.trailing_zeros();
+                eprint!(" {}", page);
+                afters &= !(1u128 << page);
+            }
+
+            eprintln!();
+        }
+    }
+
+    result
+}
+
 fn main() -> ExitCode {
     let data = match read_data(std::io::stdin().lines()) {
         Ok(data) => data,
@@ -161,6 +202,10 @@ fn main() -> ExitCode {
     };
 
     let rule_bits = fill_befores(&rules_to_bitset(&data.rules));
+
+    if !check_page_ordering(&rule_bits) {
+        return ExitCode::FAILURE;
+    }
 
     let mut part1 = 0;
 
