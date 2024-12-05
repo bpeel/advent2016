@@ -272,7 +272,7 @@ fn main() -> ExitCode {
             },
             Ok(()) => {
                 println!("update {}: OK", update_num + 1);
-                part1 += update[update.len() / 2];
+                part1 += update[update.len() / 2] as u32;
             }
         }
     }
