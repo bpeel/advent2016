@@ -16,6 +16,7 @@ struct Data {
 enum ValidationError {
     NoRule(u8, u8),
     Cycle(u8),
+    BreaksRule(u8, u8),
 }
 
 impl fmt::Display for ValidationError {
@@ -34,6 +35,14 @@ impl fmt::Display for ValidationError {
                     f,
                     "page {} is before itself",
                     page,
+                )
+            },
+            ValidationError::BreaksRule(before, after) => {
+                write!(
+                    f,
+                    "breaks rule that {} must be before {}",
+                    before,
+                    after,
                 )
             },
         }
@@ -171,16 +180,14 @@ fn rule_bits_for_update(rules: &[Rule], update: &[u8]) -> RuleBits {
         |mask, rule| mask | 1u128 << rule
     });
 
-    let rule_bits = rules_to_bitset(
+    rules_to_bitset(
         rules.iter()
         // Filter out rules that don’t concern the pages in the update
             .filter(|rule| {
                 page_mask & (1u128 << rule.before) != 0 &&
                     page_mask & (1u128 << rule.after) != 0
             })
-    );
-
-    fill_befores(&rule_bits)
+    )
 }
 
 fn debug_update(
@@ -232,29 +239,16 @@ fn validate_update(
     rules: &[Rule],
     update: &[u8],
 ) -> Result<(), ValidationError> {
-    let Some(&(mut next)) = update.last()
-    else {
-        return Ok(());
-    };
-
     let rule_bits = rule_bits_for_update(rules, update);
 
-    for (&rule, &bits) in rule_bits.iter() {
-        if bits & (1u128 << rule) != 0 {
-            return Err(ValidationError::Cycle(rule));
+    for (pos, &after) in update.iter().enumerate() {
+        for &before in update[0..pos].iter() {
+            if let Some(rule_mask) = rule_bits.get(&after) {
+                if rule_mask & (1u128 << before) != 0 {
+                    return Err(ValidationError::BreaksRule(after, before));
+                }
+            }
         }
-    }
-
-    for &page in update.iter().rev().skip(1) {
-        rule_bits
-            .get(&page)
-            .and_then(|bits| (bits & (1u128 << next) != 0).then_some(()))
-            .ok_or_else(|| {
-                debug_update(&rule_bits, update);
-                ValidationError::NoRule(page, next)
-            })?;
-
-        next = page;
     }
 
     Ok(())
