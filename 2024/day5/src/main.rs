@@ -209,6 +209,23 @@ fn debug_update(
     }
 
     println!();
+
+    let mut afters = 0u128;
+
+    for page in correct_order.iter().rev() {
+        let rule_afters = rule_bits.get(page).cloned().unwrap_or(0);
+
+        if rule_afters != afters {
+            println!(
+                "pages after {} are {:x} but rules say {:x}",
+                page,
+                afters,
+                rule_afters,
+            );
+        }
+
+        afters |= 1u128 << page;
+    }
 }
 
 fn validate_update(
