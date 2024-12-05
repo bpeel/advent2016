@@ -109,6 +109,7 @@ fn all_befores(rule_bits: &RuleBits, top_rule: u8) -> u128 {
 
     while let Some(rule_num) = stack.pop() {
         if let Some(&(mut bits)) = rule_bits.get(&rule_num) {
+            bits &= !mask;
             mask |= bits;
 
             while bits != 0 {
