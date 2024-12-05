@@ -101,6 +101,13 @@ fn read_updates<I>(lines: &mut I) -> Result<Vec<Vec<u8>>, String>
             })?);
         }
 
+        if pages.len() & 1 == 0 {
+            return Err(format!(
+                "line {}: update has no middle page",
+                line_num + 1,
+            ));
+        }
+
         updates.push(pages);
     }
 
