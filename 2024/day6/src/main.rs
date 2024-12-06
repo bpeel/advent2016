@@ -5,7 +5,6 @@ mod walker;
 
 use util::Grid;
 use walker::QuadDirection;
-use walker::Direction;
 
 fn find_start(grid: &Grid) -> Option<(i32, i32)> {
     grid.values.iter()
