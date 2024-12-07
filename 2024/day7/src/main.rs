@@ -68,9 +68,8 @@ fn read_equations<I>(lines: I) -> Result<Vec<Equation>, String>
 
 fn find_solution(equation: &Equation) -> Option<u32> {
     let n_combinations = 1u32 << (equation.numbers.len() - 1);
-    let mut chosen_operators = 0;
 
-    'combination: while chosen_operators < n_combinations {
+    for chosen_operators in 0..n_combinations {
         let mut result = equation.numbers[0];
 
         for (i, &number) in equation.numbers[1..].iter().enumerate() {
@@ -79,24 +78,11 @@ fn find_solution(equation: &Equation) -> Option<u32> {
             } else {
                 result *= number;
             }
-
-            // If we go over the target then the rest of the numbers
-            // can only possibly make the number even bigger so
-            // there’s no point in trying any more combinations with
-            // this operator at this point.
-            if result > equation.test_value {
-                chosen_operators = (chosen_operators &
-                                    ((u32::MAX) << i)) +
-                    (1u32 << i);
-                continue 'combination;
-            }
         }
 
         if result == equation.test_value {
             return Some(chosen_operators);
         }
-
-        chosen_operators += 1;
     }
 
     None
