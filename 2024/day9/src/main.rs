@@ -91,6 +91,71 @@ fn compact(disk: &mut Disk) {
     }
 }
 
+struct Space {
+    position: u32,
+    length: u32,
+}
+
+struct SpacedDisk {
+    spaces: Vec<Space>,
+    files: Vec<Space>,
+}
+
+impl FromStr for SpacedDisk {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<SpacedDisk, String> {
+        let mut spaces = Vec::new();
+        let mut files = Vec::new();
+        let mut is_file = true;
+        let mut position = 0;
+
+        for ch in s.chars() {
+            let Some(length) = ch.to_digit(10)
+            else {
+                return Err(format!("invalid character: {}", ch));
+            };
+
+            let space = Space { position, length };
+
+            if is_file {
+                files.push(space);
+            } else {
+                spaces.push(space);
+            }
+
+            position += length;
+            is_file = !is_file;
+        }
+
+        Ok(SpacedDisk {
+            spaces,
+            files,
+        })
+    }
+}
+
+fn compact_spaced_disk(disk: &mut SpacedDisk) {
+    for file in disk.files.iter_mut().rev() {
+        for space in disk.spaces.iter_mut() {
+            if space.length >= file.length {
+                file.position = space.position;
+                space.position += file.length;
+                space.length -= file.length;
+                break;
+            }
+        }
+    }
+}
+
+fn calculate_spaced_checksum(disk: &SpacedDisk) -> u64 {
+    disk.files.iter().enumerate().map(|(file_id, file)| {
+        (file.position..file.position + file.length).map(|position| {
+            position as u64 * file_id as u64
+        }).sum::<u64>()
+    }).sum::<u64>()
+}
+
 fn main() -> ExitCode {
     for (line_num, result) in std::io::stdin().lines().enumerate() {
         let line = match result {
@@ -112,6 +177,18 @@ fn main() -> ExitCode {
         compact(&mut disk);
 
         println!("Part 1: {}", calculate_checksum(&disk));
+
+        let mut disk = match line.parse::<SpacedDisk>() {
+            Ok(disk) => disk,
+            Err(e) => {
+                eprintln!("{}: {}", line_num + 1, e);
+                return ExitCode::FAILURE;
+            },
+        };
+
+        compact_spaced_disk(&mut disk);
+
+        println!("Part 2: {}", calculate_spaced_checksum(&disk));
     }
 
     ExitCode::SUCCESS
