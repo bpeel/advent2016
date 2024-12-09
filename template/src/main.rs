@@ -2,6 +2,7 @@ mod util;
 mod walker;
 
 use std::io::BufRead;
+use std::process::ExitCode;
 
 #[derive(Debug, Clone)]
 struct Item {
@@ -36,7 +37,7 @@ fn read_items<I>(lines: &mut I) -> Result<Vec<Item>, String>
     Ok(items)
 }
 
-fn main() -> std::process::ExitCode {
+fn main() -> ExitCode {
     let grid;
     let items;
 
@@ -46,7 +47,7 @@ fn main() -> std::process::ExitCode {
         grid = match util::Grid::load(&mut input) {
             Err(e) => {
                 eprintln!("{}", e);
-                return std::process::ExitCode::FAILURE;
+                return ExitCode::FAILURE;
             },
             Ok(grid) => grid,
         };
@@ -54,7 +55,7 @@ fn main() -> std::process::ExitCode {
         items = match read_items(&mut input.lines()) {
             Err(e) => {
                 eprintln!("{}", e);
-                return std::process::ExitCode::FAILURE;
+                return ExitCode::FAILURE;
             },
             Ok(items) => items,
         };
@@ -75,5 +76,5 @@ fn main() -> std::process::ExitCode {
         }
     });
 
-    std::process::ExitCode::SUCCESS
+    ExitCode::SUCCESS
 }
