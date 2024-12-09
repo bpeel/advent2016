@@ -225,11 +225,8 @@ fn move_file(disk: &mut SpacedDisk, file_index: u16) {
 }
 
 fn compact_spaced_disk(disk: &mut SpacedDisk) {
-    println!("{}", disk);
-
     for file_index in (1..disk.files.len()).rev() {
         move_file(disk, file_index as u16);
-        println!("{}", disk);
     }
 }
 
