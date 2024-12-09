@@ -131,6 +131,30 @@ fn part1(games: &[Game]) -> u32 {
     }).sum::<u32>()
 }
 
+fn minimum_reveal(game: &Game) -> Reveal {
+    let initial = Reveal {
+        red: 0,
+        green: 0,
+        blue: 0,
+    };
+
+    game.reveals.iter().fold(initial, |count, reveal| {
+        Reveal {
+            red: count.red.max(reveal.red),
+            green: count.green.max(reveal.green),
+            blue: count.blue.max(reveal.blue),
+        }
+    })
+}
+
+fn part2(games: &[Game]) -> u32 {
+    games.iter().map(|game| {
+        let minimum = minimum_reveal(game);
+
+        minimum.red as u32 * minimum.green as u32 * minimum.blue as u32
+    }).sum::<u32>()
+}
+
 fn main() -> ExitCode {
     let games = match read_games(std::io::stdin().lines()) {
         Ok(games) => games,
@@ -141,6 +165,7 @@ fn main() -> ExitCode {
     };
 
     println!("Part 1: {}", part1(&games));
+    println!("Part 2: {}", part2(&games));
 
     ExitCode::SUCCESS
 }
