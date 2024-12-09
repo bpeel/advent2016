@@ -91,69 +91,218 @@ fn compact(disk: &mut Disk) {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SpaceType {
+    File(u16),
+    Free,
+}
+
+#[derive(Clone, Copy)]
 struct Space {
-    position: u32,
+    space_type: SpaceType,
     length: u32,
+    next: u16,
+    prev: u16,
 }
 
 struct SpacedDisk {
     spaces: Vec<Space>,
-    files: Vec<Space>,
+    file_indices: Vec<u16>,
 }
 
 impl FromStr for SpacedDisk {
     type Err = String;
 
     fn from_str(s: &str) -> Result<SpacedDisk, String> {
-        let mut spaces = Vec::new();
-        let mut files = Vec::new();
-        let mut is_file = true;
-        let mut position = 0;
+        // First entry in the array is the header link
+        let mut spaces = vec![Space {
+            space_type: SpaceType::Free,
+            length: 0,
+            next: 1,
+            prev: 0,
+        }];
+        let mut file_indices = Vec::new();
 
-        for ch in s.chars() {
+        for (i, ch) in s.chars().enumerate() {
             let Some(length) = ch.to_digit(10)
             else {
                 return Err(format!("invalid character: {}", ch));
             };
 
-            let space = Space { position, length };
+            let space_type = if i & 1 == 0 {
+                let Ok(file_id) = FileId::try_from(i / 2)
+                else {
+                    return Err("too many files".to_string());
+                };
 
-            if is_file {
-                files.push(space);
+                file_indices.push(spaces.len() as u16);
+
+                SpaceType::File(file_id)
             } else {
-                spaces.push(space);
-            }
+                SpaceType::Free
+            };
 
-            position += length;
-            is_file = !is_file;
+            spaces.push(Space {
+                space_type,
+                length,
+                next: i as u16 + 2,
+                prev: i as u16,
+            });
+        }
+
+        spaces.last_mut().unwrap().next = 0;
+
+        let len = spaces.len();
+
+        if len > 0 {
+            spaces[0].next = 1;
+            spaces[0].prev = len as u16 - 1;
         }
 
         Ok(SpacedDisk {
             spaces,
-            files,
+            file_indices,
         })
     }
 }
 
-fn compact_spaced_disk(disk: &mut SpacedDisk) {
-    for file in disk.files.iter_mut().rev() {
-        for space in disk.spaces.iter_mut() {
-            if space.length >= file.length {
-                file.position = space.position;
-                space.position += file.length;
-                space.length -= file.length;
-                break;
+impl fmt::Display for SpacedDisk {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut index = self.spaces[0].next;
+
+        while index != 0 {
+            let space = self.spaces[index as usize];
+
+            let ch = match space.space_type {
+                SpaceType::File(file_id) => {
+                    if file_id > 9 {
+                        'x'
+                    } else {
+                        (file_id as u8 + b'0') as char
+                    }
+                },
+                SpaceType::Free => '.',
+            };
+
+            for _ in 0..space.length {
+                write!(f, "{}", ch)?;
             }
+
+            index = space.next;
         }
+
+        Ok(())
     }
 }
 
+fn unlink_node(disk: &mut SpacedDisk, pos: u16) {
+    let next = disk.spaces[pos as usize].next;
+    let prev = disk.spaces[pos as usize].prev;
+
+    disk.spaces[prev as usize].next = next;
+    disk.spaces[next as usize].prev = prev;
+}
+
+fn unlink_file(disk: &mut SpacedDisk, pos: u16) {
+    let space = disk.spaces[pos as usize];
+
+    unlink_node(disk, pos);
+
+    if space.prev != 0 &&
+        disk.spaces[space.prev as usize].space_type == SpaceType::Free
+    {
+        disk.spaces[space.prev as usize].length += space.length;
+
+        if space.next != 0 &&
+            disk.spaces[space.next as usize].space_type == SpaceType::Free
+        {
+            disk.spaces[space.prev as usize].length +=
+                disk.spaces[space.next as usize].length;
+            unlink_node(disk, space.next);
+        }
+    } else if space.next != 0 &&
+        disk.spaces[space.next as usize].space_type == SpaceType::Free
+    {
+        disk.spaces[space.next as usize].length += space.length;
+    } else {
+        let new_node = disk.spaces.len() as u16;
+
+        disk.spaces.push(Space {
+            space_type: SpaceType::Free,
+            length: space.length,
+            next: 0,
+            prev: 0,
+        });
+
+        insert_node(disk, space.prev, new_node);
+    }
+}
+
+fn insert_node(disk: &mut SpacedDisk, before: u16, node: u16) {
+    let next = disk.spaces[before as usize].next;
+    disk.spaces[node as usize].prev = before;
+    disk.spaces[node as usize].next = next;
+    disk.spaces[before as usize].next = node;
+    disk.spaces[next as usize].prev = node;
+}
+
+fn move_file(disk: &mut SpacedDisk, file_index: u16) {
+    let mut space_index = disk.spaces[0].next;
+    let file_length = disk.spaces[file_index as usize].length;
+
+    while space_index != 0 && space_index != file_index {
+        let space = disk.spaces[space_index as usize];
+
+        if space.space_type == SpaceType::Free && space.length >= file_length {
+            unlink_file(disk, file_index);
+
+            insert_node(disk, space.prev, file_index);
+
+            if space.length == file_length {
+                unlink_node(disk, space_index);
+            } else {
+                disk.spaces[space_index as usize].length -= file_length;
+            }
+
+            break;
+        }
+
+        space_index = space.next;
+    }
+}
+
+fn compact_spaced_disk(disk: &mut SpacedDisk) {
+    let file_indices = std::mem::take(&mut disk.file_indices);
+
+    println!("{}", disk);
+
+    for &file_index in file_indices.iter().rev() {
+        move_file(disk, file_index);
+        println!("{}", disk);
+    }
+
+    disk.file_indices = file_indices;
+}
+
 fn calculate_spaced_checksum(disk: &SpacedDisk) -> u64 {
-    disk.files.iter().enumerate().map(|(file_id, file)| {
-        (file.position..file.position + file.length).map(|position| {
-            position as u64 * file_id as u64
-        }).sum::<u64>()
-    }).sum::<u64>()
+    let mut sum = 0u64;
+    let mut position = 0u64;
+    let mut space_index = disk.spaces[0].next;
+
+    while space_index != 0 {
+        let space = &disk.spaces[space_index as usize];
+
+        if let SpaceType::File(file_id) = space.space_type {
+            sum += (position..position + space.length as u64).map(|pos| {
+                file_id as u64 * pos
+            }).sum::<u64>();
+        }
+
+        position += space.length as u64;
+        space_index = space.next;
+    }
+
+    sum
 }
 
 fn main() -> ExitCode {
