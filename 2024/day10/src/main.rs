@@ -42,13 +42,18 @@ fn find_summits(grid: &Grid, trailhead: (i32, i32)) -> u32 {
     n_summits
 }
 
-fn part1(grid: &Grid) -> u32 {
+fn score_grid<F>(
+    grid: &Grid,
+    mut rate_trailhead: F,
+) -> u32
+    where F: FnMut(&Grid, (i32, i32)) -> u32
+{
     (0..grid.width).cartesian_product(0..grid.height)
         .filter_map(|(x, y)| {
             let pos = (x as i32, y as i32);
 
             grid.get(pos).and_then(|height| {
-                (height == b'0').then(|| find_summits(grid, pos))
+                (height == b'0').then(|| rate_trailhead(grid, pos))
             })
         })
         .sum::<u32>()
@@ -63,7 +68,7 @@ fn main() -> ExitCode {
         Ok(grid) => grid,
     };
 
-    println!("Part 1: {}", part1(&grid));
+    println!("Part 1: {}", score_grid(&grid, find_summits));
 
     ExitCode::SUCCESS
 }
