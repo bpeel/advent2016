@@ -3,6 +3,7 @@ mod walker;
 
 use std::io::BufRead;
 use std::process::ExitCode;
+use util::Grid;
 
 #[derive(Debug, Clone)]
 struct Item {
@@ -44,7 +45,7 @@ fn main() -> ExitCode {
     {
         let mut input = std::io::stdin().lock();
 
-        grid = match util::Grid::load(&mut input) {
+        grid = match Grid::load(&mut input) {
             Err(e) => {
                 eprintln!("{}", e);
                 return ExitCode::FAILURE;
