@@ -42,6 +42,39 @@ fn find_summits(grid: &Grid, trailhead: (i32, i32)) -> u32 {
     n_summits
 }
 
+fn count_trails(grid: &Grid, trailhead: (i32, i32)) -> u32 {
+    let mut n_trails = 0;
+
+    walker::walk::<walker::QuadDirection, _>(trailhead, |path, pos| {
+        let Some(height) = grid.get(pos)
+        else {
+            return VisitResult::Backtrack;
+        };
+
+        if let Some(last_move) = path.last() {
+            let last_height = grid.get(last_move.1).unwrap();
+
+            if height != last_height + 1 {
+                return VisitResult::Backtrack;
+            }
+        }
+
+        // Don’t allow loops in the trail
+        if path.iter().find(|(_, old_pos)| pos == *old_pos).is_some() {
+            return VisitResult::Backtrack;
+        }
+
+        if height == b'9' {
+            n_trails += 1;
+            VisitResult::Backtrack
+        } else {
+            VisitResult::Continue
+        }
+    });
+
+    n_trails
+}
+
 fn score_grid<F>(
     grid: &Grid,
     mut rate_trailhead: F,
@@ -69,6 +102,7 @@ fn main() -> ExitCode {
     };
 
     println!("Part 1: {}", score_grid(&grid, find_summits));
+    println!("Part 2: {}", score_grid(&grid, count_trails));
 
     ExitCode::SUCCESS
 }
