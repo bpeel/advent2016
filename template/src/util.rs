@@ -136,12 +136,12 @@ pub fn read_list<T>() -> Result<Vec<T>, Error>
     std::io::stdin().read_line(&mut contents)?;
 
     for part in contents.trim_end().split(",") {
-        let part = match part.parse::<T>() {
-            Err(_) => return Err(Error::new(std::io::ErrorKind::Other,
-                                            format!("invalid value: {}",
-                                                    part))),
-            Ok(n) => n,
-        };
+        let part = part.parse::<T>().map_err(|_| {
+            Error::new(
+                std::io::ErrorKind::Other,
+                format!("invalid value: {}", part),
+            )
+        })?;
 
         result.push(part);
     }
