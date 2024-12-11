@@ -3,12 +3,12 @@ use std::ffi::OsString;
 use std::fmt;
 
 struct Stones {
-    stones: Vec<u32>,
-    temp_buf: Vec<u32>,
+    stones: Vec<u64>,
+    temp_buf: Vec<u64>,
 }
 
 impl Stones {
-    fn new(stones: Vec<u32>) -> Stones {
+    fn new(stones: Vec<u64>) -> Stones {
         Stones {
             stones,
             temp_buf: Vec::new(),
@@ -25,7 +25,7 @@ impl Stones {
                 let n_digits = stone.ilog10() + 1;
 
                 if n_digits & 1 == 0 {
-                    let divisor = 10u32.pow(n_digits / 2);
+                    let divisor = 10u64.pow(n_digits / 2);
                     self.temp_buf.push(stone / divisor);
                     self.temp_buf.push(stone % divisor);
                 } else {
@@ -54,7 +54,7 @@ impl fmt::Display for Stones {
 
 fn parse_stones<'a, I>(
     args: I,
-) -> Result<Vec<u32>, String>
+) -> Result<Vec<u64>, String>
     where I: IntoIterator<Item = OsString>
 {
     let mut stones = Vec::new();
@@ -65,7 +65,7 @@ fn parse_stones<'a, I>(
             return Err(format!("bad number: {}", arg.to_string_lossy()));
         };
 
-        match arg_str.parse::<u32>() {
+        match arg_str.parse::<u64>() {
             Ok(number) => stones.push(number),
             Err(_) => return Err(format!("bad number: {}", arg_str)),
         };
