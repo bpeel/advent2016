@@ -1,54 +1,56 @@
 use std::process::ExitCode;
 use std::ffi::OsString;
-use std::fmt;
+use std::collections::HashMap;
 
 struct Stones {
-    stones: Vec<u64>,
-    temp_buf: Vec<u64>,
+    stones: HashMap<u64, u64>,
+    temp_buf: HashMap<u64, u64>,
+}
+
+fn add_stones(stones: &mut HashMap<u64, u64>, stone: u64, count: u64) {
+    stones.entry(stone)
+        .and_modify(|old_count| *old_count += count)
+        .or_insert(count);
 }
 
 impl Stones {
-    fn new(stones: Vec<u64>) -> Stones {
+    fn new<I: IntoIterator<Item = u64>>(stone_numbers: I) -> Stones {
+        let mut stones = HashMap::new();
+
+        for stone in stone_numbers {
+            add_stones(&mut stones, stone, 1);
+        }
+
         Stones {
             stones,
-            temp_buf: Vec::new(),
+            temp_buf: HashMap::new(),
         }
     }
 
     fn step(&mut self) {
         self.temp_buf.clear();
 
-        for &stone in self.stones.iter() {
+        for (&stone, &count) in self.stones.iter() {
             if stone == 0 {
-                self.temp_buf.push(1);
+                add_stones(&mut self.temp_buf, 1, count);
             } else {
                 let n_digits = stone.ilog10() + 1;
 
                 if n_digits & 1 == 0 {
                     let divisor = 10u64.pow(n_digits / 2);
-                    self.temp_buf.push(stone / divisor);
-                    self.temp_buf.push(stone % divisor);
+                    add_stones(&mut self.temp_buf, stone / divisor, count);
+                    add_stones(&mut self.temp_buf, stone % divisor, count);
                 } else {
-                    self.temp_buf.push(stone * 2024);
+                    add_stones(&mut self.temp_buf, stone * 2024, count);
                 }
             }
         }
 
         std::mem::swap(&mut self.temp_buf, &mut self.stones);
     }
-}
 
-impl fmt::Display for Stones {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for (i, &stone) in self.stones.iter().enumerate() {
-            if i > 0 {
-                write!(f, " ")?;
-            }
-
-            write!(f, "{}", stone)?;
-        }
-
-        Ok(())
+    fn len(&self) -> u64 {
+        self.stones.values().sum::<u64>()
     }
 }
 
@@ -83,11 +85,15 @@ fn main() -> ExitCode {
         },
     };
 
-    for _ in 0..25 {
+    for i in 0..75 {
+        if i == 25 {
+            println!("Part 1: {}", stones.len());
+        }
+
         stones.step();
     }
 
-    println!("Part 1: {}", stones.stones.len());
+    println!("Part 2: {}", stones.len());
 
     ExitCode::SUCCESS
 }
