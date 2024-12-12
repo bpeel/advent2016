@@ -68,6 +68,19 @@ fn fill_region(grid: &Grid, pos: usize) -> BitSet {
     region
 }
 
+fn perimeter(grid_width: usize, region: &BitSet) -> u32 {
+    region.bits().map(|pos| {
+	let x = pos % grid_width;
+
+	[
+	    x == 0 || !region.contains(pos - 1),
+	    x + 1 >= grid_width || !region.contains(pos + 1),
+	    pos < grid_width || !region.contains(pos - grid_width),
+	    !region.contains(pos + grid_width),
+	].into_iter().map(|b| b as u32).sum::<u32>()
+    }).sum::<u32>()
+}
+
 fn main() -> ExitCode {
     let grid = match Grid::load(&mut std::io::stdin().lock()) {
         Err(e) => {
@@ -77,11 +90,14 @@ fn main() -> ExitCode {
         Ok(grid) => grid,
     };
 
-    println!("{}", grid);
+    let part1 = Regions::new(&grid)
+	.map(|region| {
+	    let area = region.len();
+	    let perimeter = perimeter(grid.width, &region);
+	    area * perimeter as usize
+	}).sum::<usize>();
 
-    for region in Regions::new(&grid) {
-	println!("{} {}", grid.values[region.bits().next().unwrap()] as char, region.len());
-    }
+    println!("Part 1: {}", part1);
 
     ExitCode::SUCCESS
 }
