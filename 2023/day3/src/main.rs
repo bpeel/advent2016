@@ -46,6 +46,14 @@ struct Number {
     len: i32,
 }
 
+impl Number {
+    fn touches(&self, x: i32, y: i32) -> bool {
+	y.abs_diff(self.y) <= 1 &&
+	    x >= self.x - 1 &&
+	    x <= self.x + self.len
+    }	
+}
+
 fn has_symbol(
     grid: &Grid,
     number: &Number,
@@ -61,6 +69,35 @@ fn has_symbol(
     }
 
     false
+}
+
+fn sum_gears(
+    grid: &Grid,
+    numbers: &[Number],
+) -> u64 {
+    grid.values.iter().enumerate().filter_map(|(pos, &ch)| {
+	if ch == b'*' {
+	    let x = (pos % grid.width) as i32;
+	    let y = (pos / grid.width) as i32;
+	    let mut touchers = numbers.iter().filter(|num| {
+		num.touches(x, y)
+	    });
+
+	    let Some(a) = touchers.next()
+	    else {
+		return None;
+	    };
+
+	    let Some(b) = touchers.next()
+	    else {
+		return None;
+	    };
+	    
+	    touchers.next().is_none().then(|| a.value as u64 * b.value as u64)
+	} else {
+	    None
+	}
+    }).sum::<u64>()
 }
 
 fn main() -> ExitCode {
@@ -90,6 +127,7 @@ fn main() -> ExitCode {
 	.sum::<u64>();
 
     println!("Part 1: {}", part1);
+    println!("Part 2: {}", sum_gears(&grid, &numbers));
 
     ExitCode::SUCCESS
 }
