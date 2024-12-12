@@ -68,15 +68,49 @@ fn fill_region(grid: &Grid, pos: usize) -> BitSet {
     region
 }
 
+fn panels(
+    grid_width: usize,
+    region: &BitSet,
+    pos: usize,
+) -> [bool ; 4] {
+    let x = pos % grid_width;
+
+    [
+	x == 0 || !region.contains(pos - 1),
+	x + 1 >= grid_width || !region.contains(pos + 1),
+	pos < grid_width || !region.contains(pos - grid_width),
+	!region.contains(pos + grid_width),
+    ]
+}
+
 fn perimeter(grid_width: usize, region: &BitSet) -> u32 {
     region.bits().map(|pos| {
+	panels(grid_width, region, pos)
+	    .into_iter()
+	    .map(|b| b as u32).sum::<u32>()
+    }).sum::<u32>()
+}
+
+fn count_sides(grid_width: usize, region: &BitSet) -> u32 {
+    region.bits().map(|pos| {
 	let x = pos % grid_width;
+	let this = panels(grid_width, region, pos);
+	let up = if pos < grid_width || !region.contains(pos - grid_width) {
+	    Default::default()
+	} else {
+	    panels(grid_width, region, pos - grid_width)
+	};
+	let left = if x <= 0 || !region.contains(pos - 1) {
+	    Default::default()
+	} else {
+	    panels(grid_width, region, pos - 1)
+	};
 
 	[
-	    x == 0 || !region.contains(pos - 1),
-	    x + 1 >= grid_width || !region.contains(pos + 1),
-	    pos < grid_width || !region.contains(pos - grid_width),
-	    !region.contains(pos + grid_width),
+	    this[0] && !up[0],
+	    this[1] && !up[1],
+	    this[2] && !left[2],
+	    this[3] && !left[3],
 	].into_iter().map(|b| b as u32).sum::<u32>()
     }).sum::<u32>()
 }
@@ -90,14 +124,20 @@ fn main() -> ExitCode {
         Ok(grid) => grid,
     };
 
-    let part1 = Regions::new(&grid)
+    let (part1, part2) = Regions::new(&grid)
 	.map(|region| {
 	    let area = region.len();
 	    let perimeter = perimeter(grid.width, &region);
-	    area * perimeter as usize
-	}).sum::<usize>();
+	    let sides = count_sides(grid.width, &region);
+
+	    (
+		area * perimeter as usize,
+		area * sides as usize,
+	    )
+	}).fold((0, 0), |(a1, a2), (b1, b2)| (a1 + b1, a2 + b2));
 
     println!("Part 1: {}", part1);
+    println!("Part 2: {}", part2);
 
     ExitCode::SUCCESS
 }
