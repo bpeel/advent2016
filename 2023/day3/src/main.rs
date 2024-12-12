@@ -39,26 +39,22 @@ impl<'a> Numbers<'a> {
     }
 }
 
-fn has_symbol<I>(
+struct Number {
+    value: u32,
+    y: i32,
+    x: i32,
+    len: i32,
+}
+
+fn has_symbol(
     grid: &Grid,
-    positions: I,
-) -> bool
-where I: Iterator<Item = usize>
-{
-    for pos in positions {
-	let x = (pos % grid.width) as i32;
-	let y = (pos / grid.width) as i32;
-
-	for ox in -1..=1 {
-	    for oy in -1..=1 {
-		if ox == 0 && oy == 0 {
-		    continue;
-		}
-
-		if let Some(ch) = grid.get((x + ox, y + oy)) {
-		    if !ch.is_ascii_digit() && ch != b'.' {
-			return true;
-		    }
+    number: &Number,
+) -> bool {
+    for y in number.y - 1..=number.y + 1 {
+	for x in number.x - 1..=number.x + number.len {
+	    if let Some(ch) = grid.get((x, y)) {
+		if !ch.is_ascii_digit() && ch != b'.' {
+		    return true;
 		}
 	    }
 	}
@@ -76,9 +72,21 @@ fn main() -> ExitCode {
         Ok(grid) => grid,
     };
 
-    let part1 = Numbers::new(&grid)
-	.filter(|&(pos, slice)| has_symbol(&grid, pos..pos + slice.len()))
-	.map(|(_, slice)| std::str::from_utf8(slice).unwrap().parse::<u64>().unwrap())
+    let numbers = Numbers::new(&grid)
+	.map(|(pos, slice)| {
+	    Number {
+		value: std::str::from_utf8(slice).unwrap()
+		    .parse::<u32>().unwrap(),
+		x: (pos % grid.width) as i32,
+		y: (pos / grid.width) as i32,
+		len: slice.len() as i32,
+	    }
+	})
+	.collect::<Vec<_>>();
+
+    let part1 = numbers.iter()
+	.filter(|&num| has_symbol(&grid, num))
+	.map(|num| num.value as u64)
 	.sum::<u64>();
 
     println!("Part 1: {}", part1);
