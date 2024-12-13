@@ -12,9 +12,9 @@ static CLAW_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
 
 #[derive(Clone, Debug)]
 struct ClawMachine {
-    a: (u32, u32),
-    b: (u32, u32),
-    prize: (u32, u32),
+    a: (u64, u64),
+    b: (u64, u64),
+    prize: (u64, u64),
 }
 
 impl FromStr for ClawMachine {
@@ -26,10 +26,10 @@ impl FromStr for ClawMachine {
             return Err("bad claw machine".to_string());
         };
 
-        let mut parts: [u32; 6] = Default::default();
+        let mut parts: [u64; 6] = Default::default();
 
         for (i, p) in parts.iter_mut().enumerate() {
-            match captures[i + 1].parse::<u32>() {
+            match captures[i + 1].parse::<u64>() {
                 Ok(v) => *p = v,
                 Err(_) => {
                     return Err("bad number".to_string());
@@ -48,9 +48,9 @@ impl FromStr for ClawMachine {
 impl ClawMachine {
     fn prioritise(
         &self,
-        best: (u32, u32),
-        worst: (u32, u32)
-    ) -> Option<(u32, u32)> {
+        best: (u64, u64),
+        worst: (u64, u64)
+    ) -> Option<(u64, u64)> {
         let max_best = (self.prize.0 / best.0)
             .min(self.prize.1 / best.1);
 
@@ -72,7 +72,7 @@ impl ClawMachine {
         None
     }
 
-    fn best_strategy(&self) -> Option<(u32, u32)> {
+    fn best_strategy(&self) -> Option<(u64, u64)> {
         // One of the buttons has a better cost/distance ratio, so
         // prioritise that one
         if self.a.0 + self.a.1 > (self.b.0 + self.b.1) * 3 {
@@ -97,13 +97,13 @@ fn read_claw_machines() -> Result<Vec<ClawMachine>, String> {
     Ok(machines)
 }
 
-fn best_cost(machines: &[ClawMachine]) -> u32 {
+fn best_cost(machines: &[ClawMachine]) -> u64 {
     machines.iter().filter_map(|machine| {
         machine.best_strategy().map(|(a, b)| {
             println!("{},{} for {:?}", a, b, machine);
             a * 3 + b
         })
-    }).sum::<u32>()
+    }).sum::<u64>()
 }
 
 fn main() -> ExitCode {
