@@ -97,6 +97,15 @@ fn read_claw_machines() -> Result<Vec<ClawMachine>, String> {
     Ok(machines)
 }
 
+fn best_cost(machines: &[ClawMachine]) -> u32 {
+    machines.iter().filter_map(|machine| {
+        machine.best_strategy().map(|(a, b)| {
+            println!("{},{} for {:?}", a, b, machine);
+            a * 3 + b
+        })
+    }).sum::<u32>()
+}
+
 fn main() -> ExitCode {
     let machines = match read_claw_machines() {
         Ok(m) => m,
@@ -106,14 +115,7 @@ fn main() -> ExitCode {
         },
     };
 
-    let part1 = machines.iter().filter_map(|machine| {
-        machine.best_strategy().map(|(a, b)| {
-            println!("{},{} for {:?}", a, b, machine);
-            a * 3 + b
-        })
-    }).sum::<u32>();
-
-    println!("Part 1: {}", part1);
+    println!("Part 1: {}", best_cost(&machines));
 
     ExitCode::SUCCESS
 }
