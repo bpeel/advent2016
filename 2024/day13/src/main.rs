@@ -117,5 +117,13 @@ fn main() -> ExitCode {
 
     println!("Part 1: {}", best_cost(&machines));
 
+    let machines = machines.into_iter().map(|mut machine| {
+        machine.prize.0 += 10000000000000;
+        machine.prize.1 += 10000000000000;
+        machine
+    }).collect::<Vec<_>>();
+
+    println!("Part 2: {}", best_cost(&machines));
+
     ExitCode::SUCCESS
 }
