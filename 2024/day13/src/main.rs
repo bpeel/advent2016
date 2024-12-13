@@ -45,36 +45,42 @@ impl FromStr for ClawMachine {
     }
 }
 
-pub fn div_up(a: u32, b: u32) -> u32 {
-    (a + (b - 1)) / b
-}
-
 impl ClawMachine {
-    fn most_presses(&self) -> u32 {
-        div_up(self.prize.0, self.a.0)
-            .max(div_up(self.prize.0, self.b.0))
-            .max(div_up(self.prize.1, self.a.1))
-            .max(div_up(self.prize.1, self.b.1))
+    fn prioritise(
+        &self,
+        best: (u32, u32),
+        worst: (u32, u32)
+    ) -> Option<(u32, u32)> {
+        let max_best = (self.prize.0 / best.0)
+            .min(self.prize.1 / best.1);
+
+        for n_best in (0..=max_best).rev() {
+            let rem = (self.prize.0 - best.0 * n_best,
+                       self.prize.1 - best.1 * n_best);
+
+            if rem.0 % worst.0 != 0 {
+                continue;
+            }
+
+            let n_worst = rem.0 / worst.0;
+
+            if n_worst * worst.1 == rem.1 {
+                return Some((n_best, n_worst));
+            }
+        }
+
+        None
     }
 
     fn best_strategy(&self) -> Option<(u32, u32)> {
-        (0..self.most_presses())
-            .filter_map(|num_a| {
-                let after_a = (num_a * self.a.0, num_a * self.a.1);
-                let rem = (
-                    self.prize.0.checked_sub(after_a.0)?,
-                    self.prize.1.checked_sub(after_a.1)?,
-                );
-
-                let b0 = rem.0 / self.b.0;
-                let b1 = rem.1 / self.b.1;
-
-                (b0 == b1 &&
-                 rem.0 % self.b.0 == 0 &&
-                 rem.1 % self.b.1 == 0)
-                    .then(|| (num_a, b0))
-            })
-            .min_by_key(|(a, b)| a * 3 + b)
+        // One of the buttons has a better cost/distance ratio, so
+        // prioritise that one
+        if self.a.0 + self.a.1 > (self.b.0 + self.b.1) * 3 {
+            self.prioritise(self.a, self.b)
+        } else {
+            self.prioritise(self.b, self.a)
+                .map(|(b, a)| (a, b))
+        }
     }
 }
 
