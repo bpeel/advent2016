@@ -2,6 +2,7 @@ use std::process::ExitCode;
 use std::sync::LazyLock;
 use std::str::FromStr;
 use std::fmt;
+use std::collections::HashSet;
 
 static ROBOT_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"p=(\d+),(\d+) v=(-?\d+),(-?\d+)").unwrap()
@@ -170,6 +171,49 @@ fn part1(grid_size: (i32, i32), robots: &[Robot]) -> usize {
     quadrants.iter().product()
 }
 
+fn count_diagnols(grid_size: (i32, i32), grid: &HashSet<(i32, i32)>) -> usize {
+    let mut count = 0;
+
+    for y in 0..grid_size.1 - 1 {
+        for x in 0..grid_size.0 - 1 {
+            let bits = (grid.contains(&(x, y)) as u8) |
+            ((grid.contains(&(x + 1, y)) as u8) << 1) |
+            ((grid.contains(&(x, y + 1)) as u8) << 2) |
+            ((grid.contains(&(x + 1, y + 1)) as u8) << 3);
+
+            if bits == 9 || bits == 6 {
+                count += 1;
+            }
+        }
+    }
+
+    count
+}
+
+fn part2(mut scene: Scene) -> usize {
+    let mut grid = HashSet::new();
+    let min_diagonols = scene.grid_size.1 as usize * 6 / 4;
+
+    for i in 1.. {
+        scene.step(1);
+
+        grid.clear();
+
+        for robot in scene.robots.iter() {
+            grid.insert(robot.pos.clone());
+        }
+
+        let n_diagonols = count_diagnols(scene.grid_size, &grid);
+
+        if n_diagonols >= min_diagonols {
+            println!("{}", scene);
+            return i;
+        }
+    }
+
+    unreachable!("range expired!");
+}
+
 fn main() -> ExitCode {
     let grid_size = match grid_size() {
         Ok(g) => g,
@@ -189,15 +233,12 @@ fn main() -> ExitCode {
 
     println!("{:?}", part1(grid_size, &robots));
 
-    let mut scene = Scene {
+    let scene = Scene {
         grid_size,
         robots,
     };
 
-    for i in 0..10 {
-        scene.step(1);
-        println!("{}\n{}\n\n", i, scene);
-    }
+    println!("{}", part2(scene));
 
     ExitCode::SUCCESS
 }
