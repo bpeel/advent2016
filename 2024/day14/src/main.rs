@@ -171,17 +171,25 @@ fn part1(grid_size: (i32, i32), robots: &[Robot]) -> usize {
     quadrants.iter().product()
 }
 
-fn count_diagnols(grid_size: (i32, i32), grid: &HashSet<(i32, i32)>) -> usize {
+fn count_neighborly(
+    grid_size: (i32, i32),
+    grid: &HashSet<(i32, i32)>,
+) -> usize {
     let mut count = 0;
 
-    for y in 0..grid_size.1 - 1 {
-        for x in 0..grid_size.0 - 1 {
-            let bits = (grid.contains(&(x, y)) as u8) |
-            ((grid.contains(&(x + 1, y)) as u8) << 1) |
-            ((grid.contains(&(x, y + 1)) as u8) << 2) |
-            ((grid.contains(&(x + 1, y + 1)) as u8) << 3);
+    for y in 1..grid_size.1 - 1 {
+        for x in 1..grid_size.0 - 1 {
+            let mut neighbors = 0;
 
-            if bits == 9 || bits == 6 {
+            for y in y - 1..=y + 1 {
+                for x in x - 1..=x + 1 {
+                    if grid.contains(&(x, y)) {
+                        neighbors += 1;
+                    }
+                }
+            }
+
+            if neighbors >= 3 {
                 count += 1;
             }
         }
@@ -192,7 +200,7 @@ fn count_diagnols(grid_size: (i32, i32), grid: &HashSet<(i32, i32)>) -> usize {
 
 fn part2(mut scene: Scene) -> usize {
     let mut grid = HashSet::new();
-    let min_diagonols = scene.grid_size.1 as usize * 6 / 4;
+    let min_neighborly = scene.robots.len() * 3 / 4;
 
     for i in 1.. {
         scene.step(1);
@@ -203,9 +211,9 @@ fn part2(mut scene: Scene) -> usize {
             grid.insert(robot.pos.clone());
         }
 
-        let n_diagonols = count_diagnols(scene.grid_size, &grid);
+        let n_neighborly = count_neighborly(scene.grid_size, &grid);
 
-        if n_diagonols >= min_diagonols {
+        if n_neighborly >= min_neighborly {
             println!("{}", scene);
             return i;
         }
