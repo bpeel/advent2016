@@ -1,10 +1,74 @@
 use std::process::ExitCode;
 use std::sync::LazyLock;
 use std::str::FromStr;
+use std::fmt;
 
 static ROBOT_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"p=(\d+),(\d+) v=(-?\d+),(-?\d+)").unwrap()
 });
+
+static BLOCKS: [char; 16] = [
+    ' ',
+    '▘',
+    '▝',
+    '▀',
+    '▖',
+    '▌',
+    '▞',
+    '▛',
+    '▗',
+    '▚',
+    '▐',
+    '▜',
+    '▄',
+    '▙',
+    '▟',
+    '█',
+];
+
+struct Scene {
+    grid_size: (i32, i32),
+    robots: Vec<Robot>,
+}
+
+impl fmt::Display for Scene {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let text_w = (self.grid_size.0 as usize + 1) / 2;
+        let text_h = (self.grid_size.1 as usize + 1) / 2;
+
+        let mut grid = vec![0u8; text_w * text_h];
+
+        for robot in self.robots.iter() {
+            let pos = robot.pos.1 as usize / 2 * text_w +
+                robot.pos.0 as usize / 2;
+            let bit = (robot.pos.0 & 1) |
+                ((robot.pos.1 & 1) << 1);
+
+            grid[pos] |= 1 << bit;
+        }
+
+        for y in 0..text_h {
+            for x in 0..text_w {
+                let block = grid[y * text_w + x] as usize;
+                write!(f, "{}", BLOCKS[block])?;
+            }
+
+            if y + 1 < text_h {
+                write!(f, "\n")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl Scene {
+    fn step(&mut self, count: i32){
+        for robot in self.robots.iter_mut() {
+            robot.step(self.grid_size, count);
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 struct Robot {
@@ -124,6 +188,16 @@ fn main() -> ExitCode {
     };
 
     println!("{:?}", part1(grid_size, &robots));
+
+    let mut scene = Scene {
+        grid_size,
+        robots,
+    };
+
+    for i in 0..10 {
+        scene.step(1);
+        println!("{}\n{}\n\n", i, scene);
+    }
 
     ExitCode::SUCCESS
 }
