@@ -4,7 +4,7 @@ mod walker;
 use std::io::stdin;
 use std::process::ExitCode;
 use util::Grid;
-use walker::{Direction, QuadDirection};
+use walker::QuadDirection;
 
 struct Scene {
     pos: (i32, i32),
