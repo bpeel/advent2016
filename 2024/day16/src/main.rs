@@ -3,53 +3,43 @@ mod walker;
 
 use std::process::ExitCode;
 use util::Grid;
-use walker::{Direction, VisitResult};
+use walker::{QuadDirection, VisitResult};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
-type Pos = (u8, (i32, i32));
-
-#[derive(PartialEq, Eq, Clone, Copy)]
-enum TurnDirection {
-    Left,
-    Right,
-    Forward,
+fn dir_as_clock(dir: QuadDirection) -> u8 {
+    match dir {
+        QuadDirection::Left => 0,
+        QuadDirection::Down => 1,
+        QuadDirection::Right => 2,
+        QuadDirection::Up => 3,
+    }
 }
 
-impl Direction for TurnDirection {
-    type Pos = Pos;
+fn turn_difference(a: QuadDirection, b: QuadDirection) -> u8 {
+    (dir_as_clock(a) + 4 - dir_as_clock(b)) % 4
+}
 
-    fn first_direction() -> TurnDirection {
-        TurnDirection::Left
+fn score_path<I>(
+    dirs: I,
+) -> u32
+where I: IntoIterator<Item = QuadDirection>
+{
+    let mut last_dir = QuadDirection::Right;
+    let mut score = 0u32;
+
+    for dir in dirs {
+        score += match turn_difference(last_dir, dir) {
+            1 | 3 => 1001,
+            2 => 2001,
+            0 => 1,
+            _=> unreachable!("bad turn difference"),
+        };
+
+        last_dir = dir;
     }
 
-    fn next_direction(self) -> Option<TurnDirection> {
-        match self {
-            TurnDirection::Left => Some(TurnDirection::Right),
-            TurnDirection::Right => Some(TurnDirection::Forward),
-            TurnDirection::Forward => None,
-        }
-    }
-
-    fn move_pos(self, pos: Pos) -> Pos {
-        match self {
-            TurnDirection::Left => ((pos.0 + 3) % 4, pos.1),
-            TurnDirection::Right => ((pos.0 + 1) % 4, pos.1),
-            TurnDirection::Forward => {
-                let (x, y) = pos.1;
-
-                let xy = match pos.0 {
-                    0 => (x + 1, y),
-                    1 => (x, y + 1),
-                    2 => (x - 1, y),
-                    3 => (x, y - 1),
-                    _ => unreachable!("bad direction"),
-                };
-
-                (pos.0, xy)
-            },
-        }
-    }
+    score
 }
 
 fn main() -> ExitCode {
@@ -65,11 +55,8 @@ fn main() -> ExitCode {
         ch == b'S'
     }).map(|index| {
         (
-            0,
-            (
-                (index % grid.width) as i32,
-                (index / grid.width) as i32,
-            ),
+            (index % grid.width) as i32,
+            (index / grid.width) as i32,
         )
     })
     else {
@@ -80,8 +67,8 @@ fn main() -> ExitCode {
     let mut visited = HashMap::new();
     let mut best = None;
 
-    walker::walk::<TurnDirection, _>(start_pos, |path, pos| {
-        let Some(ch) = grid.get(pos.1)
+    walker::walk::<QuadDirection, _>(start_pos, |path, pos| {
+        let Some(ch) = grid.get(pos)
         else {
             return VisitResult::Backtrack;
         };
@@ -90,13 +77,7 @@ fn main() -> ExitCode {
             return VisitResult::Backtrack;
         }
 
-        let score = path.iter().map(|&(dir, _pos)| {
-            if dir == TurnDirection::Forward {
-                1
-            } else {
-                1000
-            }
-        }).sum::<u32>();
+        let score = score_path(path.iter().map(|&(dir, _pos)| dir));
 
         match visited.entry(pos) {
             Entry::Occupied(mut e) => {
