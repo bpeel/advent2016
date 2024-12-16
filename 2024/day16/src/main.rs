@@ -4,7 +4,7 @@ mod walker;
 use std::process::ExitCode;
 use util::Grid;
 use walker::{QuadDirection, VisitResult};
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 use std::collections::hash_map::Entry;
 
 fn dir_as_clock(dir: QuadDirection) -> u8 {
@@ -42,30 +42,14 @@ where I: IntoIterator<Item = QuadDirection>
     score
 }
 
-fn main() -> ExitCode {
-    let grid = match Grid::load(&mut std::io::stdin().lock()) {
-        Err(e) => {
-            eprintln!("{}", e);
-            return ExitCode::FAILURE;
-        },
-        Ok(grid) => grid,
-    };
-
-    let Some(start_pos) = grid.values.iter().position(|&ch| {
-        ch == b'S'
-    }).map(|index| {
-        (
-            (index % grid.width) as i32,
-            (index / grid.width) as i32,
-        )
-    })
-    else {
-        eprintln!("grid has no start");
-        return ExitCode::FAILURE;
-    };
-
+fn find_best_path(
+    start_pos: (i32, i32),
+    grid: &Grid,
+    seats_score: Option<u32>,
+) -> Option<(u32, usize)> {
     let mut visited = HashMap::new();
     let mut best = None;
+    let mut seats = HashSet::new();
 
     walker::walk::<QuadDirection, _>(start_pos, |path, pos| {
         let Some(ch) = grid.get(pos)
@@ -93,6 +77,11 @@ fn main() -> ExitCode {
         }
 
         if ch == b'E' {
+            if seats_score.map(|ss| ss == score).unwrap_or(false) {
+                seats.extend(path.iter().map(|&(_dir, pos)| pos));
+                seats.insert(pos);
+            }
+
             match best {
                 Some(old) => {
                     if old > score {
@@ -107,10 +96,41 @@ fn main() -> ExitCode {
         }
     });
 
+    best.map(|score| (score, seats.len()))
+}
+
+fn main() -> ExitCode {
+    let grid = match Grid::load(&mut std::io::stdin().lock()) {
+        Err(e) => {
+            eprintln!("{}", e);
+            return ExitCode::FAILURE;
+        },
+        Ok(grid) => grid,
+    };
+
+    let Some(start_pos) = grid.values.iter().position(|&ch| {
+        ch == b'S'
+    }).map(|index| {
+        (
+            (index % grid.width) as i32,
+            (index / grid.width) as i32,
+        )
+    })
+    else {
+        eprintln!("grid has no start");
+        return ExitCode::FAILURE;
+    };
+
     print!("Part 1: ");
 
-    match best {
-        Some(score) => println!("{}", score),
+    match find_best_path(start_pos, &grid, None) {
+        Some((best_score, _seats)) => {
+            println!("{}", best_score);
+            println!(
+                "Part 2: {}",
+                find_best_path(start_pos, &grid, Some(best_score)).unwrap().1,
+            );
+        },
         None => println!("no route"),
     }
 
