@@ -10,7 +10,7 @@ pub trait Direction: Sized + Clone + Copy {
     fn move_pos(self, pos: Self::Pos) -> Self::Pos;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum QuadDirection {
     Up,
     Down,

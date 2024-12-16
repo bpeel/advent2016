@@ -45,7 +45,6 @@ where I: IntoIterator<Item = QuadDirection>
 fn find_best_path(
     start_pos: (i32, i32),
     grid: &Grid,
-    seats_score: Option<u32>,
 ) -> Option<(u32, usize)> {
     let mut visited = HashMap::new();
     let mut best = None;
@@ -61,11 +60,21 @@ fn find_best_path(
             return VisitResult::Backtrack;
         }
 
+        if path.iter().find(|(_dir, old_pos)| {
+            pos == *old_pos
+        }).is_some()
+        {
+            return VisitResult::Backtrack;
+        }
+
         let score = score_path(path.iter().map(|&(dir, _pos)| dir));
 
-        match visited.entry(pos) {
+        let last_dir = path.last().map(|&(dir, _pos)| dir)
+            .unwrap_or(QuadDirection::Right);
+
+        match visited.entry((last_dir, pos)) {
             Entry::Occupied(mut e) => {
-                if *e.get() <= score {
+                if *e.get() < score {
                     return VisitResult::Backtrack;
                 } else {
                     *e.get_mut() = score;
@@ -77,19 +86,19 @@ fn find_best_path(
         }
 
         if ch == b'E' {
-            if seats_score.map(|ss| ss == score).unwrap_or(false) {
-                seats.extend(path.iter().map(|&(_dir, pos)| pos));
-                seats.insert(pos);
-            }
-
             match best {
                 Some(old) => {
                     if old > score {
                         best = Some(score);
+                        seats.clear();
                     }
                 },
                 None => best = Some(score),
             }
+
+            seats.extend(path.iter().map(|&(_dir, pos)| pos));
+            seats.insert(pos);
+
             VisitResult::Goal
         } else {
             VisitResult::Continue
@@ -123,12 +132,13 @@ fn main() -> ExitCode {
 
     print!("Part 1: ");
 
-    match find_best_path(start_pos, &grid, None) {
-        Some((best_score, _seats)) => {
-            println!("{}", best_score);
+    match find_best_path(start_pos, &grid) {
+        Some((best_score, seats)) => {
             println!(
-                "Part 2: {}",
-                find_best_path(start_pos, &grid, Some(best_score)).unwrap().1,
+                "{}\n\
+                 Part 2: {}",
+                best_score,
+                seats,
             );
         },
         None => println!("no route"),
