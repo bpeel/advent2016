@@ -46,41 +46,26 @@ impl FromStr for ClawMachine {
 }
 
 impl ClawMachine {
-    fn prioritise(
-        &self,
-        best: (u64, u64),
-        worst: (u64, u64)
-    ) -> Option<(u64, u64)> {
-        let max_best = (self.prize.0 / best.0)
-            .min(self.prize.1 / best.1);
-
-        for n_best in (0..=max_best).rev() {
-            let rem = (self.prize.0 - best.0 * n_best,
-                       self.prize.1 - best.1 * n_best);
-
-            if rem.0 % worst.0 != 0 {
-                continue;
-            }
-
-            let n_worst = rem.0 / worst.0;
-
-            if n_worst * worst.1 == rem.1 {
-                return Some((n_best, n_worst));
-            }
-        }
-
-        None
-    }
-
     fn best_strategy(&self) -> Option<(u64, u64)> {
-        // One of the buttons has a better cost/distance ratio, so
-        // prioritise that one
-        if self.a.0 + self.a.1 > (self.b.0 + self.b.1) * 3 {
-            self.prioritise(self.a, self.b)
-        } else {
-            self.prioritise(self.b, self.a)
-                .map(|(b, a)| (a, b))
+        let ax = self.a.0 as f64;
+        let ay = self.a.1 as f64;
+        let bx = self.b.0 as f64;
+        let by = self.b.1 as f64;
+        let gx = self.prize.0 as f64;
+        let gy = self.prize.1 as f64;
+        let pa = (gx + bx * (gy - ay * gx / ax) / (ay * bx / ax - by)) / ax;
+
+        if pa < 0.0 || (pa.round() - pa).abs() > 0.001 {
+            return None;
         }
+
+        let pb = (gy - ay * gx / ax) / (by - ay * bx / ax);
+
+        if pb < 0.0 || (pb.round() - pb).abs() > 0.001 {
+            return None;
+        }
+
+        Some((pa.round() as u64, pb.round() as u64))
     }
 }
 
