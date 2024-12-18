@@ -128,6 +128,16 @@ impl Computer {
             _ => Err(Error::UnknownOpcode(opcode)),
         }
     }
+
+    fn run(&mut self) -> Result<(), Error> {
+        loop {
+            match self.step() {
+                Ok(()) => (),
+                Err(Error::EndOfProgram) => break Ok(()),
+                Err(e) => break Err(e),
+            }
+        }
+    }
 }
 
 static INITIAL_STATE_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -213,17 +223,11 @@ fn main() -> ExitCode {
         },
     };
 
-    let mut computer = Computer::new(initial_state);
+    let mut computer = Computer::new(initial_state.clone());
 
-    loop {
-        match computer.step() {
-            Ok(()) => (),
-            Err(Error::EndOfProgram) => break,
-            Err(e) => {
-                eprintln!("{}", e);
-                return ExitCode::FAILURE;
-            },
-        }
+    if let Err(e) = computer.run() {
+        eprintln!("{}", e);
+        return ExitCode::FAILURE;
     }
 
     print!("Part 1: ");
@@ -237,6 +241,23 @@ fn main() -> ExitCode {
     }
 
     println!();
+
+    for a in 0.. {
+        computer.registers = initial_state.registers;
+        computer.registers[0] = a;
+        computer.output.clear();
+        computer.ip = 0;
+
+        if let Err(e) = computer.run() {
+            eprintln!("{}", e);
+            return ExitCode::FAILURE;
+        }
+
+        if computer.output == computer.program {
+            println!("Part 2: {}", a);
+            break;
+        }
+    }
 
     ExitCode::SUCCESS
 }
