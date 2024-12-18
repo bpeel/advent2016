@@ -242,9 +242,20 @@ fn main() -> ExitCode {
 
     println!();
 
-    for a in 0.. {
+    // Looking at the disassembly, it looks like for each part it
+    // picks the next three bits and then uses up to 10 of the
+    // following bits. We can try every combination of 3 bits until we
+    // get the next value we want and then recursively try the next
+    // values of those ones. This is done in reverse so that we’ll get
+    // the lowest number first.
+
+    let mut stack = vec![(computer.program.len() - 1, 0, 0)];
+
+    while let Some((next_part, base, value_to_try)) = stack.pop() {
+        let a_to_try = (base << 3) | value_to_try;
+
         computer.registers = initial_state.registers;
-        computer.registers[0] = a;
+        computer.registers[0] = a_to_try;
         computer.output.clear();
         computer.ip = 0;
 
@@ -253,9 +264,17 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
 
-        if computer.output == computer.program {
-            println!("Part 2: {}", a);
-            break;
+        if value_to_try + 1 < 8 {
+            stack.push((next_part, base, value_to_try + 1));
+        }
+
+        if computer.output == computer.program[next_part..] {
+            if next_part == 0 {
+                println!("Part 2: {}", a_to_try);
+                break;
+            } else {
+                stack.push((next_part - 1, a_to_try, 0));
+            }
         }
     }
 
