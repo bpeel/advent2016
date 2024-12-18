@@ -99,17 +99,24 @@ fn main() -> ExitCode {
         best.map(|l| l.to_string()).unwrap_or("no path found".to_string()),
     );
 
-    for bytes_dropped in 1..=bytes.len() {
-        if find_solution(grid_size, &bytes, bytes_dropped).is_none() {
-            let first_bad_byte = bytes.iter().find(|(_, &index)| {
-                index == bytes_dropped - 1
-            }).unwrap().0;
+    let mut min = 1;
+    let mut max = bytes.len() + 1;
 
-            println!("Part 2: {},{}", first_bad_byte.0, first_bad_byte.1);
+    while max > min {
+        let mid = (max + min) / 2;
 
-            break;
+        if find_solution(grid_size, &bytes, mid).is_some() {
+            min = mid + 1;
+        } else {
+            max = mid;
         }
     }
+
+    let first_bad_byte = bytes.iter().find(|(_, &index)| {
+        index == min - 1
+    }).unwrap().0;
+
+    println!("Part 2: {},{}", first_bad_byte.0, first_bad_byte.1);
 
     ExitCode::SUCCESS
 }
