@@ -44,8 +44,11 @@ fn read_programs() -> Result<Vec<Vec<usize>>, String> {
     Ok(programs)
 }
 
-fn group_size(programs: &[Vec<usize>], start: usize) -> usize {
-    let mut visited = HashSet::new();
+fn add_group_nodes(
+    programs: &[Vec<usize>],
+    start: usize,
+    visited: &mut HashSet<usize>,
+) {
     let mut stack = vec![start];
 
     while let Some(program_num) = stack.pop() {
@@ -59,8 +62,6 @@ fn group_size(programs: &[Vec<usize>], start: usize) -> usize {
             stack.extend_from_slice(&links);
         }
     }
-
-    visited.len()
 }
 
 fn main() -> ExitCode {
@@ -72,7 +73,24 @@ fn main() -> ExitCode {
         },
     };
 
-    println!("Part 1: {}", group_size(&programs, 0));
+    let mut visited = HashSet::new();
+    let mut n_groups = 0usize;
+
+    for program_num in 0..programs.len() {
+        if visited.contains(&program_num) {
+            continue;
+        }
+
+        add_group_nodes(&programs, program_num, &mut visited);
+
+        if program_num == 0 {
+            println!("Part 1: {}", visited.len());
+        }
+
+        n_groups += 1;
+    }
+
+    println!("Part 2: {}", n_groups);
 
     ExitCode::SUCCESS
 }
