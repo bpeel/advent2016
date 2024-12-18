@@ -64,6 +64,10 @@ fn find_solution(
             return VisitResult::Backtrack;
         }
 
+        if path.len() > best.unwrap_or(usize::MAX) {
+            return VisitResult::Backtrack;
+        }
+
         if pos == (grid_size.0 - 1, grid_size.1 - 1) {
             best = Some(path.len());
             VisitResult::Goal
