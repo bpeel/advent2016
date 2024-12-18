@@ -65,7 +65,7 @@ impl Computer {
 
     fn adv(&mut self) -> Result<(), Error> {
         let denominator = self.read_combo()?;
-        self.registers[0] /= 1 << denominator;
+        self.registers[0] >>= denominator;
         Ok(())
     }
 
@@ -103,13 +103,13 @@ impl Computer {
 
     fn bdv(&mut self) -> Result<(), Error> {
         let denominator = self.read_combo()?;
-        self.registers[1] = self.registers[0] / (1 << denominator);
+        self.registers[1] = self.registers[0] >> denominator;
         Ok(())
     }
 
     fn cdv(&mut self) -> Result<(), Error> {
         let denominator = self.read_combo()?;
-        self.registers[2] = self.registers[0] / (1 << denominator);
+        self.registers[2] = self.registers[0] >> denominator;
         Ok(())
     }
 
