@@ -4,7 +4,7 @@ use std::collections::HashMap;
 struct Counter<'s, 'p> {
     towel_set: &'s [String],
     pattern: &'p str,
-    cache: HashMap<usize, u32>,
+    cache: HashMap<usize, u64>,
 }
 
 impl<'s, 'p> Counter<'s, 'p> {
@@ -16,7 +16,7 @@ impl<'s, 'p> Counter<'s, 'p> {
         }
     }
 
-    fn count_arrangements(&mut self, start: usize) -> u32 {
+    fn count_arrangements(&mut self, start: usize) -> u64 {
         if start >= self.pattern.len() {
             1
         } else if let Some(&count) = self.cache.get(&start) {
@@ -26,7 +26,7 @@ impl<'s, 'p> Counter<'s, 'p> {
                 self.pattern[start..].starts_with(towel).then(|| {
                     self.count_arrangements(start + towel.len())
                 })
-            }).sum::<u32>();
+            }).sum::<u64>();
 
             self.cache.insert(start, count);
 
@@ -37,8 +37,8 @@ impl<'s, 'p> Counter<'s, 'p> {
 
 fn main() -> ExitCode {
     let mut towel_set: Option<Vec<String>> = None;
-    let mut part1 = 0u32;
-    let mut part2 = 0u32;
+    let mut part1 = 0u64;
+    let mut part2 = 0u64;
 
     for result in std::io::stdin().lines() {
         let line = match result {
@@ -57,7 +57,7 @@ fn main() -> ExitCode {
             let arrangements = Counter::new(towel_set, &line)
                 .count_arrangements(0);
 
-            part1 += (arrangements >= 1) as u32;
+            part1 += (arrangements >= 1) as u64;
             part2 += arrangements;
         } else {
             towel_set = Some(
