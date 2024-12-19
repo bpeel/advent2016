@@ -1,25 +1,34 @@
 use std::process::ExitCode;
-use regex::Regex;
 
-fn build_regex(towels: &str) -> Regex {
-    let mut buf = r"\A(".to_string();
+fn count_arrangements(towel_set: &[String], pattern: &str) -> u32 {
+    let mut stack = vec![(0, pattern)];
+    let mut count = 0;
 
-    for (i, towel) in towels.split(", ").enumerate() {
-        if i > 0 {
-            buf.push('|');
+    while let Some((next_towel, remaining_pattern)) = stack.pop() {
+        if next_towel + 1 < towel_set.len() {
+            stack.push((next_towel + 1, remaining_pattern));
         }
 
-        buf.push_str(&regex::escape(towel));
+        let towel = &towel_set[next_towel];
+
+        if remaining_pattern.starts_with(towel) {
+            let remaining_pattern = &remaining_pattern[towel.len()..];
+
+            if remaining_pattern.is_empty() {
+                count += 1;
+            } else {
+                stack.push((0, remaining_pattern));
+            }
+        }
     }
 
-    buf.push_str(r")+\z$");
-
-    Regex::new(&buf).unwrap()
+    count
 }
 
 fn main() -> ExitCode {
-    let mut count = 0;
-    let mut towel_regex: Option<Regex> = None;
+    let mut towel_set: Option<Vec<String>> = None;
+    let mut part1 = 0u32;
+    let mut part2 = 0u32;
 
     for result in std::io::stdin().lines() {
         let line = match result {
@@ -30,20 +39,28 @@ fn main() -> ExitCode {
             },
         };
 
-        if let Some(towel_regex) = towel_regex.as_ref() {
+        if let Some(towel_set) = towel_set.as_ref() {
             if line.is_empty() {
                 continue;
             }
 
-            if towel_regex.is_match(&line) {
-                count += 1;
-            }
+            let arrangements = count_arrangements(&towel_set, &line);
+
+            part1 += (arrangements >= 1) as u32;
+            part2 += arrangements;
         } else {
-            towel_regex = Some(build_regex(&line));
+            towel_set = Some(
+                line.split(", ").map(str::to_string).collect::<Vec<_>>()
+            );
         }
     }
 
-    println!("Part 1: {}", count);
+    println!(
+        "Part 1: {}\n\
+         Part 2: {}",
+        part1,
+        part2,
+    );
 
     ExitCode::SUCCESS
 }
