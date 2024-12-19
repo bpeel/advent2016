@@ -5,6 +5,12 @@ struct Layer {
     range: u32,
 }
 
+impl Layer {
+    fn loop_length(&self) -> u32 {
+        self.range + self.range.checked_sub(2).unwrap_or(0)
+    }
+}
+
 fn read_layers() -> Result<Vec<Layer>, String> {
     let re = regex::Regex::new(r"^(\d+): (\d+)$").unwrap();
     let mut layers = Vec::new();
@@ -48,15 +54,27 @@ fn main() -> ExitCode {
 
     let severity = layers.iter()
         .filter_map(|layer| {
-            let loop_length = layer.range +
-                layer.range.checked_sub(2).unwrap_or(0);
-            (layer.depth % loop_length == 0).then(|| {
+            (layer.depth % layer.loop_length() == 0).then(|| {
                 layer.depth * layer.range
             })
         })
         .sum::<u32>();
 
     println!("Part 1: {}", severity);
+
+    // Part 2: For each layer, the delay+depth can not be a multiple
+    // of the loop length.
+    'delay_loop: for delay in 0.. {
+        for layer in layers.iter() {
+            if (delay + layer.depth) % layer.loop_length() == 0 {
+                continue 'delay_loop;
+            }
+        }
+
+        println!("Part 2: {}", delay);
+
+        break;
+    }
 
     ExitCode::SUCCESS
 }
