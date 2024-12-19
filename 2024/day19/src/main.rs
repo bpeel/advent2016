@@ -1,38 +1,34 @@
 use std::process::ExitCode;
-use std::collections::HashMap;
 
-struct Counter<'s, 'p> {
-    towel_set: &'s [String],
-    pattern: &'p str,
-    cache: HashMap<usize, u64>,
-}
+fn count_arrangements(towel_set: &[String], pattern: &str) -> u64 {
+    // Counts for the number of combinations of towels that can be
+    // used to build the pattern starting from each point in the
+    // string. We will fill this in in reverse.
+    let mut position_counts = vec![0; pattern.len()];
+    // The entry represents starting after the end of the pattern.
+    // That gives the empty string and we can generate that in exactly
+    // one way, ie, by using none of the towels.
+    position_counts.push(1);
 
-impl<'s, 'p> Counter<'s, 'p> {
-    fn new(towel_set: &'s [String], pattern: &'p str) -> Counter<'s, 'p> {
-        Counter {
-            towel_set,
-            pattern,
-            cache: HashMap::new(),
-        }
-    }
-
-    fn count_arrangements(&mut self, start: usize) -> u64 {
-        if start >= self.pattern.len() {
-            1
-        } else if let Some(&count) = self.cache.get(&start) {
-            count
-        } else {
-            let count = self.towel_set.iter().filter_map(|towel| {
-                self.pattern[start..].starts_with(towel).then(|| {
-                    self.count_arrangements(start + towel.len())
+    for pos in (0..pattern.len()).rev() {
+        let count = if let Some((_, tail)) = pattern.split_at_checked(pos) {
+            towel_set.iter().filter_map(|towel| {
+                // If this position starts with this towel then by
+                // using this towel we can reach all of the
+                // combinations at the position of the end of the
+                // towel again
+                tail.starts_with(towel).then(|| {
+                    position_counts[pos + towel.len()]
                 })
-            }).sum::<u64>();
+            }).sum::<u64>()
+        } else {
+            0
+        };
 
-            self.cache.insert(start, count);
-
-            count
-        }
+        position_counts[pos] = count;
     }
+
+    position_counts[0]
 }
 
 fn main() -> ExitCode {
@@ -54,8 +50,7 @@ fn main() -> ExitCode {
                 continue;
             }
 
-            let arrangements = Counter::new(towel_set, &line)
-                .count_arrangements(0);
+            let arrangements = count_arrangements(towel_set, &line);
 
             part1 += (arrangements >= 1) as u64;
             part2 += arrangements;
