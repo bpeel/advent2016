@@ -15,22 +15,19 @@ fn read_items<I>(lines: &mut I) -> Result<Vec<Item>, String>
     where I: Iterator<Item = Result<String, std::io::Error>>
 {
     let re = regex::Regex::new(r"^(\d+),(\d+)$").unwrap();
-    let mut items = Vec::<Item>::new();
 
-    for (line_num, result) in lines.enumerate() {
+    lines.enumerate().map(|(line_num, result)| {
         let line = result.map_err(|e| e.to_string())?;
 
         let captures = re.captures(&line).ok_or_else(|| {
             format!("line: {}: invalid syntax", line_num + 1)
         })?;
 
-        items.push(Item {
+        Ok(Item {
             start: captures[1].parse::<u32>().unwrap(),
             end: captures[2].parse::<u32>().unwrap(),
-        });
-    }
-
-    Ok(items)
+        })
+    }).collect()
 }
 
 fn main() -> ExitCode {
