@@ -68,17 +68,76 @@ fn hash<I>(
     hasher.hash()
 }
 
-fn main() -> ExitCode {
-    for arg in std::env::args_os().skip(1) {
-        let count = (0..128).map(|row| {
-            let suffix = format!("-{}", row);
-            let data = arg.as_encoded_bytes().into_iter().cloned()
-                .chain(suffix.as_bytes().into_iter().cloned());
-            hash(data).count_ones()
-        }).sum::<u32>();
+fn visit_region(disk: &[u128], visited: &mut [u128], start_pos: usize) {
+    let mut stack = vec![start_pos];
 
-        println!("Part 1: {}", count);
+    while let Some(pos) = stack.pop() {
+        let row = pos / 128;
+        let col = pos % 128;
+        let bit = 1u128 << col;
+
+        if disk[row] & bit != 0 && visited[row] & bit == 0 {
+            visited[row] |= bit;
+
+            if row >= 1 {
+                stack.push(pos - 128);
+            }
+            if row + 1 < 128 {
+                stack.push(pos + 128);
+            }
+            if col >= 1 {
+                stack.push(pos - 1);
+            }
+            if col + 1 < 128 {
+                stack.push(pos + 1);
+            }
+        }
     }
+}
+
+fn count_regions(disk: &[u128]) -> u32 {
+    let mut visited = [0u128; 128];
+    let mut count = 0;
+
+    for (row, &(mut bits)) in disk.iter().enumerate() {
+        while bits != 0 {
+            let col = bits.trailing_zeros();
+            let bit = 1u128 << col;
+
+            if visited[row] & bit == 0 {
+                visit_region(disk, &mut visited, row * 128 + col as usize);
+                count += 1;
+            }
+
+            assert!(visited[row] & bit != 0);
+
+            bits &= !bit;
+        }
+    }
+
+    count
+}
+
+fn main() -> ExitCode {
+    let Some(key) = std::env::args_os().nth(1)
+    else {
+        eprintln!("Usage: day14 <input>");
+        return ExitCode::FAILURE;
+    };
+
+    let disk = (0..128).map(|row| {
+        let suffix = format!("-{}", row);
+        let data = key.as_encoded_bytes().into_iter().cloned()
+            .chain(suffix.as_bytes().into_iter().cloned());
+        hash(data)
+    }).collect::<Vec<_>>();
+
+    println!(
+        "Part 1: {}",
+        disk.iter().map(|row| row.count_ones()).sum::<u32>(),
+    );
+
+    println!("Part 2: {}", count_regions(&disk));
 
     ExitCode::SUCCESS
 }
