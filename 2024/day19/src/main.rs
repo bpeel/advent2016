@@ -1,28 +1,38 @@
 use std::process::ExitCode;
+use std::collections::HashMap;
 
-fn count_arrangements(towel_set: &[String], pattern: &str) -> u32 {
-    let mut stack = vec![(0, pattern)];
-    let mut count = 0;
+struct Counter<'s, 'p> {
+    towel_set: &'s [String],
+    pattern: &'p str,
+    cache: HashMap<usize, u32>,
+}
 
-    while let Some((next_towel, remaining_pattern)) = stack.pop() {
-        if next_towel + 1 < towel_set.len() {
-            stack.push((next_towel + 1, remaining_pattern));
-        }
-
-        let towel = &towel_set[next_towel];
-
-        if remaining_pattern.starts_with(towel) {
-            let remaining_pattern = &remaining_pattern[towel.len()..];
-
-            if remaining_pattern.is_empty() {
-                count += 1;
-            } else {
-                stack.push((0, remaining_pattern));
-            }
+impl<'s, 'p> Counter<'s, 'p> {
+    fn new(towel_set: &'s [String], pattern: &'p str) -> Counter<'s, 'p> {
+        Counter {
+            towel_set,
+            pattern,
+            cache: HashMap::new(),
         }
     }
 
-    count
+    fn count_arrangements(&mut self, start: usize) -> u32 {
+        if start >= self.pattern.len() {
+            1
+        } else if let Some(&count) = self.cache.get(&start) {
+            count
+        } else {
+            let count = self.towel_set.iter().filter_map(|towel| {
+                self.pattern[start..].starts_with(towel).then(|| {
+                    self.count_arrangements(start + towel.len())
+                })
+            }).sum::<u32>();
+
+            self.cache.insert(start, count);
+
+            count
+        }
+    }
 }
 
 fn main() -> ExitCode {
@@ -44,7 +54,8 @@ fn main() -> ExitCode {
                 continue;
             }
 
-            let arrangements = count_arrangements(&towel_set, &line);
+            let arrangements = Counter::new(towel_set, &line)
+                .count_arrangements(0);
 
             part1 += (arrangements >= 1) as u32;
             part2 += arrangements;
