@@ -2,124 +2,104 @@ mod util;
 
 use std::process::ExitCode;
 use util::Grid;
+use std::collections::VecDeque;
 
 struct Cheat {
-    _pos: usize,
+    _start: (u16, u16),
+    _end: (u16, u16),
     saving: u32,
 }
 
-struct Cheats<'a, 'b> {
-    grid: &'a Grid,
-    route: &'b [Option<u32>],
-    next_pos: usize,
+struct Cheats<'a> {
+    route: &'a [(u16, u16)],
+    next_start: usize,
+    next_end: usize,
+    max_distance: u32,
 }
 
-impl<'a, 'b> Cheats<'a, 'b> {
-    fn new(grid: &'a Grid, route: &'b [Option<u32>]) -> Cheats<'a, 'b> {
+impl<'a> Cheats<'a> {
+    fn new(route: &'a [(u16, u16)], max_distance: u32) -> Cheats<'a> {
         Cheats {
-            grid,
             route,
-            next_pos: 0,
+            next_start: 0,
+            next_end: 1,
+            max_distance,
         }
-    }
-
-    fn score_pos(&self, pos: usize) -> Option<u32> {
-        let mut min = u32::MAX;
-        let mut max = 0;
-
-        let mut add_value = |value: u32| {
-            min = value.min(min);
-            max = value.max(max);
-        };
-
-        let x = pos % self.grid.width;
-
-        // Check each vertical and horizontal neighbour to find the
-        // minimum and maximum lengths on the route that this position
-        // touches
-
-        if pos >= self.grid.width {
-            if let Some(len) = self.route[pos - self.grid.width] {
-                add_value(len);
-            }
-        }
-        if pos + self.grid.width < self.grid.values.len() {
-            if let Some(len) = self.route[pos + self.grid.width] {
-                add_value(len);
-            }
-        }
-        if x >= 1 {
-            if let Some(len) = self.route[pos - 1] {
-                add_value(len);
-            }
-        }
-        if x + 1 < self.grid.width {
-            if let Some(len) = self.route[pos + 1] {
-                add_value(len);
-            }
-        }
-
-        (min != u32::MAX && max - min > 2).then(|| max - min - 2)
     }
 }
 
-impl<'a, 'b> Iterator for Cheats<'a, 'b> {
+impl<'a> Iterator for Cheats<'a> {
     type Item = Cheat;
 
     fn next(&mut self) -> Option<Cheat> {
-        while self.next_pos < self.grid.values.len() {
-            let pos = self.next_pos;
-            self.next_pos += 1;
+        while self.next_start < self.route.len() {
+            let start = self.next_start;
 
-            if self.grid.values[pos] != b'#' {
-                continue;
+            while self.next_end < self.route.len() {
+                let end = self.next_end;
+                self.next_end += 1;
+
+                let distance =
+                    self.route[start].0.abs_diff(self.route[end].0) +
+                    self.route[start].1.abs_diff(self.route[end].1);
+
+                if (distance as u32) <= self.max_distance &&
+                    (distance as usize) < end - start
+                {
+                    return Some(Cheat {
+                        _start: self.route[start],
+                        _end: self.route[end],
+                        saving: end as u32 - start as u32 - distance as u32,
+                    });
+                }
             }
 
-            if let Some(saving) = self.score_pos(pos) {
-                return Some(Cheat {
-                    _pos: pos,
-                    saving,
-                });
-            }
+            self.next_start += 1;
+            self.next_end = self.next_start + 1;
         }
 
         None
     }
 }
 
-fn build_route(grid: &Grid) -> Result<Vec<Option<u32>>, String> {
+fn build_route(grid: &Grid) -> Result<Vec<(u16, u16)>, String> {
     let start = grid.values.iter().position(|&b| b == b'S')
         .ok_or_else(|| "grid has no start".to_string())?;
-    let end = grid.values.iter().position(|&b| b == b'E')
-        .ok_or_else(|| "grid has no end".to_string())?;
 
-    let mut route = vec![None; grid.values.len()];
-    let mut stack = vec![(start, 0)];
+    let mut route = Vec::new();
+    let mut queue = VecDeque::from([(start, 0)]);
+    let mut visited = vec![false; grid.values.len()];
 
-    while let Some((pos, len)) = stack.pop() {
-        if grid.values[pos] == b'#' || route[pos].is_some() {
+    // Breadth-first search the route so we can build it up in order
+    while let Some((pos, len)) = queue.pop_front() {
+        if grid.values[pos] == b'#' || visited[pos] {
             continue;
         }
 
-        route[pos] = Some(len);
+        visited[pos] = true;
 
         let x = pos % grid.width;
 
+        route.push((x as u16, (pos / grid.width) as u16));
+
         if pos >= grid.width {
-            stack.push((pos - grid.width, len + 1));
+            queue.push_back((pos - grid.width, len + 1));
         }
         if pos + grid.width < grid.values.len() {
-            stack.push((pos + grid.width, len + 1));
+            queue.push_back((pos + grid.width, len + 1));
         }
         if x >= 1 {
-            stack.push((pos - 1, len + 1));
+            queue.push_back((pos - 1, len + 1));
         }
         if x + 1 < grid.width {
-            stack.push((pos + 1, len + 1));
+            queue.push_back((pos + 1, len + 1));
         }
     }
 
-    if route[end].is_none() {
+    if !route.last().map(|&(x, y)| {
+        grid.values[y as usize * grid.width + x as usize] == b'E'
+    }).unwrap_or(false)
+    {
         return Err("couldn’t find a path to the end".to_string());
     }
 
@@ -143,12 +123,15 @@ fn main() -> ExitCode {
         Ok(route) => route,
     };
 
-    println!(
-        "Part 1: {}",
-        Cheats::new(&grid, &route)
-            .filter(|cheat| cheat.saving >= 100)
-            .count(),
-    );
+    for (i, max_distance) in [2, 20].into_iter().enumerate() {
+        println!(
+            "Part {}: {}",
+            i + 1,
+            Cheats::new(&route, max_distance)
+                .filter(|cheat| cheat.saving >= 100)
+                .count(),
+        );
+    }
 
     ExitCode::SUCCESS
 }
