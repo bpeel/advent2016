@@ -1,6 +1,7 @@
 use std::process::ExitCode;
 use std::str::FromStr;
 use std::fmt;
+use std::collections::HashMap;
 
 #[derive(Copy, Clone)]
 enum DanceMove {
@@ -116,6 +117,35 @@ fn read_dance_moves() -> Result<Vec<DanceMove>, String> {
         }).collect()
 }
 
+fn make_loop(
+    dance_moves: &[DanceMove],
+) -> Result<(Vec<String>, usize), DanceError> {
+    let mut dance_hall = (0..16).map(|pos| {
+        char::from_u32(pos + 'a' as u32).unwrap()
+    }).collect::<Vec<_>>();
+
+    let mut loop_list = vec![dance_hall.iter().cloned().collect::<String>()];
+
+    let mut seen = HashMap::from([(loop_list[0].clone(), 0)]);
+
+    loop {
+        for dance_move in dance_moves.iter() {
+            dance_move.apply(&mut dance_hall)?;
+        }
+
+        let order = dance_hall.iter().cloned().collect::<String>();
+
+        if let Some(loop_start) = seen.insert(
+            order.clone(),
+            loop_list.len()
+        ) {
+            return Ok((loop_list, loop_start));
+        }
+
+        loop_list.push(order);
+    }
+}
+
 fn main() -> ExitCode {
     let dance_moves = match read_dance_moves() {
         Ok(dm) => dm,
@@ -125,18 +155,27 @@ fn main() -> ExitCode {
         },
     };
 
-    let mut dance_hall = (0..16).map(|pos| {
-        char::from_u32(pos + 'a' as u32).unwrap()
-    }).collect::<Vec<_>>();
-
-    for dance_move in dance_moves.iter() {
-        if let Err(e) = dance_move.apply(&mut dance_hall) {
+    let (dance_loop, loop_start) = match make_loop(&dance_moves) {
+        Ok(dl) => dl,
+        Err(e) => {
             eprintln!("{}", e);
             return ExitCode::FAILURE;
-        };
-    }
+        },
+    };
 
-    println!("Part 1: {}", dance_hall.into_iter().collect::<String>());
+    for (part, iterations) in [1, 1_000_000_000].into_iter().enumerate() {
+        let index = if iterations < loop_start {
+            iterations
+        } else {
+            (iterations - loop_start) % dance_loop.len() + loop_start
+        };
+
+        println!(
+            "Part {}: {}",
+            part + 1,
+            dance_loop[index],
+        );
+    }
 
     ExitCode::SUCCESS
 }
