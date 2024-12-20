@@ -129,24 +129,18 @@ impl std::fmt::Display for Grid {
 pub fn read_list<T>() -> Result<Vec<T>, Error>
     where T: std::str::FromStr
 {
-    let mut result = Vec::new();
-
     let mut contents = String::new();
 
     std::io::stdin().read_line(&mut contents)?;
 
-    for part in contents.trim_end().split(",") {
-        let part = part.parse::<T>().map_err(|_| {
+    contents.trim_end().split(",").map(|part| {
+        part.parse::<T>().map_err(|_| {
             Error::new(
                 std::io::ErrorKind::Other,
                 format!("invalid value: {}", part),
             )
-        })?;
-
-        result.push(part);
-    }
-
-    Ok(result)
+        })
+    }).collect()
 }
 
 #[cfg(test)]
