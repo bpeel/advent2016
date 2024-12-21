@@ -91,7 +91,11 @@ impl Game {
         if let Some(ch) = char::from_u32(ch as u32) {
             match ch {
                 '\u{0003}' => self.should_quit = true, // Ctrl+C
-                '\n' => self.activate(),
+                '\n' | 'A' => self.activate(),
+                '^' => self.move_cursor(Button::Up),
+                'v' => self.move_cursor(Button::Down),
+                '<' => self.move_cursor(Button::Left),
+                '>' => self.move_cursor(Button::Right),
                 _ => (),
             }
         }
