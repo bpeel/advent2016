@@ -2,3 +2,19 @@
 name = "day21"
 version = "0.1.0"
 edition = "2021"
+default-run = "day21"
+
+[[bin]]
+name = "day21"
+path = "src/main.rs"
+
+[[bin]]
+name = "game"
+path = "src/game.rs"
+
+[dependencies]
+gettext-rs = "0.7.2"
+
+[dependencies.ncurses]
+version = "6.0.1"
+features = ["wide"]
