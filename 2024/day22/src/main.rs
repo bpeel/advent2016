@@ -51,6 +51,18 @@ fn find_pattern(mut number: u64, pattern: [i8; 4]) -> Option<u8> {
     None
 }
 
+fn pattern_is_possible(pattern: [i8; 4]) -> bool {
+    for i in 0..3 {
+        for j in i + 1..4 {
+            if pattern[i..j].iter().sum::<i8>().abs() > 18 {
+                return false;
+            }
+        }
+    }
+
+    true
+}
+
 fn read_numbers() -> Result<Vec<u64>, String> {
     std::io::stdin().lines().map(|result| {
         let line = result.map_err(|e| e.to_string())?;
@@ -107,6 +119,7 @@ fn main() -> ExitCode {
     part1(&numbers);
 
     let part2 = Patterns::new()
+        .filter(|&pattern| pattern_is_possible(pattern))
         .map(|pattern| score_pattern(&numbers, pattern))
         .max()
         .unwrap();
