@@ -2,11 +2,11 @@ use std::process::ExitCode;
 
 fn step(number: u64) -> u64 {
     // Step 1
-    let number = ((number << 6) ^ number) % 16777216;
+    let number = ((number << 6) ^ number) & 0xffffff;
     // Step 2
-    let number = ((number >> 5) ^ number) % 16777216;
+    let number = ((number >> 5) ^ number) & 0xffffff;
     // Step 3
-    ((number << 11) ^ number) % 16777216
+    ((number << 11) ^ number) & 0xffffff
 }
 
 fn part1(numbers: &[u64]) {
