@@ -1,4 +1,5 @@
 use std::process::ExitCode;
+use std::collections::HashMap;
 
 fn step(number: u64) -> u64 {
     // Step 1
@@ -24,14 +25,7 @@ fn add_to_history(number: u64, history: &mut [u8; 5]) {
     history[4] = (number % 10) as u8;
 }
 
-fn history_matches_pattern(history: [u8; 5], pattern: [i8; 4]) -> bool {
-    (1..=4).all(|pos| {
-        history[pos] as i8 - history[pos - 1] as i8 ==
-            pattern[pos - 1]
-    })
-}
-
-fn find_pattern(mut number: u64, pattern: [i8; 4]) -> Option<u8> {
+fn patterns_for_number(mut number: u64) -> HashMap<[i8; 4], u8> {
     let mut history = [0u8; 5];
 
     for _ in 0..4 {
@@ -39,28 +33,34 @@ fn find_pattern(mut number: u64, pattern: [i8; 4]) -> Option<u8> {
         number = step(number);
     }
 
+    let mut patterns = HashMap::new();
+
     for _ in 0..2000 - 4 {
         add_to_history(number, &mut history);
         number = step(number);
 
-        if history_matches_pattern(history, pattern) {
-            return Some(*history.last().unwrap());
+        let mut pattern = [0i8; 4];
+
+        for (i, diff) in pattern.iter_mut().enumerate() {
+            *diff = history[i + 1] as i8 - history[i] as i8;
         }
+
+        patterns.entry(pattern).or_insert(*history.last().unwrap());
     }
 
-    None
+    patterns
 }
 
-fn pattern_is_possible(pattern: [i8; 4]) -> bool {
-    for i in 0..3 {
-        for j in i + 1..4 {
-            if pattern[i..j].iter().sum::<i8>().abs() > 18 {
-                return false;
-            }
+fn part2(numbers: &[u64]) {
+    let mut pattern_sales = HashMap::new();
+
+    for &number in numbers.iter() {
+        for (pattern, sales) in patterns_for_number(number) {
+            *pattern_sales.entry(pattern).or_insert(0u32) += sales as u32;
         }
     }
 
-    true
+    println!("Part 2: {}", pattern_sales.values().cloned().max().unwrap_or(0));
 }
 
 fn read_numbers() -> Result<Vec<u64>, String> {
@@ -69,42 +69,6 @@ fn read_numbers() -> Result<Vec<u64>, String> {
 
         line.parse::<u64>().map_err(|_| format!("invalid number: {}", line))
     }).collect()
-}
-
-struct Patterns {
-    pattern: [i8; 4],
-}
-
-impl Patterns {
-    fn new() -> Patterns {
-        Patterns {
-            pattern: [-10, -9, -9, -9],
-        }
-    }
-}
-
-impl Iterator for Patterns {
-    type Item = [i8; 4];
-
-    fn next(&mut self) -> Option<[i8; 4]> {
-        for pos in self.pattern.iter_mut() {
-            *pos += 1;
-
-            if *pos <= 9 {
-                return Some(self.pattern);
-            } else {
-                *pos = -9;
-            }
-        }
-
-        None
-    }
-}
-
-fn score_pattern(numbers: &[u64], pattern: [i8; 4]) -> u64 {
-    numbers.iter().map(|&number| {
-        find_pattern(number, pattern).unwrap_or(0) as u64
-    }).sum::<u64>()
 }
 
 fn main() -> ExitCode {
@@ -117,14 +81,7 @@ fn main() -> ExitCode {
     };
 
     part1(&numbers);
-
-    let part2 = Patterns::new()
-        .filter(|&pattern| pattern_is_possible(pattern))
-        .map(|pattern| score_pattern(&numbers, pattern))
-        .max()
-        .unwrap();
-
-    println!("Part 2: {:?}", part2);
+    part2(&numbers);
 
     ExitCode::SUCCESS
 }
